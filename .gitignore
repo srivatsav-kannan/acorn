@@ -9,4 +9,7 @@ coverage/
 .next/
 .vercel/
 artifacts/
+playwright-report/
+test-results/
+*.tsbuildinfo
 *.log
