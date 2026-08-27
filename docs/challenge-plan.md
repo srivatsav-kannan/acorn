@@ -26,44 +26,45 @@ Present CourseContext as a context-building decision workspace rather than a cha
 
 ## Seven-day schedule
 
-### Day 1 — Product and contracts
+### Day 1: Product and contracts
 
 - Lock the demo persona and exact user story.
 - Choose the stack and hosting target.
 - Specify the domain model and WebMCP tool schemas.
 - Identify source data and create a small attributable fixture.
 
-### Day 2 — Domain vertical slice
+### Day 2: Domain vertical slice
 
 - Implement student context, courses, evidence, and plan scenarios.
 - Implement deterministic unit, duplicate, schedule, and prerequisite checks.
 - Add unit tests for domain operations.
 
-### Day 3 — Human workspace
+### Day 3: Human workspace
 
 - Build the weekly schedule and course discovery interface.
-- Build context, evidence, uncertainty, and decision views.
+- Build Library, quick capture, context, evidence, uncertainty, and decision views.
 - Support direct human plan edits.
 
-### Day 4 — WebMCP
+### Day 4: WebMCP
 
 - Register the final read and mutation tools.
 - Route tools through the same domain operations as the UI.
 - Add receipts, validation, annotations, and structured diagnostics.
 
-### Day 5 — Agent loop and evaluation
+### Day 5: Agent loop and evaluation
 
 - Run the complete task in ChatGPT's in-app browser.
+- Verify workspace-first search, visible research capture, and bounded saved-view configuration.
 - Repair tool descriptions and result shapes.
 - Record WebMCP versus UI-only interactions, latency, and failures.
 
-### Day 6 — Deployment and polish
+### Day 6: Deployment and polish
 
 - Deploy the public app.
 - Test a clean-session judge path.
 - Finish repository instructions, license visibility, and submission copy.
 
-### Day 7 — Finalization
+### Day 7: Finalization
 
 - Freeze features.
 - Run the complete test and browser verification suite.
