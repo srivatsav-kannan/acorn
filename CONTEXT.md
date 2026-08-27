@@ -123,6 +123,11 @@ Stanford students who currently move among class search, degree progress, advisi
 - Priority: hard
 - Requirement: Mutations expose saving, saved, failure, conflict, and recovery states. Motion reinforces navigation, hierarchy, and state changes, respects reduced-motion preferences, and never delays core actions.
 
+### REQ-022: Research is visibly durable
+
+- Priority: hard
+- Requirement: Saving research must atomically store its provenance and create or update a normal, searchable Library source item in the Research collection. A successful tool response must return the visible item ID and must not claim a visible change unless the student can find that item through the UI and workspace search.
+
 ## Non-goals for the challenge build
 
 - Replacing Stanford Academic Advising.

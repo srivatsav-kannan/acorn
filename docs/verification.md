@@ -16,13 +16,13 @@ Full green.
 
 - ESLint passed.
 - Strict TypeScript passed.
-- 202 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
-- Statement coverage: 94.94%.
-- Branch coverage: 86.22%.
-- Function coverage: 96.06%.
-- Line coverage: 99.36%.
+- 207 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
+- Statement coverage: 95.03%.
+- Branch coverage: 86.59%.
+- Function coverage: 96.42%.
+- Line coverage: 99.42%.
 - The optimized Next.js build passed for 16 public, authentication, API, and workspace routes plus the not-found route.
-- 24 browser journeys passed across desktop and mobile Chromium profiles.
+- 26 browser journeys passed across desktop and mobile Chromium profiles.
 - Two profile-specific assertions were skipped by design.
 - Serious and critical accessibility violations: zero in both browser profiles.
 - The in-app browser discovered all 11 WebMCP tools from the rendered Plan route.
@@ -51,6 +51,8 @@ Full green.
 20. Edit course role and units, rename a scenario, and recover both after reload.
 21. Verify the WebMCP abort-signal lifecycle without duplicate tools during React remounts.
 22. Verify that unconfigured account entry fails clearly instead of simulating success.
+23. Save health-AI research through the actual WebMCP tool and require its exact returned ID to appear in workspace search and the Research Library collection.
+24. Add a healthcare planning priority through WebMCP and verify that the student can see it in Settings on desktop and mobile.
 
 ## Honest boundaries
 

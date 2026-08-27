@@ -41,6 +41,7 @@ export type Catalog = { courses: Course[], sections: Section[] }
 
 export type Evidence = {
   id: string
+  title?: string
   classification: "official" | "experiential" | "student" | "derived"
   claim: string
   sourceUrl: string
@@ -193,6 +194,7 @@ export type ActionReceipt = {
   code?: string
   message?: string
   visibleChange?: boolean
+  primaryVisibleId?: string
 }
 
 export type ActivityEntry = {

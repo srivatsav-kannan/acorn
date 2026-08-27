@@ -244,6 +244,8 @@ h1, h2, h3, b, strong { letter-spacing: -.02em; }
 .context-card-top .more-button { margin-left: auto; }
 .context-card h3 { margin: 17px 0 7px; font-size: 13px; }
 .context-card > p { flex: 1; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.source-card-link { align-self: flex-start; margin-top: 10px; color: var(--red); font-size: 9px; font-weight: 800; }
+.source-card-link:hover { text-decoration: underline; }
 .context-meta { display: flex; justify-content: space-between; margin-top: 15px; color: #879092; font-size: 8px; }
 .context-meta b { color: var(--navy); }
 .modal-backdrop, .drawer-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(20, 28, 34, .38); }
@@ -561,6 +563,15 @@ h1, h2, h3, b, strong { letter-spacing: -.02em; }
 .account-card small { margin-top: 2px; color: var(--muted); font-size: 8px; }
 .agent-settings h2 { margin: 0 0 4px; font-family: Georgia, serif; font-size: 20px; font-weight: 500; }
 .agent-settings p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 9px; }
+.priority-settings > p { color: var(--muted); font-size: 10px; }
+.priority-form { display: grid; grid-template-columns: minmax(0, 1fr) 180px auto; align-items: end; gap: 10px; margin: 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: #fafaf8; }
+.priority-form label { display: flex; flex-direction: column; gap: 5px; font-size: 9px; font-weight: 800; }
+.priority-form input, .priority-form select { min-height: 40px; border: 1px solid var(--line-strong); border-radius: 5px; padding: 8px 10px; background: white; }
+.priority-list { display: grid; gap: 7px; }
+.priority-list article { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.priority-list article > span { width: fit-content; padding: 3px 6px; border-radius: 9px; background: var(--navy-soft); color: var(--navy); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.priority-list article > span.hard { background: var(--red-soft); color: var(--red-dark); }
+.priority-list strong { font-size: 10px; }
 .saved-view-list article > div > .text-button { margin-left: auto; }
 .course-edit-trigger { border: 0; padding: 0; background: transparent; text-align: left; }
 .course-editor { width: min(500px, 100%); padding: 24px; border-radius: 9px; background: white; box-shadow: var(--shadow-md); }
@@ -677,7 +688,7 @@ h1, h2, h3, b, strong { letter-spacing: -.02em; }
   .onboarding-step { min-height: 435px; padding: 30px 22px 15px; }
   .onboarding-card > footer { padding: 14px 22px; }
   .form-error { margin-left: 22px; margin-right: 22px; }
-  .onboarding-inline, .settings-inline, .tool-groups { grid-template-columns: 1fr; }
+  .onboarding-inline, .settings-inline, .tool-groups, .priority-form { grid-template-columns: 1fr; }
   .onboarding-options button { grid-template-columns: 27px 62px 1fr; }
   .account-card, .agent-settings { align-items: flex-start; flex-direction: column; }
   .workspace-toast { left: 14px; right: 14px; bottom: 78px; }

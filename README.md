@@ -144,9 +144,9 @@ npm run test:all
 
 The current finalization run passes:
 
-- 202 unit, property, integration, contract, security, infrastructure, and agent-sequence tests.
+- 207 unit, property, integration, contract, security, infrastructure, and agent-sequence tests.
 - coverage above the enforced 90% statement, 85% branch, 90% function, and 90% line gates.
-- 24 executed browser journeys across desktop and mobile, with two intentional profile-specific skips.
+- 26 executed browser journeys across desktop and mobile, with two intentional profile-specific skips.
 - serious and critical accessibility checks on both browser profiles.
 - the production Next.js build for every public and workspace route.
 

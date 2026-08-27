@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { validateContextItem } from "@/domain/context"
-import { validateEvidence } from "@/domain/evidence"
+import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository, RepositoryError } from "@/store/memory-repository"
@@ -140,6 +140,20 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (index >= 0) workspace.profile.preferences[index] = structuredClone(preference)
       else workspace.profile.preferences.push(structuredClone(preference))
       changed.push({ type: "preference", id: preference.id })
+    } else if (command.type === "set_student_preferences") {
+      const preferences = command.preferences as Preference[]
+      if (!Array.isArray(preferences) || preferences.length === 0 || preferences.some((preference) => !preference?.id || !preference.label)) throw commandError("At least one complete preference is required")
+      for (const preference of preferences) {
+        const index = workspace.profile.preferences.findIndex((item) => item.id === preference.id)
+        if (index >= 0) workspace.profile.preferences[index] = structuredClone(preference)
+        else workspace.profile.preferences.push(structuredClone(preference))
+        changed.push({ type: "preference", id: preference.id })
+      }
+    } else if (command.type === "delete_student_preference") {
+      const index = workspace.profile.preferences.findIndex((item) => item.id === command.preferenceId)
+      if (index < 0) throw commandError("Preference not found")
+      const [removed] = workspace.profile.preferences.splice(index, 1)
+      changed.push({ type: "preference", id: removed.id })
     } else if (command.type === "update_profile") {
       if (envelope.actor.type !== "human") throw commandError("Profile identity changes require the student")
       const patch = command.patch as Record<string, unknown>
@@ -161,6 +175,8 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (evidenceIndex >= 0) workspace.evidence[evidenceIndex] = evidence
       else workspace.evidence.push(evidence)
       changed.push({ type: "evidence", id: evidence.id })
+      const libraryItem = upsertResearchLibraryItem(workspace, evidence, envelope.actor)
+      changed.push({ type: "context_item", id: libraryItem.id })
     } else if (command.type === "configure_view") {
       let view
       try { view = validateSavedView(command.view, workspace.id) }
@@ -195,7 +211,8 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       changed,
       undoAvailable,
       actor: envelope.actor,
-      visibleChange: true
+      visibleChange: true,
+      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : undefined
     }
     workspace.receipts.push(receipt)
     workspace.activity.push({

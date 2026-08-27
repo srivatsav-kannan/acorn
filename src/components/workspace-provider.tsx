@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useRouter } from "next/navigation"
 import { buildFixture } from "@/data/fixture"
 import { executeCommand } from "@/domain/commands"
+import { materializeLegacyResearch } from "@/domain/evidence"
 import type { Catalog, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 import { registerWebMcpTools } from "@/webmcp/register"
@@ -29,7 +30,7 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   const router = useRouter()
   const [initial] = useState(() => {
     const fixture = buildFixture()
-    if (initialWorkspace) return { workspace: initialWorkspace, catalog: catalog ?? fixture.catalog }
+    if (initialWorkspace) return { workspace: materializeLegacyResearch(initialWorkspace), catalog: catalog ?? fixture.catalog }
     return fixture
   })
   const [workspace, setWorkspace] = useState(initial.workspace)
@@ -53,7 +54,8 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
     if (!stored) return
 
     try {
-      const next = { workspace: JSON.parse(stored) as WorkspaceState, catalog: initial.catalog }
+      const next = { workspace: materializeLegacyResearch(JSON.parse(stored) as WorkspaceState), catalog: initial.catalog }
+      localStorage.setItem(storageKey, JSON.stringify(next.workspace))
       const timeout = window.setTimeout(() => {
         setRepository(new MemoryWorkspaceRepository(next))
         setWorkspace(next.workspace)

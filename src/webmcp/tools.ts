@@ -26,6 +26,25 @@ type Setup = {
 const schema = (properties: JsonSchema["properties"] = {}, required: string[] = []): JsonSchema => ({ type: "object", additionalProperties: false, properties, required })
 const field = (type: string, description: string) => ({ type, description })
 const annotations = (readOnlyHint: boolean, untrustedContentHint = false) => ({ readOnlyHint, untrustedContentHint })
+const evidenceField = {
+  type: "object",
+  additionalProperties: false,
+  description: "A source-backed research record. A successful save creates or updates a visible Library source card.",
+  properties: {
+    id: field("string", "Stable evidence ID, for example EVIDENCE-CS522-AUT26"),
+    title: field("string", "Short student-facing title for the Library card"),
+    claim: field("string", "Concise normalized finding supported by the source"),
+    sourceUrl: field("string", "Direct HTTPS source URL"),
+    sourceTitle: field("string", "Human-readable source title"),
+    retrievedAt: field("string", "ISO 8601 retrieval timestamp"),
+    classification: { type: "string", enum: ["official", "experiential", "student", "derived"], description: "Evidence classification" },
+    confidence: { type: "number", minimum: 0, maximum: 1, description: "Confidence from zero to one" },
+    status: { type: "string", enum: ["current", "stale", "superseded"], description: "Current evidence status" },
+    expiresAt: field("string", "Optional ISO 8601 expiry timestamp"),
+    authority: { type: "string", enum: ["catalog", "term_schedule", "program_requirements", "experiential"], description: "Question-specific source authority" }
+  },
+  required: ["id", "title", "claim", "sourceUrl", "sourceTitle", "retrievedAt", "classification", "confidence", "status"]
+}
 
 export const createCourseContextTools = ({ repository, session, now, onWorkspaceChanged }: Setup): Tool[] => {
   const workspace = () => repository.getWorkspace(session.workspaceId, session.userId)
@@ -126,8 +145,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "save_research",
-      description: "Persist externally researched evidence with source, retrieval time, and trust labels.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), evidence: field("object", "Evidence record with provenance") }, ["expectedVersion", "idempotencyKey", "evidence"]),
+      description: "Save externally researched evidence and create or update its visible, searchable source card in the Research collection. Returns primaryVisibleId for the Library item.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), evidence: evidenceField }, ["expectedVersion", "idempotencyKey", "evidence"]),
       annotations: annotations(false, true),
       examples: [],
       execute: async (input) => mutate(input, { type: "save_research", evidence: input.evidence })
@@ -143,10 +162,10 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "update_student_context",
       description: "Add or update student preferences and planning constraints.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), preferences: field("array", "Preferences to store") }, ["expectedVersion", "idempotencyKey", "preferences"]),
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), preferences: { type: "array", minItems: 1, description: "Complete visible priorities to add or update", items: { type: "object", additionalProperties: false, properties: { id: field("string", "Stable preference ID"), label: field("string", "Student-facing priority label"), strength: { type: "string", enum: ["hard", "soft"] }, value: { description: "Boolean, number, or text value" } }, required: ["id", "label", "strength", "value"] } } }, ["expectedVersion", "idempotencyKey", "preferences"]),
       annotations: annotations(false),
       examples: [],
-      execute: async (input) => mutate(input, { type: "set_student_preference", preference: input.preferences[0] })
+      execute: async (input) => mutate(input, { type: "set_student_preferences", preferences: input.preferences })
     },
     {
       name: "edit_plan",

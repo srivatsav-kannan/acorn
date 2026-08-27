@@ -42,7 +42,7 @@ It must pass:
 
 - UI and tool command parity has a contract test
 - Workspace-first search has agent-sequence evals
-- Research persistence has integration and browser tests
+- Research persistence has integration and browser tests that require the exact returned visible ID to resolve in Library and workspace search
 - Source classifications have exhaustive enum and display tests
 - Low-risk agent writes have receipt and undo tests
 - Sensitive profile changes return confirmation-required
@@ -165,6 +165,9 @@ It must pass:
 - Authorization
 - Structured errors
 - Visible UI change flag
+- Exact visible object ID for saved research
+- Atomic evidence and Research card creation
+- Agent-added priorities visible through student Settings
 - Registration and unregistration lifecycle
 
 ### Architecture 19 through 23: application, data, and versioning

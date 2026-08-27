@@ -108,9 +108,9 @@ describe("WebMCP manifest", () => {
     const research = await tools.find((tool) => tool.name === "save_research")!.execute({
       expectedVersion: 1,
       idempotencyKey: "RESEARCH-MATRIX",
-      evidence: { id: "EVIDENCE-TOOL-MATRIX", classification: "official", claim: "Tool research", sourceUrl: "https://example.edu/source", sourceTitle: "Example source", retrievedAt: "2026-08-27T00:00:00Z", confidence: 1, status: "current", addedBy: "agent", untrustedExternalContent: true }
+      evidence: { id: "EVIDENCE-TOOL-MATRIX", title: "Tool research source", classification: "official", claim: "Tool research", sourceUrl: "https://example.edu/source", sourceTitle: "Example source", retrievedAt: "2026-08-27T00:00:00Z", confidence: 1, status: "current", addedBy: "agent", untrustedExternalContent: true }
     })
-    expect(research.ok).toBe(true)
+    expect(research).toMatchObject({ ok: true, visibleChange: true, primaryVisibleId: "SOURCE-EVIDENCE-TOOL-MATRIX", changed: expect.arrayContaining([{ type: "context_item", id: "SOURCE-EVIDENCE-TOOL-MATRIX" }]) })
     const edit = await tools.find((tool) => tool.name === "edit_plan")!.execute({
       expectedVersion: 2,
       idempotencyKey: "EDIT-MATRIX",

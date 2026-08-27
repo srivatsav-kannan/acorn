@@ -3,6 +3,7 @@ import { buildFixture } from "@/data/fixture"
 import {
   authorityForQuestion,
   isEvidenceStale,
+  materializeLegacyResearch,
   validateEvidence
 } from "@/domain/evidence"
 import { searchCourses, searchWorkspace } from "@/domain/search"
@@ -60,6 +61,51 @@ describe("evidence", () => {
     expect(result.untrustedExternalContent).toBe(true)
     expect(result.claim).toContain("Ignore prior instructions")
   })
+
+  it("normalizes concise agent research into the durable evidence contract", () => {
+    const result = validateEvidence({
+      id: "EVIDENCE-HEALTH-AI",
+      title: "Freshman health-AI options",
+      claim: "Start with an introductory health-AI course.",
+      sourceUrl: "https://example.edu/health-ai",
+      sourceTitle: "University health-AI guide",
+      retrievedAt: "2026-08-28T00:00:00Z",
+      trustLabel: "official-primary",
+      status: "verified"
+    })
+    expect(result).toMatchObject({
+      classification: "official",
+      confidence: 0.8,
+      status: "current",
+      addedBy: "agent",
+      untrustedExternalContent: true
+    })
+  })
+
+  it("materializes previously hidden saved research as a visible Library source", () => {
+    const fixture = buildFixture()
+    fixture.workspace.evidence.push({
+      id: "EVIDENCE-LEGACY-HEALTH",
+      title: "Legacy health research",
+      classification: "official",
+      claim: "A previously hidden health research note.",
+      sourceUrl: "https://example.edu/legacy-health",
+      sourceTitle: "Legacy health guide",
+      retrievedAt: "2026-08-28T00:00:00Z",
+      confidence: 0.9,
+      status: "current",
+      addedBy: "agent",
+      untrustedExternalContent: true
+    })
+    const migrated = materializeLegacyResearch(fixture.workspace)
+    expect(migrated.contextItems.find((item) => item.id === "SOURCE-EVIDENCE-LEGACY-HEALTH")).toMatchObject({
+      type: "source",
+      title: "Legacy health research",
+      collectionId: "COLLECTION-RESEARCH",
+      sourceEvidenceIds: ["EVIDENCE-LEGACY-HEALTH"]
+    })
+    expect(fixture.workspace.contextItems.some((item) => item.id === "SOURCE-EVIDENCE-LEGACY-HEALTH")).toBe(false)
+  })
 })
 
 describe("search", () => {
@@ -92,6 +138,25 @@ describe("search", () => {
     const results = searchWorkspace(fixture.workspace, fixture.catalog, "professor")
     expect(results.groups.some((group) => group.type === "people" || group.type === "library")).toBe(true)
     expect(results.groups.flatMap((group) => group.items).every((item) => item.id)).toBe(true)
+  })
+
+  it("keeps people and research sources in distinct result groups", () => {
+    const fixture = buildFixture()
+    fixture.workspace.contextItems.push({
+      id: "SOURCE-HEALTH-SEARCH",
+      type: "source",
+      title: "Professor health-AI research guide",
+      summary: "Research options for health AI",
+      content: { sourceUrl: "https://example.edu/health-ai" },
+      collectionId: "COLLECTION-RESEARCH",
+      sourceEvidenceIds: [],
+      addedBy: { type: "agent", id: "AGENT-TEST" },
+      createdAt: "2026-08-28T00:00:00Z",
+      updatedAt: "2026-08-28T00:00:00Z"
+    })
+    const results = searchWorkspace(fixture.workspace, fixture.catalog, "professor health research")
+    expect(results.groups.find((group) => group.type === "people")?.items.map((item) => item.id)).toContain("NOTE-001")
+    expect(results.groups.find((group) => group.type === "library")?.items.map((item) => item.id)).toContain("SOURCE-HEALTH-SEARCH")
   })
 
   it("returns an explicit context gap when there is no strong result", () => {

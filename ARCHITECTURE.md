@@ -1011,7 +1011,9 @@ Return requirement progress for one selected program and optionally show the eff
 
 #### `save_research`
 
-Save a sourced claim or guide into the visible evidence layer and relate it to courses, programs, plans, or context items.
+Save a sourced claim or guide into the evidence layer and atomically create or update a student-visible source card in the Research collection. The source card and evidence record share a stable evidence relationship. A successful receipt returns the card ID as `primaryVisibleId`. The same ID must resolve through workspace search and the Library UI before the operation may claim `visibleChange: true`.
+
+Previously stored evidence that has no related context item is materialized into a Research source card when the workspace loads. This repairs older hidden records without changing the evidence ID or deleting provenance.
 
 #### `save_workspace_item`
 
@@ -1044,6 +1046,7 @@ Every tool:
 - uses `untrustedContentHint` for externally sourced text
 - describes side effects precisely
 - reports whether the visible UI changed
+- returns the exact primary visible object ID for a mutating action that claims a visible result
 - returns a structured error and recovery suggestion
 
 ### 18.4 Registration lifecycle

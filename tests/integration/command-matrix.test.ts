@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { buildFixture } from "@/data/fixture"
 import { executeCommand } from "@/domain/commands"
+import { searchWorkspace } from "@/domain/search"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 const setup = () => new MemoryWorkspaceRepository(buildFixture())
@@ -27,6 +28,25 @@ describe("complete command matrix", () => {
     await executeCommand(repository, envelope({ type: "set_student_preference", preference: { id: "PREFERENCE-DESIGN", label: "Prioritize studio work", strength: "hard", value: true } }))
     expect((await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).profile.preferences.find((item) => item.id === "PREFERENCE-DESIGN")?.strength).toBe("hard")
     await expect(executeCommand(repository, envelope({ type: "set_student_preference", preference: { id: "PREFERENCE-BAD" } }, 2))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
+  })
+
+  it("atomically saves every agent-provided priority and lets the student remove one", async () => {
+    const repository = setup()
+    const receipt = await executeCommand(repository, envelope({
+      type: "set_student_preferences",
+      preferences: [
+        { id: "PREFERENCE-HEALTH", label: "Build healthcare depth", strength: "soft", value: true },
+        { id: "PREFERENCE-AI", label: "Explore applied AI", strength: "hard", value: true }
+      ]
+    }))
+    expect(receipt.changed).toEqual([
+      { type: "preference", id: "PREFERENCE-HEALTH" },
+      { type: "preference", id: "PREFERENCE-AI" }
+    ])
+    await executeCommand(repository, envelope({ type: "delete_student_preference", preferenceId: "PREFERENCE-HEALTH" }, 2, "REMOVE-HEALTH"))
+    const priorities = (await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).profile.preferences
+    expect(priorities.some((item) => item.id === "PREFERENCE-HEALTH")).toBe(false)
+    expect(priorities).toContainEqual({ id: "PREFERENCE-AI", label: "Explore applied AI", strength: "hard", value: true })
   })
 
   it("supports remove, section selection, and backup status operations", async () => {
@@ -86,11 +106,24 @@ describe("complete command matrix", () => {
 
   it("stores research and a safe view through the command journal", async () => {
     const repository = setup()
-    await executeCommand(repository, envelope({ type: "save_research", evidence: { id: "EVIDENCE-NEW", classification: "official", claim: "New evidence", sourceUrl: "https://example.edu/source", sourceTitle: "Example source", retrievedAt: "2026-08-27T00:00:00Z", confidence: 1, status: "current", addedBy: "agent", untrustedExternalContent: true } }))
+    const receipt = await executeCommand(repository, envelope({ type: "save_research", evidence: { id: "EVIDENCE-NEW", title: "Freshman health-AI option", classification: "official", claim: "A source-backed health-AI option for freshmen", sourceUrl: "https://example.edu/source", sourceTitle: "Example source", retrievedAt: "2026-08-27T00:00:00Z", confidence: 1, status: "current", addedBy: "agent", untrustedExternalContent: true } }))
     await executeCommand(repository, envelope({ type: "configure_view", view: { id: "VIEW-NEW", title: "My view", layout: "one_column", blocks: [] } }, 2))
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
     expect(workspace.evidence.some((item) => item.id === "EVIDENCE-NEW")).toBe(true)
+    expect(receipt).toMatchObject({ visibleChange: true, primaryVisibleId: "SOURCE-EVIDENCE-NEW" })
+    expect(workspace.contextItems.find((item) => item.id === receipt.primaryVisibleId)).toMatchObject({ type: "source", title: "Freshman health-AI option", collectionId: "COLLECTION-RESEARCH", sourceEvidenceIds: ["EVIDENCE-NEW"], content: { sourceUrl: "https://example.edu/source" } })
+    expect(searchWorkspace(workspace, repository.catalog, "freshman healthcare health AI courses").groups.flatMap((group) => group.items).some((item) => item.id === receipt.primaryVisibleId)).toBe(true)
     expect(workspace.savedViews.some((item) => item.id === "VIEW-NEW")).toBe(true)
+  })
+
+  it("updates an existing visible research card instead of creating a duplicate", async () => {
+    const repository = setup()
+    const first = { id: "EVIDENCE-UPSERT", title: "Initial health source", classification: "official", claim: "Initial claim", sourceUrl: "https://example.edu/health", sourceTitle: "Health source", retrievedAt: "2026-08-27T00:00:00Z", confidence: 0.8, status: "current", addedBy: "agent", untrustedExternalContent: true }
+    await executeCommand(repository, envelope({ type: "save_research", evidence: first }))
+    await executeCommand(repository, envelope({ type: "save_research", evidence: { ...first, title: "Updated health source", claim: "Updated claim" } }, 2, "RESEARCH-UPDATE"))
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.contextItems.filter((item) => item.sourceEvidenceIds?.includes("EVIDENCE-UPSERT"))).toHaveLength(1)
+    expect(workspace.contextItems.find((item) => item.sourceEvidenceIds?.includes("EVIDENCE-UPSERT"))).toMatchObject({ title: "Updated health source", summary: "Updated claim" })
   })
 
   it("updates human profile and context records and removes saved views", async () => {

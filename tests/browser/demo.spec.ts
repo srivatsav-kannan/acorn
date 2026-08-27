@@ -65,7 +65,7 @@ test("search, scenario comparison, and saved views are real shared workspace con
   await page.goto("/demo")
   await page.getByRole("button", { name: "Search workspace" }).click()
   await page.getByLabel("Search courses, notes, people, and programs").fill("professor research")
-  await expect(page.getByText("Professor conversation")).toBeVisible()
+  await expect(page.getByRole("link", { name: /Professor conversation/ })).toBeVisible()
   await page.getByRole("button", { name: "Close search" }).click()
 
   await page.getByRole("link", { name: "Plan" }).click()
@@ -174,6 +174,40 @@ test("registers semantic WebMCP tools in a capable browser", async ({ page }) =>
   await page.goto("/demo")
   await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(11)
   expect(await page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools)).toContain("search_workspace")
+})
+
+test("WebMCP health research becomes visible, searchable Library context", async ({ page }) => {
+  await page.addInitScript(() => {
+    const tools = new Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }>()
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool(tool: { name: string, execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }, options?: { signal?: AbortSignal }) {
+          tools.set(tool.name, tool)
+          options?.signal?.addEventListener("abort", () => { if (tools.get(tool.name) === tool) tools.delete(tool.name) }, { once: true })
+        }
+      }
+    })
+    Object.defineProperty(window, "__courseContextTools", { value: tools })
+  })
+  await page.goto("/demo")
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(11)
+  const result = await page.evaluate(async () => {
+    const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
+    const context = await tools.get("get_planning_context")!.execute({}) as { version: number }
+    await tools.get("update_student_context")!.execute({ expectedVersion: context.version, idempotencyKey: "HEALTH-PRIORITY-E2E", preferences: [{ id: "PREFERENCE-HEALTH-AI-E2E", label: "Build healthcare and health-AI depth", strength: "soft", value: true }] })
+    const saved = await tools.get("save_research")!.execute({ expectedVersion: context.version + 1, idempotencyKey: "HEALTH-RESEARCH-E2E", evidence: { id: "EVIDENCE-HEALTH-AI-E2E", title: "Freshman health-AI course shortlist", claim: "Start with a low-load healthcare AI seminar before committing to advanced technical depth.", sourceUrl: "https://explorecourses.stanford.edu/", sourceTitle: "Stanford ExploreCourses", retrievedAt: "2026-08-28T00:00:00Z", classification: "official", confidence: 0.9, status: "current" } })
+    const search = await tools.get("search_workspace")!.execute({ query: "freshman healthcare health AI courses" }) as { groups: Array<{ items: Array<{ id: string }> }> }
+    return { saved, searchIds: search.groups.flatMap((group) => group.items.map((item) => item.id)) }
+  })
+  expect(result.saved).toMatchObject({ ok: true, visibleChange: true, primaryVisibleId: "SOURCE-EVIDENCE-HEALTH-AI-E2E" })
+  expect(result.searchIds).toContain("SOURCE-EVIDENCE-HEALTH-AI-E2E")
+  await page.getByRole("link", { name: "Library", exact: true }).click()
+  await page.getByRole("button", { name: /Research 2/ }).click()
+  await expect(page.getByRole("heading", { name: "Freshman health-AI course shortlist" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Open source" })).toHaveAttribute("href", "https://explorecourses.stanford.edu/")
+  await page.getByRole("link", { name: "Account", exact: true }).click()
+  await expect(page.getByText("Build healthcare and health-AI depth")).toBeVisible()
 })
 
 test("has no serious accessibility violations", async ({ page }, testInfo) => {
