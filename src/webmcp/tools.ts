@@ -3,7 +3,7 @@ import { executeCommand } from "@/domain/commands"
 import { checkPlan } from "@/domain/planner"
 import { evaluateRequirement } from "@/domain/requirements"
 import { searchCourses, searchWorkspace } from "@/domain/search"
-import type { Actor } from "@/domain/types"
+import type { Actor, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 type JsonSchema = { type: "object", additionalProperties: false, properties?: Record<string, Record<string, unknown>>, required?: string[] }
@@ -20,23 +20,27 @@ type Setup = {
   repository: MemoryWorkspaceRepository
   session: { userId: string, workspaceId: string, actor: Actor }
   now: () => Date
+  onWorkspaceChanged?: (workspace: WorkspaceState, expectedVersion: number, idempotencyKey: string) => Promise<void>
 }
 
 const schema = (properties: JsonSchema["properties"] = {}, required: string[] = []): JsonSchema => ({ type: "object", additionalProperties: false, properties, required })
 const field = (type: string, description: string) => ({ type, description })
 const annotations = (readOnlyHint: boolean, untrustedContentHint = false) => ({ readOnlyHint, untrustedContentHint })
 
-export const createCourseContextTools = ({ repository, session, now }: Setup): Tool[] => {
+export const createCourseContextTools = ({ repository, session, now, onWorkspaceChanged }: Setup): Tool[] => {
   const workspace = () => repository.getWorkspace(session.workspaceId, session.userId)
   const mutate = async (input: any, command: Record<string, unknown>) => {
     try {
-      return await executeCommand(repository, {
+      const result = await executeCommand(repository, {
         actor: session.actor,
+        ownerUserId: session.userId,
         workspaceId: session.workspaceId,
         expectedVersion: input.expectedVersion,
         idempotencyKey: input.idempotencyKey,
         command
       })
+      if (result.ok && onWorkspaceChanged) await onWorkspaceChanged(await workspace(), input.expectedVersion, input.idempotencyKey)
+      return result
     } catch (error) {
       const code = (error as { code?: string }).code ?? "COMMAND_FAILED"
       return { ok: false, code, retryable: code === "VERSION_CONFLICT", message: (error as Error).message }
@@ -46,7 +50,7 @@ export const createCourseContextTools = ({ repository, session, now }: Setup): T
   return [
     {
       name: "search_workspace",
-      description: "Search durable student context before using external research.",
+      description: "Search durable student context before external research. Call after get_planning_context for every new planning task.",
       inputSchema: schema({ query: field("string", "Question or topic to search for") }, ["query"]),
       annotations: annotations(true),
       examples: [{ query: "professor research" }],
@@ -54,13 +58,13 @@ export const createCourseContextTools = ({ repository, session, now }: Setup): T
     },
     {
       name: "get_planning_context",
-      description: "Get the student profile, preferences, open questions, and current term.",
+      description: "Start here. Get the active workspace, version, student priorities, safety boundaries, and recommended tool sequence.",
       inputSchema: schema(),
       annotations: annotations(true),
       examples: [{}],
       execute: async () => {
         const value = await workspace()
-        return { workspaceId: value.id, version: value.version, currentTermId: value.currentTermId, profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
+        return { workspaceId: value.id, version: value.version, currentTermId: value.currentTermId, workflow: ["Search the workspace before external research", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
       }
     },
     {

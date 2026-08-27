@@ -1,6 +1,6 @@
 # CourseContext system architecture
 
-Status: initial architecture for the Stanford WebMCP vertical slice
+Status: implemented Stanford vertical slice with hosted release operations still pending
 
 This document is the product and technical source of truth for CourseContext. It describes the complete intended system, then identifies the smaller challenge release that proves the central interaction.
 
@@ -521,10 +521,9 @@ Stanford credentials are never collected. Stanford SSO is outside the challenge 
 2. The user chooses Google or email.
 3. The identity provider completes authentication.
 4. The server establishes a secure session in an HttpOnly cookie.
-5. The product creates a private workspace and membership record.
-6. The user accepts the current Terms and Privacy versions.
-7. The user completes or skips onboarding.
-8. The user lands on Home.
+5. The user completes the four-step onboarding flow.
+6. The server atomically creates a private workspace, owner membership, first snapshot, and first version record.
+7. The user lands on Home.
 
 ### 9.3 Returning user flow
 
@@ -535,17 +534,17 @@ Stanford credentials are never collected. Stanford SSO is outside the challenge 
 
 ### 9.4 Demo flow
 
-"Try the demo" creates or resumes a short-lived anonymous session backed by a private clone of the seeded Stanford workspace. Each visitor receives an isolated copy. Demo writes never affect the canonical fixture or another visitor. A reset action restores the original fixture.
+"Try the demo" sets a short-lived HttpOnly mode cookie and opens a browser-persisted clone of the seeded Stanford workspace. Each browser profile receives its own copy. Demo writes never affect the canonical fixture or an authenticated account. A reset action removes the local copy and restores the fixture.
 
 The judge path must work without waiting for email. Devpost credentials remain a backup, not the primary demonstration path.
 
 ### 9.5 Session rules
 
 - Secure, HttpOnly, SameSite cookies
-- Short-lived access session with rotation
+- Supabase-managed access session with rotation
 - Server-side authorization on every query and command
 - Explicit sign-out and session revocation
-- Rate limits on authentication and mutation endpoints
+- Provider-level authentication limits, with application mutation limits required before a broad public launch
 - No tokens in local storage
 - No secrets or student data in logs
 

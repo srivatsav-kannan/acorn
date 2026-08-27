@@ -4,10 +4,11 @@ import Link from "next/link"
 import { useState, type FormEvent } from "react"
 import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
-export const LoginPage = () => {
+export const LoginPage = ({ initialStatus = "" }: { initialStatus?: string }) => {
   const [email, setEmail] = useState("")
-  const [status, setStatus] = useState("")
+  const [status, setStatus] = useState(initialStatus)
   const [busy, setBusy] = useState(false)
+  const configured = isSupabaseConfigured()
 
   const redirectTo = () => `${window.location.origin}/auth/callback?next=/app`
   const requireConfiguration = () => {
@@ -33,7 +34,7 @@ export const LoginPage = () => {
 
   return <main className="auth-page">
     <Link className="wordmark auth-wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
-    <section className="auth-card"><p className="eyebrow">Welcome</p><h1>Build your academic workspace</h1><p>Sign in to keep plans, research, sources, and agent changes together.</p><button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy}><span aria-hidden="true">G</span>Continue with Google</button><div className="or"><span />or<span /></div><form onSubmit={sendEmailLink}><label htmlFor="email">Email address</label><input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required/><button className="primary-button full" type="submit" disabled={busy}>Send email link</button></form>{status && <p className="auth-status" role="status">{status}</p>}<a className="demo-link" href="/demo">Use the demo instead</a></section>
-    <p className="auth-note">Use your own email or open the resettable demo.</p>
+    <section className="auth-card"><p className="eyebrow">Your academic workspace</p><h1>Sign in or create an account</h1><p>New accounts continue through a short planning setup. Returning students reopen the same private workspace.</p>{!configured && <div className="auth-setup-notice"><strong>Account storage needs setup</strong><span>This local build has no Supabase project connected yet. The resettable demo remains available.</span></div>}<button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy || !configured}><span aria-hidden="true">G</span>Continue with Google</button><div className="or"><span />or<span /></div><form onSubmit={sendEmailLink}><label htmlFor="email">Email address</label><input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required disabled={!configured}/><button className="primary-button full" type="submit" disabled={busy || !configured}>{busy ? "Sending…" : "Continue with email"}</button></form><ul className="auth-benefits"><li><span>✓</span>One private workspace per account</li><li><span>✓</span>Changes persist across return visits</li><li><span>✓</span>No Stanford credentials requested</li></ul>{status && <p className="auth-status" role="status">{status}</p>}<a className="demo-link" href="/demo">Use the resettable demo</a></section>
+    <p className="auth-note">CourseContext is an independent planning aid. It does not enroll you in courses.</p>
   </main>
 }

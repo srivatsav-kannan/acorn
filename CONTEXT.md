@@ -98,6 +98,31 @@ Stanford students who currently move among class search, degree progress, advisi
 - Priority: hard
 - Requirement: User-visible copy must be concise, specific, and natural. It must avoid unnecessary technical language, em dashes, semicolons, generic startup slogans, and text that reads as machine generated.
 
+### REQ-017: Real end-user accounts
+
+- Priority: hard
+- Requirement: A new user can create an account, complete onboarding, receive an isolated workspace, sign out, sign back in, and recover the same persisted state. Demo identity and authenticated identity must never be conflated.
+
+### REQ-018: End-to-end persistence
+
+- Priority: hard
+- Requirement: Authenticated human and WebMCP mutations persist through the server-enforced workspace repository with optimistic version checks. Reloads, route changes, browser restarts, and return visits must preserve verified state.
+
+### REQ-019: Functional interaction
+
+- Priority: hard
+- Requirement: Every visible control must perform its stated action, navigate to a working destination, or be clearly disabled with an explanation. The released interface must not contain decorative buttons, inert filters, or simulated success.
+
+### REQ-020: Human and agent onboarding
+
+- Priority: hard
+- Requirement: Human onboarding captures enough academic context to create a useful first workspace. Agent onboarding is machine-native through tool descriptions and planning context, with a visible connection guide and reusable starter prompt for the student.
+
+### REQ-021: Product-grade feedback and motion
+
+- Priority: hard
+- Requirement: Mutations expose saving, saved, failure, conflict, and recovery states. Motion reinforces navigation, hierarchy, and state changes, respects reduced-motion preferences, and never delays core actions.
+
 ## Non-goals for the challenge build
 
 - Replacing Stanford Academic Advising.
@@ -118,6 +143,7 @@ Stanford students who currently move among class search, degree progress, advisi
 
 ## Remaining release work
 
+- Connect a hosted Supabase project, apply both migrations, configure providers, and verify a real create/sign-out/sign-in recovery journey.
 - Deploy the verified build to a public HTTPS URL.
 - Record the under-three-minute public demo video with real WebMCP use.
 - Replace illustrative schedule data with a verified public Stanford snapshot if challenge time permits.

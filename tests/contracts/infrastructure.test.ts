@@ -5,6 +5,9 @@ import { safeNextPath } from "@/lib/auth/redirects"
 import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/0001_identity_and_workspace.sql"), "utf8")
+const onboardingMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0002_account_onboarding.sql"), "utf8")
+const proxySource = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8")
+const workspaceRoute = readFileSync(resolve(process.cwd(), "src/app/api/workspace/route.ts"), "utf8")
 
 describe("authentication configuration", () => {
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -62,5 +65,26 @@ describe("Supabase migration contract", () => {
   it("keeps expired demo cleanup away from ordinary clients", () => {
     expect(migration).toContain("delete_expired_demo_workspaces")
     expect(migration).toContain("revoke all on function public.delete_expired_demo_workspaces() from public")
+  })
+
+  it("creates one isolated workspace through an authenticated onboarding function", () => {
+    expect(onboardingMigration).toContain("create_personal_workspace")
+    expect(onboardingMigration).toContain("auth.uid()")
+    expect(onboardingMigration).toContain("A workspace already exists for this account")
+    expect(onboardingMigration).toContain("workspace_memberships")
+    expect(onboardingMigration).toContain("workspace_snapshots")
+    expect(onboardingMigration).toContain("revoke all on function public.create_personal_workspace")
+  })
+
+  it("protects account routes while preserving an explicit demo session", () => {
+    expect(proxySource).toContain("course_context_demo")
+    expect(proxySource).toContain("client.auth.getUser()")
+    expect(proxySource).toContain("/onboarding")
+  })
+
+  it("validates ownership and optimistic versions before persisted commits", () => {
+    expect(workspaceRoute).toContain("workspace.ownerUserId !== data.user.id")
+    expect(workspaceRoute).toContain("workspace.version !== Number(body.expectedVersion) + 1")
+    expect(workspaceRoute).toContain("VERSION_CONFLICT")
   })
 })

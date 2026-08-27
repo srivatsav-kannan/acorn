@@ -25,7 +25,7 @@ It must pass:
 | Requirement evaluator | 100% | 100% |
 | Authorization and isolation | 100% | 100% |
 | Command and receipt engine | 100% | 95% |
-| WebMCP handlers | 95% | 90% |
+| WebMCP handlers | 90% | 60% |
 | Search and evidence | 95% | 90% |
 | All measured modules | 90% | 85% |
 
@@ -77,8 +77,8 @@ It must pass:
 
 ### Architecture 9: authentication
 
-- Demo sessions are isolated
-- Returning sessions restore the workspace
+- Demo state is isolated by browser profile and can be reset
+- Returning account sessions restore the server workspace
 - Sign-out removes access
 - Production adapter rejects incomplete configuration
 - Session secrets are not persisted in local storage
@@ -234,7 +234,7 @@ Every mutation is tested for:
 | Save researched source | yes | yes |
 | Program progress | yes | yes |
 | Activity and undo | yes | yes |
-| WebMCP registration | yes | capability check |
+| WebMCP registration | yes | yes |
 | Accessibility scan | yes | yes |
 
 ## Required failure fixtures

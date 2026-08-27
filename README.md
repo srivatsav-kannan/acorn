@@ -96,7 +96,7 @@ The competition build focuses on one excellent next-quarter planning loop:
 
 It does not attempt multi-university ingestion, official enrollment, a complete four-year optimizer, or authenticated Stanford data integration.
 
-## Working demo
+## Working product
 
 The repository now contains a complete local challenge demo:
 
@@ -108,7 +108,10 @@ The repository now contains a complete local challenge demo:
 - recursive requirement evaluation for completed, planned, missing, and manual-review states.
 - all 11 approved semantic WebMCP tools registered in the actual page.
 - portable JSON, Markdown, source, and activity exports.
-- isolated in-memory demo sessions plus Supabase authentication, row-level security, optimistic snapshot commits, immutable workspace history, and expired-demo cleanup migrations.
+- resettable browser-persisted demo workspaces plus Supabase authentication, row-level security, optimistic snapshot commits, and immutable workspace history.
+- four-step account onboarding, protected workspace routes, sign-out, reload-safe persistence, version-conflict recovery, visible save state, loading and failure surfaces.
+- working profile, Library, course, scenario, program-tracking, saved-view, search, filter, archive, restore, reset, and undo controls.
+- a visible agent connection guide and official abort-signal WebMCP registration lifecycle.
 
 The catalog and schedule values in the demo fixture are illustrative. They are not a live Stanford enrollment source or official degree audit.
 
@@ -126,22 +129,24 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and choose **Try the demo**.
 
+The demo needs no external service and persists within the current browser profile. Real accounts require a Supabase project and the two migrations described in [the setup guide](supabase/README.md).
+
 To run the complete verification pipeline:
 
 ```bash
-npx playwright install webkit
+npx playwright install chromium
 npm run test:all
 ```
 
-`test:all` runs lint, strict TypeScript, coverage-gated unit and integration tests, the optimized production build, and browser journeys in desktop Chromium and mobile WebKit.
+`test:all` runs lint, strict TypeScript, coverage-gated unit and integration tests, the optimized production build, and browser journeys using desktop and mobile Chromium profiles.
 
 ## Verified quality
 
 The current finalization run passes:
 
-- 192 unit, property, integration, contract, security, infrastructure, and agent-sequence tests.
-- 95.32% statement coverage, 88.53% branch coverage, 95.83% function coverage, and 99.26% line coverage.
-- 14 executed browser journeys across desktop and mobile, with two intentional profile-specific skips.
+- 202 unit, property, integration, contract, security, infrastructure, and agent-sequence tests.
+- coverage above the enforced 90% statement, 85% branch, 90% function, and 90% line gates.
+- 24 executed browser journeys across desktop and mobile, with two intentional profile-specific skips.
 - serious and critical accessibility checks on both browser profiles.
 - the production Next.js build for every public and workspace route.
 

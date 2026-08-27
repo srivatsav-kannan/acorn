@@ -22,15 +22,16 @@ describe("public product surfaces", () => {
   it("offers demo, Google, and email login without asking for Stanford credentials", () => {
     render(<LoginPage />)
     expect(screen.getByRole("button", { name: /continue with google/i })).toBeVisible()
-    expect(screen.getByRole("button", { name: /email link/i })).toBeVisible()
-    expect(screen.getByRole("link", { name: /use the demo/i })).toBeVisible()
+    expect(screen.getByRole("button", { name: /continue with email/i })).toBeVisible()
+    expect(screen.getByRole("link", { name: /resettable demo/i })).toBeVisible()
     expect(screen.queryByText(/stanford password/i)).not.toBeInTheDocument()
   })
 
   it("fails clearly into demo mode when hosted authentication is not configured", async () => {
     render(<LoginPage />)
-    await userEvent.click(screen.getByRole("button", { name: /continue with google/i }))
-    expect(screen.getByRole("status")).toHaveTextContent(/not configured.*use the demo/i)
+    expect(screen.getByText(/account storage needs setup/i)).toBeVisible()
+    expect(screen.getByRole("button", { name: /continue with google/i })).toBeDisabled()
+    expect(screen.getByRole("link", { name: /resettable demo/i })).toBeVisible()
   })
 })
 

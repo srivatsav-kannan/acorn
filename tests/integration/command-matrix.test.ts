@@ -13,11 +13,13 @@ const envelope = (command: Record<string, unknown>, expectedVersion = 1, key = "
 })
 
 describe("complete command matrix", () => {
-  it("archives existing context and rejects a missing item", async () => {
+  it("archives and restores existing context and rejects a missing item", async () => {
     const repository = setup()
     await executeCommand(repository, envelope({ type: "archive_context_item", itemId: "NOTE-001" }))
     expect((await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).contextItems.find((item) => item.id === "NOTE-001")?.archived).toBe(true)
-    await expect(executeCommand(repository, envelope({ type: "archive_context_item", itemId: "NOTE-MISSING" }, 2))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
+    await executeCommand(repository, envelope({ type: "restore_context_item", itemId: "NOTE-001" }, 2, "RESTORE"))
+    expect((await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).contextItems.find((item) => item.id === "NOTE-001")?.archived).toBe(false)
+    await expect(executeCommand(repository, envelope({ type: "archive_context_item", itemId: "NOTE-MISSING" }, 3))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
   })
 
   it("updates an existing preference and rejects incomplete preference data", async () => {
@@ -51,6 +53,25 @@ describe("complete command matrix", () => {
     await expect(executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "create_scenario", scenario }] }, 2, "DUPLICATE-SCENARIO"))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
   })
 
+  it("renames, activates, and deletes scenarios while preserving one valid scenario", async () => {
+    const repository = setup()
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-LIGHTER", operations: [{ type: "rename_scenario", name: "Research first" }, { type: "set_active_scenario" }] }))
+    let plan = (await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).plans[0]
+    expect(plan.activeScenarioId).toBe("SCENARIO-LIGHTER")
+    expect(plan.scenarios.find((item) => item.id === "SCENARIO-LIGHTER")?.name).toBe("Research first")
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "delete_scenario" }] }, 2, "DELETE-SCENARIO"))
+    plan = (await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).plans[0]
+    expect(plan.scenarios.map((item) => item.id)).toEqual(["SCENARIO-LIGHTER"])
+    await expect(executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-LIGHTER", operations: [{ type: "delete_scenario" }] }, 3, "DELETE-LAST"))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
+  })
+
+  it("updates course units and rejects invalid values", async () => {
+    const repository = setup()
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_units", planCourseId: "PLANCOURSE-MATH-51", units: 3 }] }))
+    expect((await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).plans[0].scenarios[0].courses.find((item) => item.id === "PLANCOURSE-MATH-51")?.units).toBe(3)
+    await expect(executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_units", planCourseId: "PLANCOURSE-MATH-51", units: 0 }] }, 2, "BAD-UNITS"))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
+  })
+
   it.each([
     [{ type: "edit_plan", planId: "PLAN-MISSING", scenarioId: "SCENARIO-PRIMARY", operations: [] }, "Plan or scenario"],
     [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-CS-106B" } }] }, "unique"],
@@ -70,6 +91,22 @@ describe("complete command matrix", () => {
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
     expect(workspace.evidence.some((item) => item.id === "EVIDENCE-NEW")).toBe(true)
     expect(workspace.savedViews.some((item) => item.id === "VIEW-NEW")).toBe(true)
+  })
+
+  it("updates human profile and context records and removes saved views", async () => {
+    const repository = setup()
+    await executeCommand(repository, envelope({ type: "update_profile", patch: { name: "Maya Patel", summary: "Health HCI and research", earliestStart: "09:00", latestEnd: "17:00", excludedDays: ["fri"], declaredProgramId: null } }))
+    await executeCommand(repository, envelope({ type: "update_context_item", itemId: "NOTE-001", title: "Revised note", summary: "Revised details", content: { text: "Revised details" }, collectionId: "COLLECTION-RESEARCH" }, 2, "UPDATE-NOTE"))
+    await executeCommand(repository, envelope({ type: "configure_view", view: { id: "VIEW-REMOVE-ME", title: "Temporary", layout: "one_column", blocks: [] } }, 3, "CREATE-REMOVABLE"))
+    await executeCommand(repository, envelope({ type: "delete_saved_view", viewId: "VIEW-REMOVE-ME" }, 4, "DELETE-VIEW"))
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.profile).toMatchObject({ name: "Maya Patel", summary: "Health HCI and research", earliestStart: "09:00", declaredProgramId: null })
+    expect(workspace.contextItems.find((item) => item.id === "NOTE-001")).toMatchObject({ title: "Revised note", collectionId: "COLLECTION-RESEARCH" })
+    expect(workspace.savedViews.some((view) => view.id === "VIEW-REMOVE-ME")).toBe(false)
+  })
+
+  it("prevents an agent from changing student identity fields", async () => {
+    await expect(executeCommand(setup(), { ...envelope({ type: "update_profile", patch: { name: "Agent name" } }), actor: { type: "agent", id: "AGENT-TEST" }, ownerUserId: "USER-DEMO" })).rejects.toMatchObject({ code: "COMMAND_INVALID" })
   })
 
   it("rejects research without an evidence ID and undo without a snapshot", async () => {

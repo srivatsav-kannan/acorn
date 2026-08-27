@@ -150,4 +150,37 @@ describe("WebMCP registration", () => {
     unregister()
     expect(remove).toHaveBeenCalledTimes(expectedNames.length)
   })
+
+  it("uses an abort signal for current WebMCP lifecycle cleanup", () => {
+    const { tools } = setup()
+    const signals: AbortSignal[] = []
+    const registerTool = vi.fn((_tool: unknown, options?: { signal?: AbortSignal }) => {
+      if (options?.signal) signals.push(options.signal)
+    })
+    const unregister = registerWebMcpTools({ modelContext: { registerTool } }, tools)
+    expect(signals).toHaveLength(expectedNames.length)
+    expect(signals.every((signal) => !signal.aborted)).toBe(true)
+    unregister()
+    expect(signals.every((signal) => signal.aborted)).toBe(true)
+  })
+
+  it("cleans up asynchronous registrations returned by compatible implementations", async () => {
+    const { tools } = setup()
+    const remove = vi.fn()
+    const registerTool = vi.fn(async () => ({ unregister: remove }))
+    const unregister = registerWebMcpTools({ modelContext: { registerTool } }, tools)
+    await Promise.resolve()
+    unregister()
+    expect(remove).toHaveBeenCalledTimes(expectedNames.length)
+  })
+
+  it("reports asynchronous registration failures without an unhandled rejection", async () => {
+    const { tools } = setup()
+    const report = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const registerTool = vi.fn(() => Promise.reject(new Error("Unsupported registration")))
+    registerWebMcpTools({ modelContext: { registerTool } }, tools)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(report).toHaveBeenCalledTimes(expectedNames.length)
+    report.mockRestore()
+  })
 })

@@ -5,11 +5,14 @@ import { safeNextPath } from "@/lib/auth/redirects"
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host")
+  const protocol = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "")
+  const origin = host ? `${protocol}://${host}` : url.origin
   const code = url.searchParams.get("code")
   const next = safeNextPath(url.searchParams.get("next"))
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  if (!code || !supabaseUrl || !publishableKey) return NextResponse.redirect(new URL("/login?error=auth_configuration", url.origin))
+  if (!code || !supabaseUrl || !publishableKey) return NextResponse.redirect(new URL("/login?error=auth_configuration", origin))
 
   const cookieStore = await cookies()
   const supabase = createServerClient(supabaseUrl, publishableKey, {
@@ -19,6 +22,8 @@ export async function GET(request: NextRequest) {
     }
   })
   const { error } = await supabase.auth.exchangeCodeForSession(code)
-  if (error) return NextResponse.redirect(new URL("/login?error=auth_callback", url.origin))
-  return NextResponse.redirect(new URL(next, url.origin))
+  if (error) return NextResponse.redirect(new URL("/login?error=auth_callback", origin))
+  const response = NextResponse.redirect(new URL(next, origin))
+  response.cookies.set("course_context_demo", "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 })
+  return response
 }

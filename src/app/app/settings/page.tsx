@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { AppShell } from "@/components/app-shell"
 import { useWorkspace } from "@/components/workspace-provider"
 
@@ -16,11 +17,25 @@ const planningView = {
 
 export default function Page() {
   const value = useWorkspace()
+  const profile = value.workspace.profile
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(profile.name)
+  const [summary, setSummary] = useState(profile.summary)
+  const [earliestStart, setEarliestStart] = useState(profile.earliestStart)
+  const [latestEnd, setLatestEnd] = useState(profile.latestEnd)
+  const [fridayOpen, setFridayOpen] = useState(profile.excludedDays.includes("fri"))
   const hasPlanningView = value.workspace.savedViews.some((view) => view.id === planningView.id)
-  const createView = () => value.onCommand({ type: "configure_view", view: planningView })
+  const saveProfile = async () => {
+    await value.onCommand({ type: "update_profile", patch: { name, summary, earliestStart, latestEnd, excludedDays: fridayOpen ? ["fri"] : [] } })
+    setEditing(false)
+  }
   return <AppShell activePage="settings" quarter="Autumn 2026" activity={value.workspace.activity} onUndo={value.undo}><div className="page settings-page">
-    <header className="page-heading"><div><p className="eyebrow">Student context</p><h1>Settings</h1><p>Inspect and edit the durable information used for recommendations and checks.</p></div><button className="secondary-button" onClick={value.reset}>Reset demo</button></header>
-    <section className="settings-card"><h2>Planning profile</h2><p>{value.workspace.profile.summary}</p><dl><div><dt>Catalog year</dt><dd>{value.workspace.profile.catalogYear}</dd></div><div><dt>Earliest start</dt><dd>{value.workspace.profile.earliestStart}</dd></div><div><dt>Latest end</dt><dd>{value.workspace.profile.latestEnd}</dd></div></dl></section>
-    <section className="settings-card saved-views-card"><div className="section-heading"><div><h2>Saved views</h2><span className="count-badge">{value.workspace.savedViews.length}</span></div>{!hasPlanningView && <button className="secondary-button" type="button" onClick={createView}>Create planning view</button>}</div><p>Arrange the same workspace information into focused surfaces. Human and agent changes use the same safe block vocabulary.</p>{value.workspace.savedViews.length === 0 ? <div className="settings-empty"><strong>No custom views yet</strong><span>Create a planning view with plan, requirement, and open-question blocks.</span></div> : <div className="saved-view-list">{value.workspace.savedViews.map((view) => <article key={view.id}><div><span className="type-icon">▦</span><span><strong>{view.title}</strong><small>{view.layout.replace("_", " ")} · {view.blocks.length} blocks</small></span></div><ul>{view.blocks.map((block) => <li key={block.id ?? `${view.id}-${block.type}`}>{block.title ?? block.type.replaceAll("_", " ")}</li>)}</ul></article>)}</div>}</section>
+    <header className="page-heading"><div><p className="eyebrow">Account and context</p><h1>Settings</h1><p>Manage the durable information used for recommendations, checks, and agent work.</p></div>{value.mode === "demo" ? <button className="secondary-button" onClick={value.reset}>Reset demo</button> : <button className="secondary-button" onClick={value.signOut}>Sign out</button>}</header>
+    <section className="settings-card profile-settings"><div className="section-heading"><div><p className="eyebrow">Planning profile</p><h2>{profile.name}</h2></div><button className="text-button" type="button" onClick={() => setEditing((current) => !current)}>{editing ? "Cancel" : "Edit profile"}</button></div>
+      {editing ? <form onSubmit={(event) => { event.preventDefault(); void saveProfile() }}><label>Name<input value={name} onChange={(event) => setName(event.target.value)} required /></label><label>Goals and planning context<textarea rows={4} value={summary} onChange={(event) => setSummary(event.target.value)} /></label><div className="settings-inline"><label>Earliest class<input type="time" value={earliestStart} onChange={(event) => setEarliestStart(event.target.value)} /></label><label>Latest class end<input type="time" value={latestEnd} onChange={(event) => setLatestEnd(event.target.value)} /></label></div><label className="check-row"><input type="checkbox" checked={fridayOpen} onChange={(event) => setFridayOpen(event.target.checked)} /><span><strong>Keep Fridays open</strong><small>Plan checks treat Friday meetings as a conflict.</small></span></label><div className="modal-actions"><button className="primary-button" type="submit">Save profile</button></div></form> : <><p>{profile.summary}</p><dl><div><dt>Catalog year</dt><dd>{profile.catalogYear}</dd></div><div><dt>Earliest start</dt><dd>{profile.earliestStart}</dd></div><div><dt>Latest end</dt><dd>{profile.latestEnd}</dd></div><div><dt>Friday meetings</dt><dd>{profile.excludedDays.includes("fri") ? "Avoid" : "Allowed"}</dd></div></dl></>}
+    </section>
+    <section className="settings-card account-card"><div><span className="type-icon">@</span><p><strong>{value.mode === "account" ? "Authenticated account" : "Resettable demo"}</strong><small>{value.mode === "account" ? value.userEmail : "This workspace is stored only in this browser."}</small></p></div><span className={`status-pill ${value.mode === "account" ? "completed" : "planned"}`}>{value.mode === "account" ? "Cloud persisted" : "Local only"}</span></section>
+    <section className="settings-card agent-settings"><div><p className="eyebrow">Agent access</p><h2>Connect without copying your context</h2><p>See connection status, semantic tools, safety boundaries, and a reusable starter prompt.</p></div><a className="secondary-button" href="/app/agent">Open agent setup</a></section>
+    <section className="settings-card saved-views-card"><div className="section-heading"><div><h2>Saved views</h2><span className="count-badge">{value.workspace.savedViews.length}</span></div>{!hasPlanningView && <button className="secondary-button" type="button" onClick={() => value.onCommand({ type: "configure_view", view: planningView })}>Create planning view</button>}</div><p>Arrange the same workspace information into focused surfaces. Human and agent changes use the same safe block vocabulary.</p>{value.workspace.savedViews.length === 0 ? <div className="settings-empty"><strong>No custom views yet</strong><span>Create a planning view with plan, requirement, and open-question blocks.</span></div> : <div className="saved-view-list">{value.workspace.savedViews.map((view) => <article key={view.id}><div><span className="type-icon">▦</span><span><strong>{view.title}</strong><small>{view.layout.replace("_", " ")} · {view.blocks.length} blocks</small></span><button className="text-button" type="button" onClick={() => value.onCommand({ type: "delete_saved_view", viewId: view.id })}>Remove</button></div><ul>{view.blocks.map((block) => <li key={block.id ?? `${view.id}-${block.type}`}>{block.title ?? block.type.replaceAll("_", " ")}</li>)}</ul></article>)}</div>}</section>
   </div></AppShell>
 }
