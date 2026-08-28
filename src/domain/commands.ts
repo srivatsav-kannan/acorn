@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { validateContextItem } from "@/domain/context"
 import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
-import { emptyOverlay, validateOverlayCourse, validateOverlaySection } from "@/domain/reference"
+import { applyAcademicHistory, validateAcademicHistoryPatch } from "@/domain/history"
+import { emptyOverlay, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository, RepositoryError } from "@/store/memory-repository"
@@ -187,10 +188,17 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
           changed.push({ type: "context_item", id: goal.id })
         }
       }
+      if (typeof patch.classYear === "string") workspace.profile.classYear = patch.classYear.trim().slice(0, 30) || undefined
       if (typeof patch.earliestStart === "string" && /^\d{2}:\d{2}$/.test(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
       if (typeof patch.latestEnd === "string" && /^\d{2}:\d{2}$/.test(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))
       if (patch.declaredProgramId === null || (typeof patch.declaredProgramId === "string" && workspace.programs.some((program) => program.id === patch.declaredProgramId))) workspace.profile.declaredProgramId = patch.declaredProgramId as string | null
+      changed.push({ type: "student_profile", id: workspace.profile.id })
+    } else if (command.type === "update_academic_history") {
+      let patch
+      try { patch = validateAcademicHistoryPatch(command.patch ?? {}) }
+      catch (error) { throw commandError((error as Error).message) }
+      applyAcademicHistory(workspace.profile, patch)
       changed.push({ type: "student_profile", id: workspace.profile.id })
     } else if (command.type === "set_completed_courses") {
       if (envelope.actor.type !== "human") throw commandError("Completed courses require student confirmation")
@@ -241,6 +249,33 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       changed.push({ type: "evidence", id: evidence.id })
       const libraryItem = upsertResearchLibraryItem(workspace, evidence, envelope.actor)
       changed.push({ type: "context_item", id: libraryItem.id })
+    } else if (command.type === "add_reference_program") {
+      let evidence, program
+      try {
+        evidence = validateEvidence(command.evidence)
+        program = validateReferenceProgram(command.program ?? {}, String((command.evidence as Record<string, unknown>)?.id ?? ""))
+      } catch (error) { throw commandError((error as Error).message) }
+      if (!evidence.id) throw commandError("Reference evidence needs a stable ID")
+      program.addedBy = envelope.actor
+      const programIndex = workspace.programs.findIndex((item) => item.id === program.id)
+      if (programIndex >= 0) {
+        if (!workspace.programs[programIndex].addedBy) throw commandError("Shipped institutional programs are read-only. Choose a new program ID.")
+        workspace.programs[programIndex] = program
+      } else workspace.programs.push(program)
+      changed.push({ type: "reference_program", id: program.id })
+      const evidenceIndex = workspace.evidence.findIndex((item) => item.id === evidence.id)
+      if (evidenceIndex >= 0) workspace.evidence[evidenceIndex] = evidence
+      else workspace.evidence.push(evidence)
+      changed.push({ type: "evidence", id: evidence.id })
+      const libraryItem = upsertResearchLibraryItem(workspace, evidence, envelope.actor)
+      changed.push({ type: "context_item", id: libraryItem.id })
+    } else if (command.type === "remove_reference_program") {
+      const index = workspace.programs.findIndex((item) => item.id === command.programId)
+      if (index < 0) throw commandError("Program not found in this workspace")
+      if (!workspace.programs[index].addedBy) throw commandError("Shipped institutional programs cannot be removed")
+      const [removed] = workspace.programs.splice(index, 1)
+      if (workspace.profile.declaredProgramId === removed.id) workspace.profile.declaredProgramId = null
+      changed.push({ type: "reference_program", id: removed.id })
     } else if (command.type === "remove_reference_course") {
       const overlay = workspace.referenceOverlay ?? emptyOverlay()
       const index = overlay.courses.findIndex((item) => item.id === command.courseId)
@@ -284,7 +319,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       undoAvailable,
       actor: envelope.actor,
       visibleChange: true,
-      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : command.type === "extend_reference" ? changed.find((item) => item.type === "reference_course")?.id : undefined
+      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : command.type === "extend_reference" ? changed.find((item) => item.type === "reference_course")?.id : command.type === "add_reference_program" ? changed.find((item) => item.type === "reference_program")?.id : undefined
     }
     workspace.receipts.push(receipt)
     workspace.activity.push({

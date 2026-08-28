@@ -64,6 +64,15 @@ export type Preference = {
   value: unknown
 }
 
+export type ApCredit = {
+  id: string
+  exam: string
+  score?: number
+  unitsGranted?: number
+  satisfiesCourseIds?: string[]
+  note?: string
+}
+
 export type StudentProfile = {
   id: string
   name: string
@@ -71,8 +80,10 @@ export type StudentProfile = {
   isFictional: boolean
   summary: string
   catalogYear: string
+  classYear?: string
   declaredProgramId: string | null
   completedCourseIds: string[]
+  apCredits?: ApCredit[]
   courseGrades: Record<string, string>
   residentCourseIds: string[]
   preferences: Preference[]
@@ -141,6 +152,7 @@ export type Program = {
   sourceUrl: string
   summary?: string
   requirements: ProgramRequirement[]
+  addedBy?: Actor
 }
 
 export type ContextType = "note" | "document" | "idea" | "question" | "task" | "link" | "source" | "claim" | "decision" | "person" | "organization" | "club" | "commitment" | "preference" | "goal" | "constraint" | "uncertainty" | "scratch_document"

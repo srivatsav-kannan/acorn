@@ -119,7 +119,7 @@ The system distinguishes official facts, experiential information, inference, an
 
 ### 3.7 Additive agent behavior with undo
 
-The agent may directly add low-risk items such as notes, links, research, questions, suggestions, and tasks. Every addition is attributed, visible in activity, and undoable. Changes to durable identity facts, completed-course history, or declared program status require an explicit confirmation in the interface.
+The agent may directly add low-risk items such as notes, links, research, questions, suggestions, and tasks. It may also record structured academic history the student has shared with it, including completed courses, credits, and class standing, through the shared academic-history command. Every such change is attributed, visible in activity, and undoable. Changes to durable identity facts such as the student's name, and declared program status, require an explicit confirmation in the interface.
 
 ### 3.8 Bounded customization
 
@@ -1042,7 +1042,11 @@ Apply one atomic set of plan operations such as adding a course, choosing a sect
 
 #### `extend_reference`
 
-Add a missing course, and optionally its current-term section, to the student's private reference overlay. Requires a classified source. The overlay merges over the shipped institutional catalog in search, planning, and checks, appears visibly labeled in the catalog UI, and the student can remove any overlay entry. This is the supported pathway for agent-supplied durable institutional context at schools or in corners the shipped pack does not cover.
+Add missing institutional reference: a course with an optional current-term section, or a degree program with a validated requirement tree. Exactly one per call, always with a classified source. Additions merge over the shipped institutional catalog in search, planning, and checks, appear visibly labeled in the UI, and the student can remove any of them. Shipped programs are read-only and cannot be overwritten. This is the supported pathway for agent-supplied durable institutional context, and for custom schools it is how the agent constructs the entire reference.
+
+#### Onboarding tools
+
+The onboarding page registers a separate two-tool surface before a workspace exists. `get_onboarding_form` returns supported institutions, the custom-school beta path, and the exact field contract. `create_workspace` submits the same fields the visible form submits, through the same server validation. This lets an agent that already holds the student's context create the workspace, including structured academic history, without the student retyping it.
 
 #### `configure_view`
 

@@ -36,7 +36,8 @@ describe("institution registry", () => {
     expect(plannedInstitutions.every((item) => item.status === "planned" && item.coverageNote.length > 20)).toBe(true)
     const choices = listInstitutionChoices()
     expect(choices[0]).toMatchObject({ id: "INSTITUTION-STANFORD", status: "full" })
-    expect(choices.length).toBe(institutions.length + plannedInstitutions.length)
+    expect(choices.length).toBe(institutions.length + plannedInstitutions.length + 1)
+    expect(choices[choices.length - 1]).toMatchObject({ id: "INSTITUTION-CUSTOM", status: "custom" })
   })
 
   it("falls back to Stanford for unknown institution IDs", () => {

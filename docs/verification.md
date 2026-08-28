@@ -16,11 +16,11 @@ Full green.
 
 - ESLint passed.
 - Strict TypeScript passed.
-- 235 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed, including the institution registry and reference overlay suite.
-- Statement coverage: 94.4%.
-- Branch coverage: 87.2%.
-- Function coverage: 93.3%.
-- Line coverage: 98.95%.
+- 250 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed, including the institution registry, reference overlay, academic history, custom institution, and onboarding tool suites.
+- Statement coverage: 93.85%.
+- Branch coverage: 85.42%.
+- Function coverage: 94.84%.
+- Line coverage: 98.77%.
 - The optimized Next.js build passed for 18 public, authentication, API, and workspace routes plus the not-found route.
 - 28 browser journeys passed across desktop and mobile Chromium profiles.
 - Two profile-specific assertions were skipped by design.

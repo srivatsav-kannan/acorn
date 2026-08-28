@@ -1,4 +1,5 @@
-import { getInstitution } from "@/data/institutions/registry"
+import { CUSTOM_INSTITUTION_ID, customInstitution, getInstitution } from "@/data/institutions/registry"
+import { validateAcademicHistoryPatch, applyAcademicHistory } from "@/domain/history"
 import type { Collection, WorkspaceState } from "@/domain/types"
 
 const personalCollections = (): Collection[] => [
@@ -17,13 +18,17 @@ type NewWorkspaceInput = {
   name: string
   goal: string
   institutionId?: string
+  customInstitutionName?: string
+  academicHistory?: Record<string, unknown>
   id?: () => string
   now?: () => Date
 }
 
-export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionId, id = () => crypto.randomUUID(), now = () => new Date() }: NewWorkspaceInput): WorkspaceState => {
-  const institution = getInstitution(institutionId)
+export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionId, customInstitutionName, id = () => crypto.randomUUID(), now = () => new Date() }: NewWorkspaceInput): WorkspaceState => {
+  const customName = customInstitutionName?.trim()
+  const institution = institutionId === CUSTOM_INSTITUTION_ID && customName ? customInstitution(customName) : getInstitution(institutionId)
   const cleanName = name.trim()
+  const firstName = cleanName.split(/\s+/)[0]
   const cleanGoal = goal.trim()
   const suffix = id().replaceAll("-", "").toUpperCase()
   const createdAt = now().toISOString()
@@ -33,7 +38,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     id: `WORKSPACE-${suffix}`,
     ownerUserId: userId,
     version: 1,
-    title: `${cleanName}'s workspace`,
+    title: `${firstName}'s ${institution.shortName} Workspace`,
     institution: institution.name,
     institutionId: institution.id,
     currentTermId: institution.currentTermId,
@@ -43,7 +48,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
       email,
       isFictional: false,
       summary: cleanGoal,
-      catalogYear: "2026-27",
+      catalogYear: institution.slug === "custom" ? "Current" : "2026-27",
       declaredProgramId: null,
       completedCourseIds: [],
       courseGrades: {},
@@ -88,4 +93,13 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     undoSnapshots: {},
     referenceOverlay: { courses: [], sections: [] }
   }
+}
+
+export const buildPersonalWorkspaceWithHistory = (input: NewWorkspaceInput): WorkspaceState => {
+  const workspace = buildPersonalWorkspace(input)
+  if (input.academicHistory) {
+    const patch = validateAcademicHistoryPatch(input.academicHistory)
+    applyAcademicHistory(workspace.profile, patch)
+  }
+  return workspace
 }

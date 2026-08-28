@@ -48,7 +48,13 @@ extend_reference
 configure_view
 ```
 
-`extend_reference` is the door out of hardcoded institutional data. When the shipped reference pack lacks a course a student needs, their agent adds it to a private workspace overlay with an official source. The addition shows up labeled in the catalog, merges into search and plan checks, and can be removed by the student at any time.
+`extend_reference` is the door out of hardcoded institutional data. When the shipped reference pack lacks a course or a program, the student's agent adds it with an official source, including full requirement trees that the deterministic evaluator can check. Additions show up labeled in the catalog and Programs views, merge into search and plan checks, and can be removed by the student at any time.
+
+The loop closes in both directions:
+
+- Structured academic history, including completed courses, AP and transfer credit with course equivalencies, and class standing, is editable by the student in Settings and writable by an agent through `update_student_context`. Equivalencies count toward prerequisites and requirements like completed courses.
+- The onboarding page registers its own WebMCP tools, `get_onboarding_form` and `create_workspace`, so an agent that already holds the student's context can create the workspace without the student retyping anything.
+- A student at an unsupported school chooses Other, names their university, and gets a neutral beta workspace titled for that school. Their agent researches the university and constructs its catalog and program reference with sources.
 
 The visible interface and WebMCP tools must use the same domain logic and persistent state. Tool results must be structured, concise, provenance-aware, and sufficient to verify what changed.
 

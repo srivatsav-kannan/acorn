@@ -172,6 +172,9 @@ It must pass:
 - Agent-added priorities visible through student Settings
 - Registration and unregistration lifecycle
 - Reference overlay additions validated, merged into search and checks, visible, and removable
+- Agent-added programs validated as rule trees, protected shipped programs, removable
+- Academic history writable by both actors, AP equivalencies feed prerequisites and requirements
+- Onboarding page tool surface described and submitted through the shared validation path
 
 ### Architecture 19 through 23: application, data, and versioning
 

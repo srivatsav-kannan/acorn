@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
 import type { ActivityEntry } from "@/domain/types"
 import { searchWorkspace } from "@/domain/search"
+import { institutionForWorkspace } from "@/data/institutions/registry"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
 import { ActivityIcon, ExploreIcon, HomeIcon, LibraryIcon, PlanIcon, ProgramsIcon, SearchIcon, TogetherIcon } from "@/components/icons"
 
@@ -31,6 +32,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
   const [searchQuery, setSearchQuery] = useState("")
   const [mobile, setMobile] = useState(false)
   const workspaceValue = useOptionalWorkspace()
+  const exploreLabel = workspaceValue ? institutionForWorkspace(workspaceValue.workspace).shortName : "Stanford"
   const initials = workspaceValue?.workspace.profile.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "AC"
   const searchResults = workspaceValue && searchQuery.trim() ? searchWorkspace(workspaceValue.workspace, workspaceValue.catalog, searchQuery) : null
   useEffect(() => {
@@ -68,7 +70,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     <aside className="sidebar">
       <nav aria-label="Primary">
         <p className="nav-label">Workspace</p>
-        {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{navIcon(key)}</span>{name}</Link>)}
+        {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{navIcon(key)}</span><span className="nav-text">{key === "explore" ? exploreLabel : name}</span></Link>)}
       </nav>
       <div className="sidebar-context">
         <p className="nav-label">Current focus</p>
@@ -79,7 +81,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     </aside>
     <main id="workspace-content" className="workspace-main">{children}</main>
     {mobile && <nav className="mobile-nav" aria-label="Mobile">
-      {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "active" : ""} href={href} aria-label={name}><span aria-hidden="true">{navIcon(key)}</span><span aria-hidden="true">{name === "Plan together" ? "Together" : name}</span></Link>)}
+      {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "active" : ""} href={href} aria-label={key === "explore" ? exploreLabel : name}><span aria-hidden="true">{navIcon(key)}</span><span aria-hidden="true">{key === "explore" ? exploreLabel : name === "Plan together" ? "Together" : name}</span></Link>)}
     </nav>}
     {activityOpen && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setActivityOpen(false)}>
       <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>

@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { getInstitution } from "@/data/institutions/registry"
+import { institutionForWorkspace } from "@/data/institutions/registry"
+import { effectiveCompletedCourseIds } from "@/domain/history"
 import { evaluateRequirement } from "@/domain/requirements"
 import type { Catalog, RequirementRule, WorkspaceState } from "@/domain/types"
 
@@ -27,7 +28,8 @@ const ruleCourseIds = (rule: RequirementRule): string[] => {
 export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: WorkspaceState, catalog: Catalog, onCommand: (command: Record<string, unknown>) => void }) => {
   const [selectedId, setSelectedId] = useState(workspace.profile.declaredProgramId ?? workspace.programs[0]?.id ?? "")
   const [openOnly, setOpenOnly] = useState(false)
-  const institution = getInstitution(workspace.institutionId)
+  const institution = institutionForWorkspace(workspace)
+  const completedWithCredit = effectiveCompletedCourseIds(workspace.profile)
   const program = workspace.programs.find((item) => item.id === selectedId) ?? workspace.programs[0]
   const planned = workspace.plans.flatMap((plan) => {
     const scenario = plan.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan.scenarios[0]
@@ -36,15 +38,23 @@ export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: Wor
   const units = Object.fromEntries(catalog.courses.map((course) => [course.id, course.maxUnits]))
   const evaluations = useMemo(() => program ? program.requirements.map((requirement) => ({
     requirement,
-    evaluation: evaluateRequirement({ rule: requirement.rule, completedCourseIds: workspace.profile.completedCourseIds, plannedCourseIds: planned, courseUnits: units, courseGrades: workspace.profile.courseGrades, residentCourseIds: workspace.profile.residentCourseIds, allowDoubleCount: false })
-  })) : [], [planned, program, units, workspace.profile.completedCourseIds, workspace.profile.courseGrades, workspace.profile.residentCourseIds])
+    evaluation: evaluateRequirement({ rule: requirement.rule, completedCourseIds: completedWithCredit, plannedCourseIds: planned, courseUnits: units, courseGrades: workspace.profile.courseGrades, residentCourseIds: workspace.profile.residentCourseIds, allowDoubleCount: false })
+  })) : [], [completedWithCredit, planned, program, units, workspace.profile.courseGrades, workspace.profile.residentCourseIds])
   const completed = evaluations.filter((item) => item.evaluation.status === "completed").length
   const shown = openOnly ? evaluations.filter((item) => item.evaluation.status !== "completed") : evaluations
   const tracking = workspace.profile.declaredProgramId === program?.id
   const courseCode = (id: string) => catalog.courses.find((course) => course.id === id)?.code ?? id.replace(/^COURSE-/, "").replaceAll("-", " ")
-  const courseState = (id: string) => workspace.profile.completedCourseIds.includes(id) ? "done" : planned.includes(id) ? "planned" : ""
+  const courseState = (id: string) => completedWithCredit.includes(id) ? "done" : planned.includes(id) ? "planned" : ""
 
-  if (!program) return <div className="page programs-page"><div className="library-empty"><h1>Program references are unavailable</h1><p>Refresh the page or try again later.</p></div></div>
+  const buildPrompt = `My school is ${workspace.institution}. Research its official degree pages. In this open CourseContext workspace, use the extend_reference tool to add my program with its requirement tree, and the courses that satisfy it, each with an official source. Mark anything uncertain for manual review instead of guessing.`
+
+  if (!program) return <div className="page programs-page programs-rebuild">
+    <header className="page-heading"><div><p className="eyebrow">{institution.shortName} reference · Beta</p><h1>No programs here yet</h1><p>{workspace.institution} has no shipped reference pack. Your agent builds one for you, with sources.</p></div></header>
+    <section className="agent-build-card">
+      <div><p className="eyebrow">Agent-built reference</p><h2>Ask your agent to add your program.</h2><p>Keep this workspace open and paste this to your agent. Programs it adds appear here, labeled, checkable against your plan, and removable.</p></div>
+      <blockquote>{buildPrompt}</blockquote>
+    </section>
+  </div>
 
   return <div className="page programs-page programs-rebuild">
     <header className="page-heading"><div><p className="eyebrow">{institution.shortName} reference</p><h1>Explore programs</h1><p>Compare official program pages, then track one only when you choose it.</p></div><span className="reference-badge">Read-only reference</span></header>
@@ -52,14 +62,14 @@ export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: Wor
     <div className="program-browser">
       <aside className="program-list" aria-label={`${institution.shortName} programs`}>
         <p className="nav-label">Programs in this reference pack</p>
-        {workspace.programs.map((item) => <button key={item.id} className={item.id === program.id ? "active" : ""} onClick={() => setSelectedId(item.id)}><span><strong>{item.name}</strong><small>{item.credential} · {item.catalogYear}</small></span>{workspace.profile.declaredProgramId === item.id && <em>Tracking</em>}</button>)}
-        <p className="program-coverage-note">This pack covers a focused set of common paths. The official Bulletin remains the complete source. Your agent can add missing reference material with sources.</p>
+        {workspace.programs.map((item) => <button key={item.id} className={item.id === program.id ? "active" : ""} onClick={() => setSelectedId(item.id)}><span><strong>{item.name}</strong><small>{item.credential} · {item.catalogYear}{item.addedBy ? " · Added by your agent" : ""}</small></span>{workspace.profile.declaredProgramId === item.id && <em>Tracking</em>}</button>)}
+        <p className="program-coverage-note">This pack covers a focused set of common paths. The official catalog remains the complete source. Your agent can add missing reference material with sources.</p>
       </aside>
 
       <section className="program-detail">
-        <div className="program-detail-heading"><div><p className="eyebrow">Official {institution.shortName} program</p><h2>{program.name}</h2><p>{program.summary ?? `${program.credential} program for the ${program.catalogYear} catalog year.`}</p></div><div className="program-detail-actions"><a className="secondary-button" href={program.sourceUrl} target="_blank" rel="noreferrer">Open official page ↗</a><button className={tracking ? "secondary-button" : "primary-button"} type="button" onClick={() => onCommand({ type: "update_profile", patch: { declaredProgramId: tracking ? null : program.id } })}>{tracking ? "Stop tracking" : "Track this program"}</button></div></div>
+        <div className="program-detail-heading"><div><p className="eyebrow">{program.addedBy ? "Agent-added program reference" : `Official ${institution.shortName} program`}</p><h2>{program.name}</h2><p>{program.summary ?? `${program.credential} program for the ${program.catalogYear} catalog year.`}</p></div><div className="program-detail-actions"><a className="secondary-button" href={program.sourceUrl} target="_blank" rel="noreferrer">Open official page ↗</a><button className={tracking ? "secondary-button" : "primary-button"} type="button" onClick={() => onCommand({ type: "update_profile", patch: { declaredProgramId: tracking ? null : program.id } })}>{tracking ? "Stop tracking" : "Track this program"}</button>{program.addedBy && <button className="text-button" type="button" onClick={() => { onCommand({ type: "remove_reference_program", programId: program.id }); setSelectedId(workspace.programs.find((item) => item.id !== program.id)?.id ?? "") }}>Remove from my reference</button>}</div></div>
 
-        <div className="program-reference-meta"><span><b>Source</b> {institution.shortName} Bulletin</span><span><b>Catalog year</b> {program.catalogYear}</span><span><b>Your status</b> {tracking ? "Selected by you" : "Reference only"}</span></div>
+        <div className="program-reference-meta"><span><b>Source</b> {program.addedBy ? "Added by your agent with a cited source" : `${institution.shortName} official pages`}</span><span><b>Catalog year</b> {program.catalogYear}</span><span><b>Your status</b> {tracking ? "Selected by you" : "Reference only"}</span></div>
 
         {tracking && <section className="program-progress-strip"><div><strong>{completed}</strong><span>of {evaluations.length} tracked areas complete</span></div><div className="progress-track"><span style={{ width: evaluations.length ? `${completed / evaluations.length * 100}%` : "0%" }} /></div><p>CourseContext separates completed work from courses that are only planned.</p></section>}
 
@@ -77,6 +87,6 @@ export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: Wor
     </div>
 
     <aside className="program-note"><span>i</span><p><b>Planning aid, not an official degree audit</b><small>CourseContext links to official requirements and leaves policy nuance open for advisor review.</small></p></aside>
-    <section className="stanford-resources"><div className="section-heading"><div><p className="eyebrow">Planning resources</p><h2>Useful starting points</h2></div></div><div>{institution.resources.map((resource) => <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><span>{resource.kind === "official" ? `Official ${institution.shortName} source` : "Community tool"}</span><strong>{resource.title}</strong><small>{resource.note}</small></a>)}</div></section>
+    {institution.resources.length > 0 && <section className="stanford-resources"><div className="section-heading"><div><p className="eyebrow">Planning resources</p><h2>Useful starting points</h2></div></div><div>{institution.resources.map((resource) => <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><span>{resource.kind === "official" ? `Official ${institution.shortName} source` : "Community tool"}</span><strong>{resource.title}</strong><small>{resource.note}</small></a>)}</div></section>}
   </div>
 }

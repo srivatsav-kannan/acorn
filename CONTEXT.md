@@ -116,7 +116,7 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-020: Human and agent onboarding
 
 - Priority: hard
-- Requirement: Human onboarding asks only for a preferred name and one open-ended description of what the student wants help with. Additional questions appear progressively when a real task requires them. Agent onboarding is machine-native through tool descriptions and planning context, while the student sees only plain-language guidance.
+- Requirement: Human onboarding requires only an institution choice, a preferred name, and one open-ended description of what the student wants help with. Structured academic history such as class standing and AP credit is offered as clearly optional fields, never a forced questionnaire. The onboarding page also registers its own WebMCP tools so an agent that already holds the student's context can read the form contract and create the workspace through the same validated path, and the page shows a copyable instruction for that handoff. Agent behavior happens in the student's agent, never simulated inside the product.
 
 ### REQ-021: Product-grade feedback and motion
 
@@ -182,7 +182,17 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-033: Dynamic institutional reference
 
 - Priority: hard
-- Requirement: The shipped institutional pack is a versioned baseline, not a ceiling. A student's agent can add a missing course, section, or program fact to a private workspace reference overlay through a dedicated WebMCP tool. Overlay additions require a classified source, merge into search, planning, and checks, appear visibly labeled in the catalog UI, and can be removed by the student. Other universities are represented honestly as planned adapters until real data ships.
+- Requirement: The shipped institutional pack is a versioned baseline, not a ceiling. A student's agent can add a missing course, section, or complete program with a validated requirement tree through the extend_reference WebMCP tool. Additions require a classified source, merge into search, planning, and checks, appear visibly labeled in the UI, and can be removed by the student. Other universities are represented honestly as planned adapters until real data ships.
+
+### REQ-034: Custom institutions are agent-built
+
+- Priority: hard
+- Requirement: A student whose school has no shipped pack can choose Other at onboarding, name their university, and receive a neutral template workspace titled for that school, clearly marked beta. The empty catalog and program surfaces explain the agent-built path and provide a copyable agent instruction. The agent constructs the school's reference through extend_reference with official sources, and everything it adds is labeled, evaluable, and removable.
+
+### REQ-035: Structured academic history feeds the agent
+
+- Priority: hard
+- Requirement: Completed courses, grades, AP and transfer credit, and class standing are structured product state, editable by the student in Settings and writable by an agent through update_student_context. Credit equivalencies count toward prerequisites and requirement evaluation exactly like completed courses. Every change is attributed, visible in Activity, and undoable.
 
 ## Non-goals for the challenge build
 

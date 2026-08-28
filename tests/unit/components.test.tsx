@@ -2,7 +2,9 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { buildFixture } from "@/data/fixture"
-import { buildPersonalWorkspace } from "@/data/personal-workspace"
+import { buildPersonalWorkspace, buildPersonalWorkspaceWithHistory } from "@/data/personal-workspace"
+import { CUSTOM_INSTITUTION_ID } from "@/data/institutions/registry"
+import { ExplorePage } from "@/features/explore/explore-page"
 import { AppShell } from "@/components/app-shell"
 import { StatusState } from "@/components/status-state"
 import { LandingPage } from "@/features/landing/landing-page"
@@ -69,6 +71,45 @@ const DemoResetHarness = () => {
   const workspace = useWorkspace()
   return <button onClick={() => void workspace.reset()}>Reset server demo</button>
 }
+
+describe("custom institution workspace", () => {
+  const customWorkspace = () => buildPersonalWorkspaceWithHistory({
+    userId: "USER-DAVE",
+    email: "dave@example.com",
+    name: "Dave Smith",
+    goal: "Plan my semester without missing requirements.",
+    institutionId: CUSTOM_INSTITUTION_ID,
+    customInstitutionName: "University of Wherever"
+  })
+
+  it("shows the agent-built beta state in the empty catalog", () => {
+    const workspace = customWorkspace()
+    render(<ExplorePage workspace={workspace} catalog={{ courses: [], sections: [] }} onCommand={vi.fn()} />)
+    expect(screen.getByText(/University of Wherever reference · Beta/i)).toBeVisible()
+    expect(screen.getByText(/Your catalog starts empty. Your agent fills it./i)).toBeVisible()
+    expect(screen.getByText(/extend_reference/)).toBeVisible()
+    expect(screen.queryByText(/Stanford Bulletin/i)).not.toBeInTheDocument()
+  })
+
+  it("shows the agent-built beta state when no programs exist", () => {
+    const workspace = customWorkspace()
+    render(<ProgramsPage workspace={workspace} catalog={{ courses: [], sections: [] }} onCommand={vi.fn()} />)
+    expect(screen.getByRole("heading", { name: /No programs here yet/i })).toBeVisible()
+    expect(screen.getByText(/Ask your agent to add your program./i)).toBeVisible()
+  })
+
+  it("offers the WebMCP agent handoff and optional structured history at onboarding", async () => {
+    render(<OnboardingPage />)
+    expect(screen.getByText(/Let it fill this in for you./i)).toBeVisible()
+    expect(screen.getByRole("button", { name: /copy agent instruction/i })).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: /Other/i }))
+    expect(screen.getByLabelText(/university's name/i)).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: /add academic history now/i }))
+    expect(screen.getByLabelText(/class standing/i)).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: /add a credit/i }))
+    expect(screen.getByLabelText("Credit 1 name")).toBeVisible()
+  })
+})
 
 describe("server demo reset", () => {
   it("calls the reset endpoint and returns to demo login", async () => {

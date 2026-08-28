@@ -1,4 +1,5 @@
-import type { Catalog, Course, ReferenceOverlay, Section, WorkspaceState } from "@/domain/types"
+import { assertSafeExternalUrl } from "@/domain/security"
+import type { Catalog, Course, Program, ReferenceOverlay, RequirementRule, Section, WorkspaceState } from "@/domain/types"
 
 // The institutional catalog is shared and read-only. A workspace can carry its
 // own reference overlay: courses and sections an agent or student added with a
@@ -50,6 +51,73 @@ export const validateOverlayCourse = (input: Record<string, unknown>): Course =>
     catalogYear: typeof input.catalogYear === "string" ? input.catalogYear : undefined,
     prerequisites: Array.isArray(input.prerequisites) ? input.prerequisites.map((item) => String(item)).slice(0, 12) : undefined,
     prerequisiteUncertain: input.prerequisiteUncertain === true ? true : undefined
+  }
+}
+
+const ruleTypes = new Set(["course", "any_of", "all_of", "choose_n", "course_group", "minimum_units", "minimum_grade", "residency", "manual_review"])
+
+export const validateRequirementRule = (input: Record<string, unknown>, budget = { rules: 0 }, depth = 0): RequirementRule => {
+  budget.rules += 1
+  if (budget.rules > 60) throw new Error("A program can hold at most 60 requirement rules")
+  if (depth > 4) throw new Error("Requirement rules can nest at most five levels")
+  const type = String(input.type ?? "")
+  if (!ruleTypes.has(type)) throw new Error(`Unsupported requirement rule type: ${type || "missing"}`)
+  const id = typeof input.id === "string" && input.id.trim() ? input.id.trim().slice(0, 80) : undefined
+  const title = typeof input.title === "string" && input.title.trim() ? input.title.trim().slice(0, 120) : undefined
+  const courseIdList = (value: unknown): string[] => {
+    if (!Array.isArray(value) || value.length === 0) throw new Error(`A ${type} rule needs a course list`)
+    return value.map((item) => requireText(item, "course ID", 60)).slice(0, 40)
+  }
+  const childRules = (value: unknown): RequirementRule[] => {
+    if (!Array.isArray(value) || value.length === 0) throw new Error(`A ${type} rule needs child rules`)
+    return value.map((item) => validateRequirementRule(item as Record<string, unknown>, budget, depth + 1))
+  }
+  const count = (value: unknown): number => {
+    const parsed = Number(value)
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 30) throw new Error(`A ${type} rule needs a count between 1 and 30`)
+    return parsed
+  }
+  if (type === "course") return { id, title, type, courseId: requireText(input.courseId, "course ID", 60) }
+  if (type === "manual_review") return { id, title, type, reason: requireText(input.reason, "manual review reason", 300) }
+  if (type === "course_group") return { id, title, type, count: count(input.count), courseIds: courseIdList(input.courseIds) }
+  if (type === "minimum_units") {
+    const units = Number(input.units)
+    if (!Number.isInteger(units) || units < 1 || units > 200) throw new Error("A minimum_units rule needs units between 1 and 200")
+    return { id, title, type, units, courseIds: courseIdList(input.courseIds) }
+  }
+  if (type === "minimum_grade") return { id, title, type, courseId: requireText(input.courseId, "course ID", 60), grade: requireText(input.grade, "grade", 4) }
+  if (type === "residency") return { id, title, type, count: count(input.count), courseIds: courseIdList(input.courseIds) }
+  if (type === "choose_n") return { id, title, type, count: count(input.count), rules: childRules(input.rules) }
+  return { id, title, type: type as "any_of" | "all_of", rules: childRules(input.rules) }
+}
+
+export const validateReferenceProgram = (input: Record<string, unknown>, evidenceId: string): Program => {
+  const name = requireText(input.name, "program name", 120)
+  const id = requireText(input.id ?? `PROGRAM-${name.toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`, "stable program ID", 80)
+  if (!/^[A-Z][A-Z0-9-]+$/.test(id)) throw new Error("A reference program ID must be an uppercase stable identifier")
+  const sourceUrl = requireText(input.sourceUrl, "official source URL", 300)
+  assertSafeExternalUrl(sourceUrl)
+  if (!Array.isArray(input.requirements) || input.requirements.length === 0) throw new Error("A reference program needs at least one requirement")
+  if (input.requirements.length > 24) throw new Error("A reference program supports at most 24 requirements")
+  const budget = { rules: 0 }
+  const requirements = input.requirements.map((raw, index) => {
+    const item = raw as Record<string, unknown>
+    const title = requireText(item.title, "requirement title", 140)
+    return {
+      id: typeof item.id === "string" && item.id.trim() ? item.id.trim().slice(0, 80) : `REQUIREMENT-${id.replace(/^PROGRAM-/, "")}-${index + 1}`,
+      title,
+      rule: validateRequirementRule((item.rule ?? {}) as Record<string, unknown>, budget),
+      evidenceIds: [evidenceId]
+    }
+  })
+  return {
+    id,
+    name,
+    credential: requireText(input.credential ?? "Program", "credential", 60),
+    catalogYear: requireText(input.catalogYear ?? "Current", "catalog year", 20),
+    sourceUrl,
+    summary: typeof input.summary === "string" && input.summary.trim() ? input.summary.trim().slice(0, 400) : undefined,
+    requirements
   }
 }
 

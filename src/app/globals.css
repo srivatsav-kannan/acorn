@@ -1020,3 +1020,40 @@ b, strong { letter-spacing: -.005em; }
 .agent-manifest-card { margin-top: 14px; padding: 25px; border: 1px solid var(--line); background: white; box-shadow: var(--shadow-sm); }
 .agent-manifest-card .section-heading h2 { margin: 4px 0 0; font-family: var(--font-serif-stack); font-size: 22px; font-weight: 480; }
 .agent-manifest-card .section-heading > span { color: var(--muted); font-size: 11.5px; }
+
+/* Academic history, agent-fill onboarding, and custom institutions */
+.institution-status.beta { background: var(--navy-soft); color: var(--navy); }
+.agent-fill-card { margin-top: 34px; padding: 22px 24px; border: 1px solid var(--line-strong); border-radius: 9px; background: white; box-shadow: var(--shadow-sm); }
+.agent-fill-card h2 { margin: 4px 0 8px; font-family: var(--font-serif-stack); font-size: 22px; font-weight: 480; }
+.agent-fill-card > p:not(.eyebrow) { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.agent-fill-card blockquote { margin: 0 0 14px; padding: 13px 15px; border-left: 3px solid var(--navy); background: #f8f7f3; color: #3d4a52; font-size: 11.5px; line-height: 1.6; max-height: 130px; overflow-y: auto; }
+.custom-institution-field { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.custom-institution-field span { font-size: 12.5px; font-weight: 620; }
+.custom-institution-field input { width: 100%; border: 1px solid var(--line-strong); border-radius: 6px; padding: 12px 13px; background: white; font-size: 13px; }
+.custom-institution-field input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(35, 68, 86, .09); outline: 0; }
+.custom-institution-field small { color: var(--muted); font-size: 11.5px; font-weight: 500; line-height: 1.55; }
+.history-section { margin: 4px 0 18px; border: 1px solid var(--line); border-radius: 7px; background: #fbfaf7; }
+.history-toggle { display: flex; flex-direction: column; gap: 3px; width: 100%; border: 0; padding: 13px 15px; background: none; text-align: left; }
+.history-toggle span { font-size: 12.5px; font-weight: 620; }
+.history-toggle small { color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.history-toggle[aria-expanded="true"] { border-bottom: 1px solid var(--line); }
+.history-fields { padding: 14px 15px 16px; }
+.history-fields label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 12px; font-weight: 620; }
+.history-fields input { width: 100%; border: 1px solid var(--line-strong); border-radius: 5px; padding: 9px 11px; background: white; font-size: 12.5px; font-weight: 450; }
+.ap-rows { display: grid; gap: 7px; }
+.ap-rows-label { font-size: 12px; font-weight: 620; }
+.ap-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px 28px; gap: 7px; align-items: center; }
+.ap-rows .text-button { justify-self: start; margin-top: 2px; }
+.agent-build-card { grid-column: 1 / -1; padding: 26px; border: 1px solid #c8d4da; border-radius: 8px; background: #f4f8f8; }
+.agent-build-card h2 { margin: 4px 0 8px; font-family: var(--font-serif-stack); font-size: 24px; font-weight: 480; }
+.agent-build-card > div > p:not(.eyebrow), .agent-build-card > p:not(.eyebrow) { max-width: 640px; margin: 0 0 14px; color: #4a5860; font-size: 13.5px; line-height: 1.65; }
+.agent-build-card blockquote { max-width: 720px; margin: 0 0 14px; padding: 14px 16px; border-left: 3px solid var(--navy); background: white; color: #3d4a52; font-size: 12.5px; line-height: 1.65; }
+.credit-settings > p { color: var(--muted); font-size: 12px; }
+.credit-form { max-width: 560px; margin: 14px 0 18px; padding: 15px; border: 1px solid var(--line); border-radius: 7px; background: #fbfaf7; }
+.credit-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 13px; font-size: 12px; font-weight: 620; }
+.credit-form input { width: 100%; border: 1px solid var(--line-strong); border-radius: 5px; padding: 9px 11px; background: white; font-size: 12.5px; font-weight: 450; }
+.nav-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  .ap-row { grid-template-columns: minmax(0, 1fr) 52px 26px; }
+  .agent-fill-card { margin-top: 22px; }
+}

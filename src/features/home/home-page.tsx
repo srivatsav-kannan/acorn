@@ -30,8 +30,8 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
         <p className="eyebrow">Best next step</p>
         {active.length === 0 ? <>
           <h2>Build a first version of your quarter.</h2>
-          <p>Browse Stanford courses and add a few possibilities. You can set a major, unit limit, and time constraints when they become useful.</p>
-          <div className="next-actions"><Link className="primary-button" href="/app/explore">Browse Stanford</Link><Link className="secondary-button" href="/app/agent">Plan with an agent</Link></div>
+          <p>Browse the {workspace.institution} reference and add a few possibilities. You can set a major, unit limit, and time constraints when they become useful.</p>
+          <div className="next-actions"><Link className="primary-button" href="/app/explore">Browse courses</Link><Link className="secondary-button" href="/app/agent">Plan with an agent</Link></div>
         </> : <>
           <h2>{active.length} course{active.length === 1 ? "" : "s"} in your current plan.</h2>
           <p>{units} units are scheduled. Open the plan to check times, prerequisites, and any missing information.</p>
@@ -50,6 +50,7 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
         <dl>
           <div><dt>Program</dt><dd>{program ? program.name : "Not chosen"}</dd></div>
           <div><dt>Completed courses</dt><dd>{workspace.profile.completedCourseIds.length || "None added"}</dd></div>
+          <div><dt>AP and transfer credits</dt><dd>{(workspace.profile.apCredits ?? []).length || "None added"}</dd></div>
           <div><dt>Notes and research</dt><dd>{personalItems.length || "None yet"}</dd></div>
           <div><dt>Planning priorities</dt><dd>{workspace.profile.preferences.length || "None yet"}</dd></div>
         </dl>

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { executeCommand } from "@/domain/commands"
+import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan } from "@/domain/planner"
 import { mergedCatalogFor } from "@/domain/reference"
 import { evaluateRequirement } from "@/domain/requirements"
@@ -86,7 +87,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async () => {
         const value = await workspace()
         const currentPlan = value.plans[0]
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: "The shipped catalog is a sample. Add verified missing courses with extend_reference.", currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
+        const custom = value.institutionId === "INSTITUTION-CUSTOM"
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "The shipped catalog is a sample. Add verified missing courses or programs with extend_reference.", history: { classYear: value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, apCredits: (value.profile.apCredits ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
       }
     },
     {
@@ -144,7 +146,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const planned = value.plans.flatMap((plan) => plan.scenarios[0]?.courses.filter((item) => item.status === "active").map((item) => item.courseId) ?? [])
         const units = Object.fromEntries(mergedCatalogFor(value, repository.catalog).courses.map((course) => [course.id, course.maxUnits]))
         return { workspaceVersion: value.version, program: program ? { id: program.id, name: program.name, requirements: program.requirements.map((requirement) => {
-          const evaluation = evaluateRequirement({ rule: requirement.rule, completedCourseIds: value.profile.completedCourseIds, plannedCourseIds: planned, courseUnits: units, courseGrades: value.profile.courseGrades, residentCourseIds: value.profile.residentCourseIds, allowDoubleCount: false })
+          const evaluation = evaluateRequirement({ rule: requirement.rule, completedCourseIds: effectiveCompletedCourseIds(value.profile), plannedCourseIds: planned, courseUnits: units, courseGrades: value.profile.courseGrades, residentCourseIds: value.profile.residentCourseIds, allowDoubleCount: false })
           return { id: requirement.id, title: requirement.title, status: evaluation.status, courseIds: evaluation.contributingCourseIds.length ? evaluation.contributingCourseIds : undefined, detail: evaluation.detail ? evaluation.detail.slice(0, 120) : undefined }
         }) } : null }
       }
@@ -167,11 +169,30 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "update_student_context",
-      description: "Add or update student preferences and planning constraints.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), preferences: { type: "array", minItems: 1, description: "Complete visible priorities to add or update", items: { type: "object", additionalProperties: false, properties: { id: field("string", "Stable preference ID"), label: field("string", "Student-facing priority label"), strength: { type: "string", enum: ["hard", "soft"] }, value: { description: "Boolean, number, or text value" } }, required: ["id", "label", "strength", "value"] } } }, ["expectedVersion", "idempotencyKey", "preferences"]),
+      description: "Add or update student preferences, planning constraints, or structured academic history such as completed courses, AP and transfer credit, and class standing. Pass preferences or academicHistory, one per call. History the student shared with you belongs here, visibly, not in your transcript.",
+      inputSchema: schema({
+        expectedVersion: field("number", "Current workspace version"),
+        idempotencyKey: field("string", "Unique retry-safe operation key"),
+        preferences: { type: "array", minItems: 1, description: "Complete visible priorities to add or update", items: { type: "object", additionalProperties: false, properties: { id: field("string", "Stable preference ID"), label: field("string", "Student-facing priority label"), strength: { type: "string", enum: ["hard", "soft"] }, value: { description: "Boolean, number, or text value" } }, required: ["id", "label", "strength", "value"] } },
+        academicHistory: {
+          type: "object",
+          additionalProperties: false,
+          description: "Structured academic history. Provided lists replace the stored lists.",
+          properties: {
+            classYear: field("string", "Class standing or expected graduation year"),
+            completedCourses: field("array", "Complete list of completed courses as {courseId, grade?}"),
+            apCredits: field("array", "Complete list of credits as {exam, score?, unitsGranted?, satisfiesCourseIds?}. satisfiesCourseIds count as completed in checks.")
+          }
+        }
+      }, ["expectedVersion", "idempotencyKey"]),
       annotations: annotations(false),
       examples: [],
-      execute: async (input) => mutate(input, { type: "set_student_preferences", preferences: input.preferences })
+      execute: async (input) => {
+        if (input.academicHistory && input.preferences) return { ok: false, code: "ONE_SECTION_PER_CALL", message: "Send preferences and academicHistory in separate calls so each change is separately visible and undoable." }
+        if (input.academicHistory) return mutate(input, { type: "update_academic_history", patch: input.academicHistory })
+        if (!Array.isArray(input.preferences) || input.preferences.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Provide preferences or academicHistory." }
+        return mutate(input, { type: "set_student_preferences", preferences: input.preferences })
+      }
     },
     {
       name: "edit_plan",
@@ -183,7 +204,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "extend_reference",
-      description: "Add a missing course, and optionally its current section, to the student's institutional reference overlay. Use when the shipped catalog lacks a course the student needs. Requires an official or clearly classified source. The addition appears in the visible catalog, merges into search and plan checks, and can be removed by the student.",
+      description: "Add missing institutional reference: a course with an optional section, or a program with a validated requirement tree. Pass exactly one of course or program per call, always with a classified source. Use it when the shipped pack lacks something, and to construct the whole reference for a custom school. Additions are visible, merged into search and checks, and removable by the student.",
       inputSchema: schema({
         expectedVersion: field("number", "Current workspace version"),
         idempotencyKey: field("string", "Unique retry-safe operation key"),
@@ -211,7 +232,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         section: {
           type: "object",
           additionalProperties: false,
-          description: "Optional current-term section with verified meeting times",
+          description: "Optional current-term section with verified meeting times, only alongside course",
           properties: {
             id: field("string", "Stable section ID"),
             sectionNumber: field("string", "Official section number"),
@@ -221,11 +242,30 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           },
           required: ["units", "meetings"]
         },
+        program: {
+          type: "object",
+          additionalProperties: false,
+          description: "A degree program with a structured requirement tree",
+          properties: {
+            id: field("string", "Stable uppercase ID, for example PROGRAM-BERKELEY-EECS-BS"),
+            name: field("string", "Official program name"),
+            credential: field("string", "Credential, for example BS or BA"),
+            catalogYear: field("string", "Catalog year the requirements describe"),
+            sourceUrl: field("string", "Official program page URL"),
+            summary: field("string", "One or two plain sentences about the program"),
+            requirements: field("array", "Requirements as {title, rule}. Rules use course, all_of, any_of, choose_n, course_group, minimum_units, minimum_grade, residency, or manual_review.")
+          },
+          required: ["name", "sourceUrl", "requirements"]
+        },
         evidence: evidenceField
-      }, ["expectedVersion", "idempotencyKey", "course", "evidence"]),
+      }, ["expectedVersion", "idempotencyKey", "evidence"]),
       annotations: annotations(false, true),
       examples: [],
-      execute: async (input) => mutate(input, { type: "extend_reference", course: input.course, section: input.section, evidence: input.evidence })
+      execute: async (input) => {
+        if (Boolean(input.course) === Boolean(input.program)) return { ok: false, code: "COMMAND_INVALID", message: "Pass exactly one of course or program per call." }
+        if (input.program) return mutate(input, { type: "add_reference_program", program: input.program, evidence: input.evidence })
+        return mutate(input, { type: "extend_reference", course: input.course, section: input.section, evidence: input.evidence })
+      }
     },
     {
       name: "configure_view",

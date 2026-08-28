@@ -1,4 +1,5 @@
 import { isEvidenceStale } from "@/domain/evidence"
+import { effectiveCompletedCourseIds } from "@/domain/history"
 import type { Catalog, Evidence, Meeting, PlanScenario, StudentProfile } from "@/domain/types"
 
 export type PlanCheckCode = "UNIT_LIMIT" | "DUPLICATE_COURSE" | "MEETING_CONFLICT" | "COMMITMENT_CONFLICT" | "MISSING_SECTION" | "NOT_OFFERED" | "PREREQUISITE_MISSING" | "PREREQUISITE_UNCERTAIN" | "FINAL_CONFLICT" | "DAY_CONSTRAINT" | "TIME_CONSTRAINT" | "TRANSITION_BUFFER" | "STALE_EVIDENCE"
@@ -48,7 +49,8 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now }: { scena
       add(offered ? "MISSING_SECTION" : "NOT_OFFERED", "error", [entry.item.id], offered ? "Choose a section before finalizing this course." : "No current term offering is stored for this course.", offered ? ["Select an available section"] : ["Verify the live schedule", "Move the course to a future term"])
     }
     if (entry.course?.prerequisiteUncertain) add("PREREQUISITE_UNCERTAIN", "warning", [entry.item.id], "The prerequisite interpretation needs review.", ["Open the official course page", "Ask an advisor"])
-    const missing = entry.course?.prerequisites?.filter((id) => !profile.completedCourseIds.includes(id)) ?? []
+    const completedWithCredit = effectiveCompletedCourseIds(profile)
+    const missing = entry.course?.prerequisites?.filter((id) => !completedWithCredit.includes(id)) ?? []
     if (missing.length) add("PREREQUISITE_MISSING", "error", [entry.item.id, ...missing], "A required prerequisite is not completed or planned.", ["Add the prerequisite", "Choose another course"])
     if (entry.section) {
       const staleIds = entry.section.evidenceIds.filter((id) => {

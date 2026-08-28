@@ -136,6 +136,41 @@ describe("WebMCP manifest", () => {
   })
 })
 
+describe("structured context and reference tools", () => {
+  const referenceEvidence = { id: "EVIDENCE-CONTRACT-REF", title: "Reference source", classification: "official", claim: "Official reference.", sourceUrl: "https://example.edu/ref", sourceTitle: "Catalog", retrievedAt: "2026-08-28T00:00:00Z", confidence: 0.9, status: "current" }
+
+  it("accepts academic history through update_student_context, one section per call", async () => {
+    const { tools } = setup()
+    const tool = tools.find((candidate) => candidate.name === "update_student_context")!
+    const history = await tool.execute({ expectedVersion: 1, idempotencyKey: "HISTORY-1", academicHistory: { classYear: "Sophomore", apCredits: [{ exam: "AP Calculus BC", score: 5, satisfiesCourseIds: ["COURSE-MATH-21"] }] } })
+    expect(history).toMatchObject({ ok: true })
+    const both = await tool.execute({ expectedVersion: 2, idempotencyKey: "HISTORY-2", academicHistory: { classYear: "Junior" }, preferences: [{ id: "PREFERENCE-X", label: "X", strength: "soft", value: true }] })
+    expect(both).toMatchObject({ ok: false, code: "ONE_SECTION_PER_CALL" })
+    const neither = await tool.execute({ expectedVersion: 2, idempotencyKey: "HISTORY-3" })
+    expect(neither).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+  })
+
+  it("adds a program through extend_reference and rejects ambiguous payloads", async () => {
+    const { tools } = setup()
+    const tool = tools.find((candidate) => candidate.name === "extend_reference")!
+    const program = { name: "Data Science Minor", credential: "Minor", sourceUrl: "https://example.edu/ds-minor", requirements: [{ title: "Core", rule: { type: "course_group", count: 2, courseIds: ["COURSE-STATS-60", "COURSE-DATASCI-112", "COURSE-CS-109"] } }] }
+    const added = await tool.execute({ expectedVersion: 1, idempotencyKey: "REF-PROGRAM-1", program, evidence: referenceEvidence })
+    expect(added).toMatchObject({ ok: true, primaryVisibleId: "PROGRAM-DATA-SCIENCE-MINOR", visibleChange: true })
+    const ambiguous = await tool.execute({ expectedVersion: 2, idempotencyKey: "REF-PROGRAM-2", program, course: { code: "CS 1", title: "X" }, evidence: referenceEvidence })
+    expect(ambiguous).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    const empty = await tool.execute({ expectedVersion: 2, idempotencyKey: "REF-PROGRAM-3", evidence: referenceEvidence })
+    expect(empty).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+  })
+
+  it("reports institution status, history, and the custom-school path in planning context", async () => {
+    const { tools } = setup()
+    const context = await tools.find((candidate) => candidate.name === "get_planning_context")!.execute({}) as { institution: string, referenceNote: string, history: { completedCourses: number } }
+    expect(context.institution).toBe("Stanford University")
+    expect(context.referenceNote).toContain("extend_reference")
+    expect(context.history.completedCourses).toBe(1)
+  })
+})
+
 describe("WebMCP registration", () => {
   it("registers every tool when the imperative API exists", () => {
     const { tools } = setup()

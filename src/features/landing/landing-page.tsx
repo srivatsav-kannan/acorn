@@ -15,12 +15,13 @@ const writeTools: Array<[string, string]> = [
   ["save_research", "sourced findings, visibly filed"],
   ["save_workspace_item", "notes, tasks, people, decisions"],
   ["update_student_context", "preferences and constraints"],
-  ["extend_reference", "add missing catalog courses"],
+  ["extend_reference", "add missing courses and programs"],
   ["configure_view", "safe block-based views"]
 ]
 
 export const LandingPage = () => {
-  const institutionChoices = listInstitutionChoices()
+  const allChoices = listInstitutionChoices()
+  const institutionChoices = [...allChoices.filter((choice) => choice.status === "full").slice(0, 1), ...allChoices.filter((choice) => choice.status === "planned").slice(0, 3), ...allChoices.filter((choice) => choice.status === "custom")]
   return <main className="public-page">
     <header className="public-header">
       <Link className="wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
@@ -76,9 +77,9 @@ export const LandingPage = () => {
       <p>The reference layer ships with a deep Stanford pack of courses, programs, requirement maps, and official planning resources. Other universities plug in through the same model, and until an adapter lands, your agent can add verified missing reference with sources.</p>
       <div className="institution-grid">
         {institutionChoices.slice(0, 5).map((choice) => <article key={choice.id}>
-          <span className={choice.status === "full" ? "institution-status live" : "institution-status"}>{choice.status === "full" ? "Available" : "Planned"}</span>
-          <h3>{choice.shortName}</h3>
-          <p>{choice.status === "full" ? "Catalog sample, requirement maps, WAYS tracking, and official resources." : "Public catalog maps onto the same reference model."}</p>
+          <span className={choice.status === "full" ? "institution-status live" : choice.status === "custom" ? "institution-status beta" : "institution-status"}>{choice.status === "full" ? "Available" : choice.status === "custom" ? "Beta" : "Planned"}</span>
+          <h3>{choice.status === "custom" ? "Your school" : choice.shortName}</h3>
+          <p>{choice.status === "full" ? "Catalog sample, requirement maps, WAYS tracking, and official resources." : choice.status === "custom" ? "Name your university and your agent researches and builds its reference." : "Public catalog maps onto the same reference model."}</p>
         </article>)}
       </div>
     </section>

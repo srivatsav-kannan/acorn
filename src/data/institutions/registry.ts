@@ -1,5 +1,8 @@
 import { stanfordInstitution } from "@/data/institutions/stanford"
 import type { InstitutionPlaceholder, InstitutionReference } from "@/data/institutions/types"
+import type { WorkspaceState } from "@/domain/types"
+
+export const CUSTOM_INSTITUTION_ID = "INSTITUTION-CUSTOM"
 
 export const institutions: InstitutionReference[] = [stanfordInstitution]
 
@@ -18,7 +21,34 @@ export const plannedInstitutions: InstitutionPlaceholder[] = [
 export const getInstitution = (idOrSlug: string | null | undefined): InstitutionReference =>
   institutions.find((item) => item.id === idOrSlug || item.slug === idOrSlug) ?? stanfordInstitution
 
+// A custom institution is a neutral template for schools without a shipped
+// adapter. It starts with no catalog, programs, or resources. The student's
+// agent constructs the reference through extend_reference, course by course
+// and program by program, always with sources. This path is a beta.
+export const customInstitution = (name: string): InstitutionReference => ({
+  id: CUSTOM_INSTITUTION_ID,
+  slug: "custom",
+  name,
+  shortName: name,
+  timezone: "America/Los_Angeles",
+  termSystem: "semester",
+  status: "full",
+  coverageNote: `No shipped reference pack for ${name} yet. Your agent builds the catalog and program reference with official sources, and everything it adds stays visible and removable.`,
+  currentTermId: "TERM-CURRENT",
+  terms: [{ id: "TERM-CURRENT", name: "Current term", startsOn: "", endsOn: "" }],
+  buildCatalog: () => ({ courses: [], sections: [] }),
+  buildPrograms: () => [],
+  buildEvidence: () => [],
+  resources: []
+})
+
+export const isCustomInstitution = (workspace: Pick<WorkspaceState, "institutionId">) => workspace.institutionId === CUSTOM_INSTITUTION_ID
+
+export const institutionForWorkspace = (workspace: Pick<WorkspaceState, "institutionId" | "institution">): InstitutionReference =>
+  isCustomInstitution(workspace) ? customInstitution(workspace.institution) : getInstitution(workspace.institutionId)
+
 export const listInstitutionChoices = () => [
   ...institutions.map((item) => ({ id: item.id, name: item.name, shortName: item.shortName, status: item.status as string, coverageNote: item.coverageNote })),
-  ...plannedInstitutions.map((item) => ({ id: item.id, name: item.name, shortName: item.shortName, status: item.status as string, coverageNote: item.coverageNote }))
+  ...plannedInstitutions.map((item) => ({ id: item.id, name: item.name, shortName: item.shortName, status: item.status as string, coverageNote: item.coverageNote })),
+  { id: CUSTOM_INSTITUTION_ID, name: "Another university", shortName: "Other", status: "custom", coverageNote: "Beta. Name your school and let your agent research and build its reference pack with sources." }
 ]
