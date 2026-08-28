@@ -16,7 +16,13 @@ const expectedNames = [
   "update_student_context",
   "edit_plan",
   "extend_reference",
-  "configure_view"
+  "configure_view",
+  "export_context",
+  "ingest_context",
+  "manage_todo",
+  "set_interest",
+  "annotate_course",
+  "manage_activity"
 ]
 
 const setup = () => {
@@ -52,9 +58,10 @@ describe("WebMCP manifest", () => {
 
   it("annotates reads, writes, and untrusted research accurately", () => {
     const { tools } = setup()
-    const readNames = expectedNames.slice(0, 6)
+    const readNames = [...expectedNames.slice(0, 6), "export_context"]
     expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(readNames)
     expect(tools.find((tool) => tool.name === "save_research")?.annotations.untrustedContentHint).toBe(true)
+    expect(tools.find((tool) => tool.name === "ingest_context")?.annotations.untrustedContentHint).toBe(true)
     expect(tools.find((tool) => tool.name === "edit_plan")?.annotations.readOnlyHint).toBe(false)
   })
 
@@ -64,6 +71,60 @@ describe("WebMCP manifest", () => {
       const result = await tool.execute(tool.examples[0] ?? {})
       expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500)
     }
+  })
+
+  it("pages the full-context export near its budget until the workspace is exhausted", async () => {
+    const { tools } = setup()
+    const tool = tools.find((candidate) => candidate.name === "export_context")!
+    let cursor: number | undefined = 0
+    let pages = 0
+    const seen: string[] = []
+    while (cursor !== undefined && pages < 30) {
+      const result = await tool.execute({ section: "all", cursor }) as { markdown: string, nextCursor?: number }
+      expect(result.markdown.length).toBeLessThanOrEqual(5200)
+      seen.push(result.markdown)
+      cursor = result.nextCursor
+      pages += 1
+    }
+    expect(cursor).toBeUndefined()
+    const full = seen.join("\n\n")
+    expect(full).toContain("## Todos")
+    expect(full).toContain("## Plans")
+    expect(full).toContain("## Clubs and programs")
+    expect(full).toContain("`PLAN-")
+  })
+
+  it("ingests freeform markdown into visible scratchpad notes", async () => {
+    const { repository, tools } = setup()
+    const tool = tools.find((candidate) => candidate.name === "ingest_context")!
+    const result = await tool.execute({ expectedVersion: 1, idempotencyKey: "INGEST-1", tag: "imported", text: "# Transfer thoughts\nI took multivariable calc at a community college.\n\nHeard CS 106B midterms are brutal in winter.\n\nPossible lab: Prof. Rivera's health AI group." })
+    expect(result).toMatchObject({ ok: true, visibleChange: true })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const imported = workspace.contextItems.filter((item) => item.tags?.includes("imported"))
+    expect(imported).toHaveLength(3)
+    expect(imported[0].title).toBe("Transfer thoughts")
+  })
+
+  it("runs the tracker loop: todo, interest, note, activity, all visible and undoable", async () => {
+    const { repository, tools } = setup()
+    const call = (name: string) => tools.find((candidate) => candidate.name === name)!
+    let version = 1
+    const todo = await call("manage_todo").execute({ expectedVersion: version, idempotencyKey: "TODO-1", action: "add", todo: { title: "Ask about CURIS", due: "2027-02-01" } })
+    expect(todo).toMatchObject({ ok: true })
+    version += 1
+    const interest = await call("set_interest").execute({ expectedVersion: version, idempotencyKey: "INT-1", kind: "course", id: "COURSE-CS-106B", interested: true })
+    expect(interest).toMatchObject({ ok: true, primaryVisibleId: "COURSE-CS-106B" })
+    version += 1
+    const note = await call("annotate_course").execute({ expectedVersion: version, idempotencyKey: "NOTE-1", courseId: "COURSE-CS-106B", text: "Rumored heavy workload in winter." })
+    expect(note).toMatchObject({ ok: true })
+    version += 1
+    const activity = await call("manage_activity").execute({ expectedVersion: version, idempotencyKey: "ACT-1", activity: { name: "Rivera lab", kind: "research", schedule: { days: ["tue", "thu"], start: "15:00", end: "17:00" }, dates: [{ date: "2026-10-01", label: "First lab meeting" }] } })
+    expect(activity).toMatchObject({ ok: true })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.todos.some((item) => item.title === "Ask about CURIS" && item.source === "agent")).toBe(true)
+    expect(workspace.interestedCourseIds).toContain("COURSE-CS-106B")
+    expect(workspace.courseNotes["COURSE-CS-106B"][0]).toMatchObject({ author: "agent" })
+    expect(workspace.activities[0]).toMatchObject({ name: "Rivera lab", addedBy: "agent" })
   })
 
   it("returns the current plan and scenario IDs before an agent edits", async () => {

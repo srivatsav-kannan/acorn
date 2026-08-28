@@ -3,6 +3,7 @@ import { validateContextItem } from "@/domain/context"
 import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
 import { applyAcademicHistory, validateAcademicHistoryPatch } from "@/domain/history"
 import { emptyOverlay, validateOpportunity, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
+import { assertSafeExternalUrl } from "@/domain/security"
 import { compareTerms, parseTermId, termLabel } from "@/domain/timeline"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
@@ -19,6 +20,28 @@ type Envelope = {
 
 const commandError = (message: string) => new RepositoryError("COMMAND_INVALID", message)
 const actionId = (key: string) => `ACTION-${key.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)}`
+
+const sanitizeTags = (tags: unknown): string[] | undefined => {
+  if (!Array.isArray(tags)) return undefined
+  const cleaned = tags.map((tag) => String(tag).trim().toLowerCase().slice(0, 24)).filter(Boolean).slice(0, 8)
+  return cleaned.length ? [...new Set(cleaned)] : undefined
+}
+
+// Which changed-entity type a command's receipt should point the interface at.
+const primaryVisibleType: Record<string, string> = {
+  save_research: "context_item",
+  extend_reference: "reference_course",
+  add_reference_program: "reference_program",
+  extend_reference_opportunity: "reference_opportunity",
+  manage_todo: "todo",
+  upsert_activity: "activity",
+  remove_activity: "activity",
+  annotate_course: "course_note",
+  set_course_interest: "course_interest",
+  set_opportunity_interest: "opportunity_interest",
+  set_goals: "student_profile",
+  ingest_context_items: "context_item"
+}
 
 const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, any>, changed: ChangedEntity[]) => {
   let plan = workspace.plans.find((item) => item.id === command.planId)
@@ -149,6 +172,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
     if (command.type === "create_context_item") {
       const item = validateContextItem(command.item) as unknown as ContextItem
       if (workspace.contextItems.some((existingItem) => existingItem.id === item.id)) throw commandError("Context item ID already exists")
+      item.tags = sanitizeTags(command.item?.tags)
       item.addedBy = envelope.actor
       item.createdAt = item.createdAt ?? new Date().toISOString()
       item.updatedAt = item.updatedAt ?? item.createdAt
@@ -161,6 +185,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (typeof command.summary === "string" && command.summary.trim()) item.summary = command.summary.trim()
       if (command.content && typeof command.content === "object") item.content = structuredClone(command.content)
       if (typeof command.collectionId === "string" && workspace.collections.some((collection) => collection.id === command.collectionId)) item.collectionId = command.collectionId
+      if (Array.isArray(command.tags)) item.tags = sanitizeTags(command.tags)
       item.updatedAt = new Date().toISOString()
       changed.push({ type: "context_item", id: item.id })
     } else if (command.type === "archive_context_item") {
@@ -346,6 +371,170 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (index < 0) throw commandError("Saved view not found")
       const [removed] = workspace.savedViews.splice(index, 1)
       changed.push({ type: "saved_view", id: removed.id })
+    } else if (command.type === "manage_todo") {
+      workspace.todos = Array.isArray(workspace.todos) ? workspace.todos : []
+      const action = String(command.action ?? "")
+      if (action === "add") {
+        const title = String(command.todo?.title ?? "").trim().slice(0, 120)
+        if (!title) throw commandError("A todo needs a title")
+        const due = command.todo?.due ? String(command.todo.due) : undefined
+        if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw commandError("A todo due date uses YYYY-MM-DD")
+        const todo = {
+          id: String(command.todo?.id ?? `TODO-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`),
+          title,
+          detail: typeof command.todo?.detail === "string" && command.todo.detail.trim() ? command.todo.detail.trim().slice(0, 300) : undefined,
+          due,
+          done: false,
+          source: envelope.actor.type === "agent" ? "agent" as const : "human" as const,
+          createdAt: new Date().toISOString()
+        }
+        if (workspace.todos.some((item) => item.id === todo.id)) throw commandError("Todo ID already exists")
+        workspace.todos.push(todo)
+        changed.push({ type: "todo", id: todo.id })
+      } else if (action === "toggle" || action === "remove") {
+        const index = workspace.todos.findIndex((item) => item.id === command.todoId)
+        if (index < 0) throw commandError("Todo not found")
+        if (action === "toggle") {
+          workspace.todos[index].done = !workspace.todos[index].done
+          changed.push({ type: "todo", id: workspace.todos[index].id })
+        } else {
+          const [removed] = workspace.todos.splice(index, 1)
+          changed.push({ type: "todo", id: removed.id })
+        }
+      } else throw commandError("Todo action must be add, toggle, or remove")
+    } else if (command.type === "set_course_interest") {
+      const courseId = String(command.courseId ?? "").trim()
+      if (!courseId) throw commandError("A course ID is required")
+      workspace.interestedCourseIds = Array.isArray(workspace.interestedCourseIds) ? workspace.interestedCourseIds : []
+      const has = workspace.interestedCourseIds.includes(courseId)
+      if (command.interested && !has) workspace.interestedCourseIds.push(courseId)
+      if (!command.interested && has) workspace.interestedCourseIds = workspace.interestedCourseIds.filter((id) => id !== courseId)
+      changed.push({ type: "course_interest", id: courseId })
+    } else if (command.type === "set_opportunity_interest") {
+      const opportunityId = String(command.opportunityId ?? "").trim()
+      if (!opportunityId) throw commandError("An opportunity ID is required")
+      workspace.interestedOpportunityIds = Array.isArray(workspace.interestedOpportunityIds) ? workspace.interestedOpportunityIds : []
+      const has = workspace.interestedOpportunityIds.includes(opportunityId)
+      if (command.interested && !has) workspace.interestedOpportunityIds.push(opportunityId)
+      if (!command.interested && has) workspace.interestedOpportunityIds = workspace.interestedOpportunityIds.filter((id) => id !== opportunityId)
+      changed.push({ type: "opportunity_interest", id: opportunityId })
+    } else if (command.type === "annotate_course") {
+      const courseId = String(command.courseId ?? "").trim()
+      if (!courseId) throw commandError("A course ID is required")
+      workspace.courseNotes = workspace.courseNotes && typeof workspace.courseNotes === "object" ? workspace.courseNotes : {}
+      const notes = workspace.courseNotes[courseId] ?? []
+      if (typeof command.removeNoteId === "string" && command.removeNoteId) {
+        const index = notes.findIndex((note) => note.id === command.removeNoteId)
+        if (index < 0) throw commandError("Course note not found")
+        const [removed] = notes.splice(index, 1)
+        workspace.courseNotes[courseId] = notes
+        changed.push({ type: "course_note", id: removed.id })
+      } else {
+        const text = String(command.note?.text ?? "").trim().slice(0, 600)
+        if (!text) throw commandError("A course note needs text")
+        const note = {
+          id: `NOTE-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`,
+          text,
+          author: envelope.actor.type === "agent" ? "agent" as const : "human" as const,
+          at: new Date().toISOString()
+        }
+        if (notes.some((existing) => existing.id === note.id)) throw commandError("Course note ID already exists")
+        notes.push(note)
+        workspace.courseNotes[courseId] = notes
+        changed.push({ type: "course_note", id: note.id })
+      }
+    } else if (command.type === "upsert_activity") {
+      const input = command.activity ?? {}
+      const name = String(input.name ?? "").trim().slice(0, 80)
+      if (!name) throw commandError("An activity needs a name")
+      const kind = ["research", "job", "volunteering", "athletics", "arts", "other"].includes(String(input.kind)) ? input.kind : "other"
+      const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+      const time = /^\d{2}:\d{2}$/
+      const isoDate = /^\d{4}-\d{2}-\d{2}$/
+      let schedule
+      if (input.schedule) {
+        const scheduleDays = Array.isArray(input.schedule.days) ? input.schedule.days.map(String).filter((day: string) => days.includes(day)) : []
+        if (scheduleDays.length === 0 || !time.test(String(input.schedule.start)) || !time.test(String(input.schedule.end))) throw commandError("An activity schedule needs days and HH:MM start and end times")
+        schedule = { days: scheduleDays, start: String(input.schedule.start), end: String(input.schedule.end), location: typeof input.schedule.location === "string" ? input.schedule.location.trim().slice(0, 80) : undefined }
+      }
+      for (const bound of [input.startDate, input.endDate]) if (bound && !isoDate.test(String(bound))) throw commandError("Activity dates use YYYY-MM-DD")
+      const dates = Array.isArray(input.dates) ? input.dates.slice(0, 30).map((item: Record<string, unknown>) => {
+        if (!isoDate.test(String(item?.date)) || !String(item?.label ?? "").trim()) throw commandError("Each activity date needs a YYYY-MM-DD date and a label")
+        return { date: String(item.date), label: String(item.label).trim().slice(0, 80) }
+      }) : undefined
+      const activity = {
+        id: String(input.id ?? `ACTIVITY-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`),
+        name,
+        kind,
+        detail: typeof input.detail === "string" && input.detail.trim() ? input.detail.trim().slice(0, 400) : undefined,
+        organizer: typeof input.organizer === "string" && input.organizer.trim() ? input.organizer.trim().slice(0, 80) : undefined,
+        sourceUrl: typeof input.sourceUrl === "string" && input.sourceUrl ? input.sourceUrl : undefined,
+        schedule,
+        startDate: input.startDate ? String(input.startDate) : undefined,
+        endDate: input.endDate ? String(input.endDate) : undefined,
+        dates,
+        addedBy: envelope.actor.type === "agent" ? "agent" as const : "human" as const
+      }
+      if (activity.sourceUrl) {
+        try { assertSafeExternalUrl(activity.sourceUrl) } catch (error) { throw commandError((error as Error).message) }
+      }
+      workspace.activities = Array.isArray(workspace.activities) ? workspace.activities : []
+      const index = workspace.activities.findIndex((item) => item.id === activity.id)
+      if (index >= 0) workspace.activities[index] = activity
+      else workspace.activities.push(activity)
+      changed.push({ type: "activity", id: activity.id })
+    } else if (command.type === "remove_activity") {
+      workspace.activities = Array.isArray(workspace.activities) ? workspace.activities : []
+      const index = workspace.activities.findIndex((item) => item.id === command.activityId)
+      if (index < 0) throw commandError("Activity not found")
+      const [removed] = workspace.activities.splice(index, 1)
+      changed.push({ type: "activity", id: removed.id })
+    } else if (command.type === "set_goals") {
+      const degree = typeof command.degree === "string" ? command.degree.trim().slice(0, 24) : undefined
+      const goal = typeof command.goal === "string" ? command.goal.trim().slice(0, 1200) : undefined
+      if (degree === undefined && goal === undefined) throw commandError("Provide a degree objective, a goal, or both")
+      if (degree !== undefined) {
+        if (!degree) throw commandError("A degree objective cannot be empty")
+        const timeline = workspace.profile.timeline
+        if (timeline) timeline.degree = degree
+        else workspace.profile.timeline = { entryTermId: workspace.currentTermId, expectedGraduationTermId: workspace.currentTermId, degree }
+      }
+      if (goal !== undefined) {
+        workspace.profile.summary = goal
+        const goalItem = workspace.contextItems.find((item) => item.type === "goal" && !item.archived)
+        if (goalItem) {
+          goalItem.summary = goal
+          goalItem.content = { ...goalItem.content, text: goal }
+          goalItem.updatedAt = new Date().toISOString()
+          changed.push({ type: "context_item", id: goalItem.id })
+        }
+      }
+      changed.push({ type: "student_profile", id: workspace.profile.id })
+    } else if (command.type === "ingest_context_items") {
+      const items = Array.isArray(command.items) ? command.items : []
+      if (items.length === 0) throw commandError("Provide at least one item to ingest")
+      if (items.length > 20) throw commandError("Ingest at most twenty items per call")
+      if (!workspace.collections.some((collection) => collection.id === "COLLECTION-INBOX")) workspace.collections.push({ id: "COLLECTION-INBOX", name: "Inbox", description: "Uncategorized context" })
+      const keyPart = envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24)
+      items.forEach((raw: Record<string, unknown>, index: number) => {
+        const title = String(raw?.title ?? "").trim().slice(0, 80)
+        if (!title) throw commandError("Every ingested item needs a title")
+        const item: ContextItem = {
+          id: `NOTE-${keyPart}-${index + 1}`,
+          type: "note",
+          title,
+          summary: String(raw?.summary ?? "").trim().slice(0, 600),
+          content: {},
+          collectionId: "COLLECTION-INBOX",
+          tags: sanitizeTags(raw?.tags),
+          addedBy: envelope.actor,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        if (workspace.contextItems.some((existing) => existing.id === item.id)) throw commandError("Ingested item ID already exists; use a new idempotency key")
+        workspace.contextItems.push(item)
+        changed.push({ type: "context_item", id: item.id })
+      })
     } else if (command.type === "undo_action") {
       const snapshot = workspace.undoSnapshots[command.receiptId]
       if (!snapshot) throw commandError("This action can no longer be undone")
@@ -368,7 +557,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       undoAvailable,
       actor: envelope.actor,
       visibleChange: true,
-      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : command.type === "extend_reference" ? changed.find((item) => item.type === "reference_course")?.id : command.type === "add_reference_program" ? changed.find((item) => item.type === "reference_program")?.id : command.type === "extend_reference_opportunity" ? changed.find((item) => item.type === "reference_opportunity")?.id : undefined
+      primaryVisibleId: primaryVisibleType[command.type] ? changed.find((item) => item.type === primaryVisibleType[command.type])?.id : undefined
     }
     workspace.receipts.push(receipt)
     workspace.activity.push({

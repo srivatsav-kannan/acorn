@@ -212,7 +212,7 @@ test("registers semantic WebMCP tools in a capable browser", async ({ page }) =>
     Object.defineProperty(window, "__registeredTools", { get: () => [...names] })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(12)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(18)
   expect(await page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools)).toContain("search_workspace")
 })
 
@@ -231,7 +231,7 @@ test("WebMCP health research becomes visible, searchable Library context", async
     Object.defineProperty(window, "__courseContextTools", { value: tools })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(12)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(18)
   const result = await page.evaluate(async () => {
     const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
     const context = await tools.get("get_planning_context")!.execute({}) as { version: number }

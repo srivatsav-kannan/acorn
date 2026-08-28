@@ -84,6 +84,7 @@ export type StudentProfile = {
   catalogYear: string
   classYear?: string
   timeline?: { entryTermId: string, expectedGraduationTermId: string, degree: string }
+  recoveryPhone?: string
   declaredProgramId: string | null
   completedCourseIds: string[]
   apCredits?: ApCredit[]
@@ -167,6 +168,7 @@ export type ContextItem = {
   summary: string
   content: Record<string, unknown>
   collectionId: string
+  tags?: string[]
   sourceEvidenceIds?: string[]
   addedBy?: Actor
   createdAt?: string
@@ -238,6 +240,47 @@ export type Opportunity = {
   sourceUrl?: string
   addedBy?: Actor
   evidenceIds?: string[]
+  dates?: DatedItem[]
+}
+
+// A single dated moment attached to something: a deadline, an application
+// window opening, an info session. Calendar events are derived from these.
+export type DatedItem = { date: string, label: string }
+
+export type TodoItem = {
+  id: string
+  title: string
+  detail?: string
+  due?: string
+  done: boolean
+  source: "human" | "agent" | "system"
+  createdAt: string
+}
+
+export type CourseNote = {
+  id: string
+  text: string
+  author: "human" | "agent"
+  at: string
+}
+
+export type ActivitySchedule = { days: Day[], start: string, end: string, location?: string }
+
+// An ongoing commitment outside the course catalog: research with a
+// professor, a job, athletics. A schedule makes it recur on the calendar
+// between its start and end dates; dated items mark one-off moments.
+export type Activity = {
+  id: string
+  name: string
+  kind: "research" | "job" | "volunteering" | "athletics" | "arts" | "other"
+  detail?: string
+  organizer?: string
+  sourceUrl?: string
+  schedule?: ActivitySchedule
+  startDate?: string
+  endDate?: string
+  dates?: DatedItem[]
+  addedBy: "human" | "agent"
 }
 
 export type ReferenceOverlay = {
@@ -266,6 +309,11 @@ export type WorkspaceState = {
   receipts: ActionReceipt[]
   undoSnapshots: Record<string, WorkspaceState>
   referenceOverlay?: ReferenceOverlay
+  todos: TodoItem[]
+  interestedCourseIds: string[]
+  interestedOpportunityIds: string[]
+  courseNotes: Record<string, CourseNote[]>
+  activities: Activity[]
 }
 
 export type Fixture = { workspace: WorkspaceState, catalog: Catalog }

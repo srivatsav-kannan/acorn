@@ -1,0 +1,109 @@
+import { calendarEventsForRange, isoDate } from "@/domain/calendar"
+import { standingForTerm, supportsTimeline, termLabel, timelineFor } from "@/domain/timeline"
+import type { Catalog, Opportunity, WorkspaceState } from "@/domain/types"
+
+// The bulk context pipe. Markdown compresses well in a model's context and
+// mixes structure with prose notes naturally, so the export is a sequence of
+// small markdown blocks. The tool layer pages over these blocks; every entity
+// carries its stable ID in backticks so the agent can act on what it read.
+
+type Section = "profile" | "goals" | "todos" | "scratchpad" | "plans" | "courses" | "clubs" | "activities" | "calendar" | "history"
+
+const order: Section[] = ["profile", "goals", "todos", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"]
+
+export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opportunities: Opportunity[], section: string, now: Date): string[] => {
+  const sections: Section[] = section === "all" ? order : order.includes(section as Section) ? [section as Section] : order
+  const courseById = new Map(catalog.courses.map((course) => [course.id, course]))
+  const code = (courseId: string) => courseById.get(courseId)?.code ?? courseId
+  const blocks: string[] = []
+
+  for (const current of sections) {
+    if (current === "profile") {
+      const profile = workspace.profile
+      const timeline = supportsTimeline(workspace) ? timelineFor(profile, now) : null
+      blocks.push([
+        `# ${workspace.title}`,
+        `Student: ${profile.name || "unnamed"}. Institution: ${workspace.institution}. Current term: ${termLabel(workspace.currentTermId)}.`,
+        timeline ? `Timeline: entered ${termLabel(timeline.entryTermId)}, graduating ${termLabel(timeline.expectedGraduationTermId)}, objective ${timeline.degree}. Standing now: ${profile.classYear || standingForTerm(timeline, workspace.currentTermId)}.` : "No structured timeline; this is a custom institution.",
+        `Planning window: classes between ${profile.earliestStart} and ${profile.latestEnd}; protected days: ${profile.excludedDays.join(", ") || "none"}.`
+      ].join("\n"))
+    }
+    if (current === "goals") {
+      const preferences = workspace.profile.preferences.map((preference) => `- ${preference.strength === "hard" ? "Hard" : "Soft"}: ${preference.label} \`${preference.id}\``)
+      blocks.push([`## Goals`, workspace.profile.summary ? workspace.profile.summary : "No goal note recorded yet.", ...(preferences.length ? ["Priorities:", ...preferences] : ["No priorities recorded."])].join("\n"))
+    }
+    if (current === "todos") {
+      const open = (workspace.todos ?? []).filter((todo) => !todo.done)
+      const done = (workspace.todos ?? []).filter((todo) => todo.done)
+      blocks.push([`## Todos (${open.length} open)`, ...open.map((todo) => `- [ ] ${todo.title}${todo.due ? ` (due ${todo.due})` : ""}${todo.detail ? `: ${todo.detail}` : ""} \`${todo.id}\``), ...(done.length ? [`Done: ${done.map((todo) => todo.title).join("; ")}`] : [])].join("\n"))
+    }
+    if (current === "scratchpad") {
+      const items = workspace.contextItems.filter((item) => !item.archived)
+      blocks.push(`## Scratchpad (${items.length} notes)`)
+      for (const item of items) {
+        blocks.push([`### ${item.title} \`${item.id}\``, `${item.type}${item.tags?.length ? `, tags: ${item.tags.join(", ")}` : ""}, added by ${item.addedBy?.type ?? "human"}.`, item.summary].filter(Boolean).join("\n"))
+      }
+    }
+    if (current === "plans") {
+      blocks.push(`## Plans (${workspace.plans.length} terms)`)
+      for (const plan of workspace.plans) {
+        const scenario = plan.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan.scenarios[0]
+        if (!scenario) continue
+        const units = scenario.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0)
+        blocks.push([
+          `### ${termLabel(plan.termId)} \`${plan.id}\` (${units} units planned)`,
+          ...scenario.courses.map((item) => `- ${code(item.courseId)} (${item.units} units${item.status === "backup" ? ", backup" : ""}) \`${item.courseId}\``),
+          ...(scenario.commitments.length ? [`Commitments: ${scenario.commitments.map((item) => item.title).join("; ")}`] : [])
+        ].join("\n"))
+      }
+    }
+    if (current === "courses") {
+      const interested = (workspace.interestedCourseIds ?? []).map((id) => `- ${code(id)}: ${courseById.get(id)?.title ?? "unknown"} \`${id}\``)
+      blocks.push([`## Course tracker (${interested.length} interested)`, ...(interested.length ? interested : ["Nothing marked interested yet."])].join("\n"))
+      const noted = Object.entries(workspace.courseNotes ?? {}).filter(([, notes]) => notes.length > 0)
+      for (const [courseId, notes] of noted) {
+        blocks.push([`### Notes on ${code(courseId)} \`${courseId}\``, ...notes.map((note) => `- (${note.author}) ${note.text} \`${note.id}\``)].join("\n"))
+      }
+      const custom = workspace.referenceOverlay?.courses ?? []
+      if (custom.length) blocks.push([`### Unverified catalog additions`, ...custom.map((course) => `- ${course.code}: ${course.title} \`${course.id}\``)].join("\n"))
+    }
+    if (current === "clubs") {
+      const interested = new Set(workspace.interestedOpportunityIds ?? [])
+      blocks.push(`## Clubs and programs (${opportunities.length} listed, ${interested.size} interested)`)
+      for (const opportunity of opportunities) {
+        blocks.push([
+          `### ${opportunity.name} \`${opportunity.id}\`${interested.has(opportunity.id) ? " (interested)" : ""}`,
+          `${opportunity.kind}${opportunity.commitment ? `, ${opportunity.commitment}` : ""}${opportunity.timing ? `, ${opportunity.timing}` : ""}.`,
+          opportunity.summary,
+          ...(opportunity.dates?.length ? [`Dates: ${opportunity.dates.map((dated) => `${dated.date} ${dated.label}`).join("; ")}`] : [])
+        ].filter(Boolean).join("\n"))
+      }
+    }
+    if (current === "activities") {
+      const activities = workspace.activities ?? []
+      blocks.push([`## Activities (${activities.length})`, ...(activities.length ? [] : ["None recorded."])].join("\n"))
+      for (const activity of activities) {
+        blocks.push([
+          `### ${activity.name} \`${activity.id}\``,
+          `${activity.kind}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}` : ""}.`,
+          activity.detail ?? "",
+          ...(activity.dates?.length ? [`Dates: ${activity.dates.map((dated) => `${dated.date} ${dated.label}`).join("; ")}`] : [])
+        ].filter(Boolean).join("\n"))
+      }
+    }
+    if (current === "calendar") {
+      const from = isoDate(now)
+      const toDate = new Date(now)
+      toDate.setDate(toDate.getDate() + 60)
+      const events = calendarEventsForRange(workspace, catalog, opportunities, from, isoDate(toDate))
+      const highlights = events.filter((event) => event.kind !== "course" || event.title.endsWith("begins")).slice(0, 40)
+      blocks.push([`## Next sixty days (${events.length} calendar entries, recurring class meetings collapsed)`, ...highlights.map((event) => `- ${event.date}${event.start ? ` ${event.start}` : ""}: ${event.title}${event.projected ? " (projected)" : ""}`)].join("\n"))
+    }
+    if (current === "history") {
+      const completed = workspace.profile.completedCourseIds.map((id) => code(id))
+      const credits = (workspace.profile.apCredits ?? []).map((credit) => `- ${credit.exam}${credit.score ? `, score ${credit.score}` : ""}${credit.unitsGranted ? `, ${credit.unitsGranted} units` : ""}`)
+      blocks.push([`## Academic history`, completed.length ? `Completed: ${completed.join(", ")}.` : "No completed courses recorded.", ...(credits.length ? ["AP credit:", ...credits] : ["No AP credit recorded."])].join("\n"))
+    }
+  }
+  return blocks
+}

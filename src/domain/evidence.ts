@@ -74,11 +74,30 @@ export const upsertResearchLibraryItem = (workspace: WorkspaceState, evidence: E
   return item
 }
 
+// Requirements every Stanford undergraduate carries, seeded once as system
+// todos so a brand-new workspace already knows what the university expects.
+export const defaultSystemTodos = () => [
+  { id: "TODO-LANGUAGE-REQUIREMENT", title: "Plan the language requirement", detail: "One year of college-level language study, or placement, or an AP or SAT II result that satisfies it.", done: false, source: "system" as const, createdAt: "2026-08-28T00:00:00Z" },
+  { id: "TODO-PWR-1", title: "Schedule PWR 1 during the first year", detail: "Writing and rhetoric, required of every first-year student.", done: false, source: "system" as const, createdAt: "2026-08-28T00:00:00Z" },
+  { id: "TODO-WAYS-CHECK", title: "Review WAYS coverage each quarter", detail: "Eleven courses across eight Ways of Thinking, Ways of Doing areas by graduation.", done: false, source: "system" as const, createdAt: "2026-08-28T00:00:00Z" }
+]
+
+// Older stored workspaces predate the tracker fields; give them the current
+// shape so every page and tool can rely on it.
+export const normalizeWorkspaceShape = (workspace: WorkspaceState): WorkspaceState => {
+  workspace.todos = Array.isArray(workspace.todos) ? workspace.todos : defaultSystemTodos()
+  workspace.interestedCourseIds = Array.isArray(workspace.interestedCourseIds) ? workspace.interestedCourseIds : []
+  workspace.interestedOpportunityIds = Array.isArray(workspace.interestedOpportunityIds) ? workspace.interestedOpportunityIds : []
+  workspace.courseNotes = workspace.courseNotes && typeof workspace.courseNotes === "object" ? workspace.courseNotes : {}
+  workspace.activities = Array.isArray(workspace.activities) ? workspace.activities : []
+  return workspace
+}
+
 export const materializeLegacyResearch = (workspace: WorkspaceState) => {
   const migrated = structuredClone(workspace)
   for (const evidence of migrated.evidence) {
     const referenced = migrated.contextItems.some((item) => item.sourceEvidenceIds?.includes(evidence.id))
     if (!referenced && evidence.addedBy !== "system") upsertResearchLibraryItem(migrated, validateEvidence(evidence as EvidenceInput), { type: evidence.addedBy === "human" ? "human" : "agent", id: "MIGRATION" }, evidence.retrievedAt)
   }
-  return migrated
+  return normalizeWorkspaceShape(migrated)
 }

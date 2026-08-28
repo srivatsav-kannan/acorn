@@ -1,4 +1,5 @@
 import { CUSTOM_INSTITUTION_ID, customInstitution, getInstitution } from "@/data/institutions/registry"
+import { defaultSystemTodos } from "@/domain/evidence"
 import { validateAcademicHistoryPatch, applyAcademicHistory } from "@/domain/history"
 import { defaultTimeline, termId } from "@/domain/timeline"
 import type { Collection, WorkspaceState } from "@/domain/types"
@@ -98,7 +99,12 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     activity: [],
     receipts: [],
     undoSnapshots: {},
-    referenceOverlay: { courses: [], sections: [] }
+    referenceOverlay: { courses: [], sections: [] },
+    todos: defaultSystemTodos(),
+    interestedCourseIds: [],
+    interestedOpportunityIds: [],
+    courseNotes: {},
+    activities: []
   }
 }
 

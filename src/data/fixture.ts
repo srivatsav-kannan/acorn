@@ -1,4 +1,5 @@
 import { buildStanfordCatalog, buildStanfordEvidence, buildStanfordPrograms, stanfordInstitution } from "@/data/institutions/stanford"
+import { defaultSystemTodos } from "@/domain/evidence"
 import type { Fixture, Meeting, WorkspaceState } from "@/domain/types"
 
 export { buildStanfordCatalog, buildStanfordEvidence, buildStanfordPrograms }
@@ -117,7 +118,12 @@ export const buildFixture = (): Fixture => {
     activity: [],
     receipts: [],
     undoSnapshots: {},
-    referenceOverlay: { courses: [], sections: [] }
+    referenceOverlay: { courses: [], sections: [] },
+    todos: defaultSystemTodos(),
+    interestedCourseIds: [],
+    interestedOpportunityIds: [],
+    courseNotes: {},
+    activities: []
   }
   return { workspace: structuredClone(workspace), catalog }
 }

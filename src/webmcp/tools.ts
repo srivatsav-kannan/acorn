@@ -8,6 +8,7 @@ import { supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateRequirement } from "@/domain/requirements"
 import { searchCourses, searchWorkspace } from "@/domain/search"
+import { exportBlocks } from "@/webmcp/export"
 import type { Actor, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
@@ -95,7 +96,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const currentPlan = value.plans.find((plan) => plan.termId === value.currentTermId) ?? value.plans[0]
         const custom = value.institutionId === "INSTITUTION-CUSTOM"
         const timeline = supportsTimeline(value) ? timelineFor(value.profile, now()) : null
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, apCredits: (value.profile.apCredits ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before big edits", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, apCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once for a fresh session", "Search the workspace before external research", "Discover current plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties.slice(0, 3).map((item) => ({ id: item.id, question: item.question.slice(0, 90), status: item.status })) }
       }
     },
     {
@@ -316,6 +317,84 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       annotations: annotations(false),
       examples: [],
       execute: async (input) => mutate(input, { type: "configure_view", view: input.view })
+    },
+    {
+      name: "export_context",
+      description: "Export the workspace as paged markdown for your context window. Sections: all, profile, goals, todos, scratchpad, plans, courses, clubs, activities, calendar, history. Follow nextCursor until it is absent; each page stays near five thousand characters. Pull this once at the start of a session instead of many small reads.",
+      inputSchema: schema({ section: { type: "string", enum: ["all", "profile", "goals", "todos", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"], description: "Section to export; defaults to all" }, cursor: field("number", "Page cursor returned by the previous call") }),
+      annotations: annotations(true),
+      examples: [{ section: "all" }],
+      execute: async ({ section = "all", cursor = 0 }) => {
+        const value = await workspace()
+        const merged = mergedCatalogFor(value, repository.catalog)
+        const blocks = exportBlocks(value, merged, mergedOpportunities(institutionForWorkspace(value).buildOpportunities(), value.referenceOverlay?.opportunities), section, now())
+        const start = Number.isInteger(cursor) && cursor > 0 ? cursor : 0
+        const page: string[] = []
+        let size = 0
+        let index = start
+        while (index < blocks.length && size + blocks[index].length <= 5000) {
+          page.push(blocks[index])
+          size += blocks[index].length + 2
+          index += 1
+        }
+        if (page.length === 0 && index < blocks.length) {
+          page.push(blocks[index].slice(0, 5000))
+          index += 1
+        }
+        return { workspaceVersion: value.version, section, markdown: page.join("\n\n"), nextCursor: index < blocks.length ? index : undefined }
+      }
+    },
+    {
+      name: "ingest_context",
+      description: "Hand over existing context in bulk. Send freeform text or markdown; blank-line separated blocks become visible scratchpad notes, first line as the title. Twenty blocks per call; send the rest in follow-up calls. Use this for context the student gave you elsewhere so it lives where both of you can see it.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), text: field("string", "Freeform text or markdown to file"), tag: field("string", "Optional tag applied to every created note") }, ["expectedVersion", "idempotencyKey", "text"]),
+      annotations: annotations(false, true),
+      examples: [],
+      execute: async (input) => {
+        const blocks = String(input.text ?? "").split(/\n\s*\n/).map((block: string) => block.trim()).filter(Boolean)
+        if (blocks.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Send some text to ingest." }
+        const items = blocks.slice(0, 20).map((block: string) => {
+          const lines = block.split("\n")
+          const title = lines[0].replace(/^[#>*-]+\s*/, "").trim().slice(0, 80) || "Note"
+          const summary = lines.slice(1).join("\n").trim().slice(0, 600)
+          return { title, summary, tags: input.tag ? [String(input.tag)] : undefined }
+        })
+        const result = await mutate(input, { type: "ingest_context_items", items })
+        if (result.ok && blocks.length > 20) return { ...result, note: `Filed 20 of ${blocks.length} blocks. Send the remaining ${blocks.length - 20} in another call with a new idempotency key.` }
+        return result
+      }
+    },
+    {
+      name: "manage_todo",
+      description: "Add, complete, or remove a visible todo. Todos with a due date appear on the calendar. Actions: add with a todo object, toggle or remove with a todoId.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), action: { type: "string", enum: ["add", "toggle", "remove"], description: "What to do" }, todo: { type: "object", additionalProperties: false, description: "For add", properties: { title: field("string", "Short imperative title"), detail: field("string", "Optional context"), due: field("string", "Optional due date, YYYY-MM-DD") }, required: ["title"] }, todoId: field("string", "For toggle and remove") }, ["expectedVersion", "idempotencyKey", "action"]),
+      annotations: annotations(false),
+      examples: [],
+      execute: async (input) => mutate(input, { type: "manage_todo", action: input.action, todo: input.todo, todoId: input.todoId })
+    },
+    {
+      name: "set_interest",
+      description: "Mark or unmark a course or a club as interesting. Interested clubs put their deadlines on the calendar; interested courses stay visible in the tracker until they are planned.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), kind: { type: "string", enum: ["course", "club"], description: "What the ID refers to" }, id: field("string", "Course ID or opportunity ID"), interested: field("boolean", "True to mark, false to clear") }, ["expectedVersion", "idempotencyKey", "kind", "id", "interested"]),
+      annotations: annotations(false),
+      examples: [],
+      execute: async (input) => input.kind === "course" ? mutate(input, { type: "set_course_interest", courseId: input.id, interested: input.interested }) : mutate(input, { type: "set_opportunity_interest", opportunityId: input.id, interested: input.interested })
+    },
+    {
+      name: "annotate_course",
+      description: "Attach a visible note to a course: workload impressions, instructor reputation, scheduling conflicts, anything worth remembering. Notes show who wrote them. Pass removeNoteId to delete one of yours.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), courseId: field("string", "Stable course ID"), text: field("string", "The note"), removeNoteId: field("string", "Note ID to remove instead of adding") }, ["expectedVersion", "idempotencyKey", "courseId"]),
+      annotations: annotations(false, true),
+      examples: [],
+      execute: async (input) => mutate(input, { type: "annotate_course", courseId: input.courseId, note: input.text ? { text: input.text } : undefined, removeNoteId: input.removeNoteId })
+    },
+    {
+      name: "manage_activity",
+      description: "Create or update an ongoing commitment outside the catalog: research with a professor, a job, athletics. A schedule of days and HH:MM times recurs on the calendar between startDate and endDate; dates lists one-off moments like an application deadline. Pass removeActivityId to delete.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), activity: { type: "object", additionalProperties: false, description: "The activity to create or update; reuse an ID to update", properties: { id: field("string", "Stable ID; omit to create"), name: field("string", "Activity name"), kind: { type: "string", enum: ["research", "job", "volunteering", "athletics", "arts", "other"], description: "Activity kind" }, detail: field("string", "What the work is"), organizer: field("string", "Professor, group, or employer"), sourceUrl: field("string", "Related URL"), schedule: { type: "object", additionalProperties: false, description: "Recurring weekly block", properties: { days: field("array", "Days such as [\"tue\",\"thu\"]"), start: field("string", "HH:MM"), end: field("string", "HH:MM"), location: field("string", "Where") }, required: ["days", "start", "end"] }, startDate: field("string", "YYYY-MM-DD recurrence start"), endDate: field("string", "YYYY-MM-DD recurrence end"), dates: field("array", "One-off dates as {date, label}") }, required: ["name"] }, removeActivityId: field("string", "Activity ID to remove instead") }, ["expectedVersion", "idempotencyKey"]),
+      annotations: annotations(false),
+      examples: [],
+      execute: async (input) => input.removeActivityId ? mutate(input, { type: "remove_activity", activityId: input.removeActivityId }) : input.activity ? mutate(input, { type: "upsert_activity", activity: input.activity }) : { ok: false, code: "COMMAND_INVALID", message: "Pass an activity to save or removeActivityId to delete." }
     }
   ]
 }
