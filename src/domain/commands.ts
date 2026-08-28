@@ -102,7 +102,7 @@ const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, 
 }
 
 export const executeCommand = async (repository: MemoryWorkspaceRepository, envelope: Envelope): Promise<ActionReceipt> => {
-  const accessUserId = envelope.ownerUserId ?? (envelope.actor.type === "agent" ? "USER-DEMO" : envelope.actor.id)
+  const accessUserId = envelope.ownerUserId ?? envelope.actor.id
   const existingWorkspace = await repository.getWorkspace(envelope.workspaceId, accessUserId)
   const existing = existingWorkspace.receipts.find((receipt) => receipt.receiptId === actionId(envelope.idempotencyKey))
   if (existing) return structuredClone(existing)

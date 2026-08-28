@@ -158,7 +158,7 @@ demo_sessions
 
 ### Exit condition
 
-A judge can enter an isolated demo workspace in one click. A normal user can create a private workspace through Google or email.
+A judge can enter an isolated demo workspace in one click. A normal user can create a private workspace through email. Google appears only after its provider is configured and explicitly enabled.
 
 ## 5. Phase 3: domain kernel and action receipts
 

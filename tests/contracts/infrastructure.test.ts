@@ -10,6 +10,9 @@ const onboardingRoute = readFileSync(resolve(process.cwd(), "src/app/api/onboard
 const personalWorkspaceBuilder = readFileSync(resolve(process.cwd(), "src/data/personal-workspace.ts"), "utf8")
 const proxySource = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8")
 const workspaceRoute = readFileSync(resolve(process.cwd(), "src/app/api/workspace/route.ts"), "utf8")
+const workspaceProvider = readFileSync(resolve(process.cwd(), "src/components/workspace-provider.tsx"), "utf8")
+const commandEngine = readFileSync(resolve(process.cwd(), "src/domain/commands.ts"), "utf8")
+const loginPage = readFileSync(resolve(process.cwd(), "src/features/auth/login-page.tsx"), "utf8")
 
 describe("authentication configuration", () => {
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -94,6 +97,17 @@ describe("Supabase migration contract", () => {
     expect(personalWorkspaceBuilder).toContain("preferences: []")
     expect(personalWorkspaceBuilder).toContain("courses: []")
     expect(personalWorkspaceBuilder).toContain("commitments: []")
+  })
+
+  it("fails closed instead of substituting demo state for an authenticated account", () => {
+    expect(workspaceProvider).toContain('if (mode === "account")')
+    expect(workspaceProvider).toContain('throw new Error("Authenticated workspace data is required")')
+    expect(commandEngine).not.toContain('"USER-DEMO"')
+  })
+
+  it("shows Google login only behind an explicit provider flag", () => {
+    expect(loginPage).toContain('NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED === "true"')
+    expect(loginPage).toContain("{googleEnabled &&")
   })
 
   it("protects account routes while preserving an explicit demo session", () => {

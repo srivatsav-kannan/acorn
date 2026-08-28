@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { buildFixture, buildStanfordCatalog } from "@/data/fixture"
+import { buildFixture as buildDemoFixture, buildStanfordCatalog } from "@/data/fixture"
 import { executeCommand } from "@/domain/commands"
 import { materializeLegacyResearch } from "@/domain/evidence"
 import type { Catalog, WorkspaceState } from "@/domain/types"
@@ -29,8 +29,11 @@ const storageKey = "course-context-demo-v1"
 export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, userId, userEmail = "", catalog }: { children: ReactNode, mode?: "demo" | "account", initialWorkspace?: WorkspaceState, userId?: string, userEmail?: string, catalog?: Catalog }) => {
   const router = useRouter()
   const [initial] = useState(() => {
-    if (initialWorkspace) return { workspace: materializeLegacyResearch(initialWorkspace), catalog: catalog ?? buildStanfordCatalog() }
-    return buildFixture()
+    if (mode === "account") {
+      if (!initialWorkspace || !userId) throw new Error("Authenticated workspace data is required")
+      return { workspace: materializeLegacyResearch(initialWorkspace), catalog: catalog ?? buildStanfordCatalog() }
+    }
+    return buildDemoFixture()
   })
   const [workspace, setWorkspace] = useState(initial.workspace)
   const [repository, setRepository] = useState(() => new MemoryWorkspaceRepository(initial))
@@ -121,7 +124,7 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   const reset = async () => {
     if (mode !== "demo") throw new Error("Account workspaces cannot be reset from the demo control")
     localStorage.removeItem(storageKey)
-    const fixture = buildFixture()
+    const fixture = buildDemoFixture()
     setRepository(new MemoryWorkspaceRepository(fixture))
     setWorkspace(fixture.workspace)
   }

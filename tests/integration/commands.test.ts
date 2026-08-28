@@ -68,6 +68,7 @@ describe("command engine", () => {
       }
     }, {
       actor: { type: "agent", id: "AGENT-CHATGPT" },
+      ownerUserId: "USER-DEMO",
       expectedVersion: 2,
       idempotencyKey: "TEST-002"
     }))

@@ -15,11 +15,12 @@ test("public landing enters an isolated demo and exposes every primary surface",
 test("account entry reflects the active authentication configuration", async ({ page }) => {
   await page.goto("/app")
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toBeVisible()
-  const setupNotice = page.getByText("Account storage needs setup")
-  if (await setupNotice.isVisible()) await expect(page.getByRole("button", { name: "Continue with email" })).toBeDisabled()
-  else await expect(page.getByRole("button", { name: "Continue with email" })).toBeEnabled()
-  await expect(page.getByRole("link", { name: "Use the resettable demo" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Continue with your email" })).toBeVisible()
+  const setupNotice = page.getByText("Account sign-in is unavailable")
+  if (await setupNotice.isVisible()) await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeDisabled()
+  else await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0)
+  await expect(page.getByRole("link", { name: "Open the resettable demo" })).toBeVisible()
 })
 
 test("student captures context, changes a plan, sees checks, and undoes the action", async ({ page }) => {
@@ -42,6 +43,7 @@ test("student captures context, changes a plan, sees checks, and undoes the acti
 test("Stanford browsing filters the catalog and adds a course through the shared command path", async ({ page }) => {
   await page.goto("/demo")
   await page.getByRole("link", { name: "Stanford", exact: true }).click()
+  await expect(page.getByText("CS subject only")).toHaveCount(0)
   await page.getByLabel("Search courses").fill("CS 148")
   await expect(page.getByRole("heading", { name: /CS 148/ })).toBeVisible()
   await page.getByRole("button", { name: /add CS 148 to plan/i }).click()
@@ -99,9 +101,11 @@ test("profile, Library edits, and archives persist through reloads", async ({ pa
   await page.getByRole("button", { name: "Edit profile" }).click()
   await page.getByLabel("Name").fill("Maya Patel")
   await page.getByLabel("Goals and planning context").fill("Explore health HCI and preserve research time.")
+  await page.getByLabel("Monday").check()
   await page.getByRole("button", { name: "Save profile" }).click()
   await page.reload()
   await expect(page.getByRole("heading", { name: "Maya Patel" })).toBeVisible()
+  await expect(page.getByText("Mon, Fri")).toBeVisible()
 
   await page.getByRole("link", { name: "Library", exact: true }).click()
   await page.getByRole("button", { name: "Add to workspace" }).click()

@@ -153,6 +153,21 @@ Stanford students who currently move among class search, degree progress, advisi
 - Priority: hard
 - Requirement: The product ships with a broad, source-attributed Stanford reference pack covering courses, programs, and planning resources. Institutional data may be updated by a controlled import process. Agent discoveries remain user-specific overlays until explicitly curated into a future reference release.
 
+### REQ-028: Honest authentication choices
+
+- Priority: hard
+- Requirement: The login page shows only providers that are actually enabled for the deployment. Email magic-link login is the primary path until another provider has been configured and verified. The form must have clear spacing, one obvious next action, and no disabled provider theater.
+
+### REQ-029: No authenticated demo coupling
+
+- Priority: hard
+- Requirement: Authenticated code paths must fail closed when account data is missing. They must never fall back to the demo fixture, a demo owner ID, demo plan IDs, a particular major, a particular subject, or a Friday-only preference model. Static tool guidance must tell an agent to discover current workspace IDs before editing.
+
+### REQ-030: General personal constraints
+
+- Priority: hard
+- Requirement: Personal planning controls must represent the student's actual choices rather than the demo persona. Protected days, subjects, programs, course history, commitments, and unit limits are generic and editable.
+
 ## Non-goals for the challenge build
 
 - Replacing Stanford Academic Advising.
@@ -173,7 +188,7 @@ Stanford students who currently move among class search, degree progress, advisi
 
 ## Remaining release work
 
-- Connect a hosted Supabase project, apply both migrations, configure providers, and verify a real create/sign-out/sign-in recovery journey.
+- Complete a fresh email-link create, sign-out, sign-in, and recovery journey against the connected hosted Supabase project.
 - Deploy the verified build to a public HTTPS URL.
 - Record the under-three-minute public demo video with real WebMCP use.
 - Replace illustrative schedule data with a verified public Stanford snapshot if challenge time permits.

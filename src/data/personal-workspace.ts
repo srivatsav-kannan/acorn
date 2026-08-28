@@ -52,7 +52,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, id = () => c
       transitionBufferMinutes: 0
     },
     plans: [{
-      id: `PLAN-AUT26-${suffix}`,
+      id: `PLAN-${suffix}`,
       title: "Autumn 2026",
       termId: "TERM-2026-AUTUMN",
       activeScenarioId: `SCENARIO-START-${suffix}`,

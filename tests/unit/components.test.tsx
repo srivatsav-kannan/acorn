@@ -33,18 +33,19 @@ describe("public product surfaces", () => {
     expect(screen.getByText(/not an official stanford/i)).toBeVisible()
   })
 
-  it("offers demo, Google, and email login without asking for Stanford credentials", () => {
+  it("offers email and demo entry without advertising an unconfigured provider", () => {
     render(<LoginPage />)
-    expect(screen.getByRole("button", { name: /continue with google/i })).toBeVisible()
-    expect(screen.getByRole("button", { name: /continue with email/i })).toBeVisible()
+    expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeVisible()
+    expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
     expect(screen.getByRole("link", { name: /resettable demo/i })).toBeVisible()
     expect(screen.queryByText(/stanford password/i)).not.toBeInTheDocument()
   })
 
   it("fails clearly into demo mode when hosted authentication is not configured", async () => {
     render(<LoginPage />)
-    expect(screen.getByText(/account storage needs setup/i)).toBeVisible()
-    expect(screen.getByRole("button", { name: /continue with google/i })).toBeDisabled()
+    expect(screen.getByText(/account sign-in is unavailable/i)).toBeVisible()
+    expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeDisabled()
     expect(screen.getByRole("link", { name: /resettable demo/i })).toBeVisible()
   })
 })
@@ -98,7 +99,7 @@ describe("planning workspace", () => {
     expect(screen.getByText(/14 units/i)).toBeVisible()
     expect(screen.getByLabelText(/weekly calendar/i)).toBeVisible()
     expect(screen.getByText(/Backups/i)).toBeVisible()
-    expect(screen.getByText(/Commitments/i)).toBeVisible()
+    expect(screen.getByRole("heading", { name: "Commitments" })).toBeVisible()
     expect(screen.getByText(/Plan checks/i)).toBeVisible()
   })
 

@@ -65,6 +65,13 @@ describe("WebMCP manifest", () => {
     }
   })
 
+  it("returns the current plan and scenario IDs before an agent edits", async () => {
+    const { tools } = setup()
+    const result = await tools.find((tool) => tool.name === "get_planning_context")!.execute({})
+    expect(result).toMatchObject({ currentPlanId: "PLAN-AUT26", activeScenarioId: "SCENARIO-PRIMARY" })
+    expect(result.workflow).toContain("Discover current plan and scenario IDs before editing")
+  })
+
   it("returns stable IDs, versions, evidence, and visible-change receipts", async () => {
     const { tools } = setup()
     const result = await tools.find((tool) => tool.name === "save_workspace_item")!.execute({

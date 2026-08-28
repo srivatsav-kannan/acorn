@@ -83,7 +83,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       examples: [{}],
       execute: async () => {
         const value = await workspace()
-        return { workspaceId: value.id, version: value.version, currentTermId: value.currentTermId, workflow: ["Search the workspace before external research", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
+        const currentPlan = value.plans[0]
+        return { workspaceId: value.id, version: value.version, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
       }
     },
     {
@@ -91,7 +92,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       description: "Search the imported catalog and current term sections with planning filters.",
       inputSchema: schema({ query: field("string", "Course code, title, topic, or keyword"), termId: field("string", "Stable academic term ID") }, ["query"]),
       annotations: annotations(true),
-      examples: [{ query: "CS 147", termId: "TERM-2026-AUTUMN" }],
+      examples: [{ query: "design", termId: "Use currentTermId from get_planning_context" }],
       execute: async (input) => ({ results: searchCourses(repository.catalog, input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sectionIds: sections.map((item) => item.id) })) })
     },
     {
@@ -99,7 +100,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       description: "Get a term plan with scenarios, selected courses, backups, and commitments.",
       inputSchema: schema({ planId: field("string", "Stable plan ID") }),
       annotations: annotations(true),
-      examples: [{ planId: "PLAN-AUT26" }],
+      examples: [{ planId: "Use currentPlanId from get_planning_context" }],
       execute: async ({ planId }) => {
         const value = await workspace()
         const plan = value.plans.find((item) => item.id === (planId ?? value.plans[0]?.id))
@@ -121,7 +122,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       description: "Run deterministic unit, schedule, prerequisite, evidence, and constraint checks.",
       inputSchema: schema({ planId: field("string", "Stable plan ID"), scenarioId: field("string", "Stable scenario ID") }),
       annotations: annotations(true),
-      examples: [{ planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY" }],
+      examples: [{ planId: "Use the current plan ID", scenarioId: "Use a scenario ID returned by get_plan" }],
       execute: async ({ planId, scenarioId }) => {
         const value = await workspace()
         const plan = value.plans.find((item) => item.id === planId) ?? value.plans[0]

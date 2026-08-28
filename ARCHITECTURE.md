@@ -518,19 +518,15 @@ The activity drawer shows the ten most recent actions. The full page supports fi
 
 ### 9.1 Authentication options
 
-The proposed production path uses:
-
-- Google sign-in
-- email magic links
-- an isolated demo workspace that requires no personal data
+The production path uses email magic links as the primary account entry. Google sign-in is compiled into the application only when the deployment explicitly enables `NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED=true` after the provider has been configured and verified. An isolated demo workspace remains available without personal data.
 
 Stanford credentials are never collected. Stanford SSO is outside the challenge scope.
 
 ### 9.2 New user flow
 
 1. The user selects "Create a workspace."
-2. The user chooses Google or email.
-3. The identity provider completes authentication.
+2. The user enters an email and receives a one-time sign-in link.
+3. Supabase completes authentication when the user opens that link.
 4. The server establishes a secure session in an HttpOnly cookie.
 5. The user completes the two-field goal-first onboarding flow.
 6. The server atomically creates a private workspace, owner membership, first snapshot, and first version record.
@@ -547,7 +543,7 @@ Stanford credentials are never collected. Stanford SSO is outside the challenge 
 
 "Try the demo" sets a short-lived HttpOnly mode cookie and opens a browser-persisted clone of the seeded Stanford workspace. Each browser profile receives its own copy. Demo writes never affect the canonical fixture or an authenticated account. A reset action removes the local copy and restores the fixture.
 
-The judge path must work without waiting for email. Devpost credentials remain a backup, not the primary demonstration path.
+The judge path must work without waiting for email. The demo is deliberately separated from authenticated account code. Authenticated rendering throws when its real workspace payload is absent and never substitutes the demo fixture.
 
 ### 9.5 Session rules
 
@@ -1111,7 +1107,8 @@ The challenge release uses a small first-party block editor with explicit block 
 
 - Next.js route handlers for the competition release
 - PostgreSQL hosted by Supabase
-- Supabase Auth for Google, magic-link, and anonymous demo sessions
+- Supabase Auth for email magic links, with optional provider-gated Google sign-in
+- A separate local demo cookie and browser-persisted demo fixture
 - Drizzle or an equivalent typed SQL layer selected during the implementation decision
 - Zod at all network and command boundaries
 - Database migrations committed to the repository

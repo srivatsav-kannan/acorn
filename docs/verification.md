@@ -16,11 +16,11 @@ Full green.
 
 - ESLint passed.
 - Strict TypeScript passed.
-- 221 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
-- Statement coverage: 95.15%.
-- Branch coverage: 88.03%.
-- Function coverage: 96.20%.
-- Line coverage: 99.47%.
+- 224 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
+- Statement coverage: 94.67%.
+- Branch coverage: 88.24%.
+- Function coverage: 94.31%.
+- Line coverage: 99.11%.
 - The optimized Next.js build passed for 16 public, authentication, API, and workspace routes plus the not-found route.
 - 26 browser journeys passed across desktop and mobile Chromium profiles.
 - Two profile-specific assertions were skipped by design.
@@ -59,10 +59,14 @@ Full green.
 28. Edit a scenario unit limit and add and remove an external commitment through the semantic command journal.
 29. Require student confirmation before completed-course history can change.
 30. Browse nine Stanford program references without treating any program as the student's choice until they explicitly track it.
+31. Hide Google sign-in when its provider flag is not enabled.
+32. Reject an authenticated render that does not receive real account workspace data instead of falling back to the demo fixture.
+33. Return the active account plan and scenario IDs to an agent before plan editing.
+34. Edit any protected weekday or weekend day rather than assuming a Friday-only preference.
 
 ## Honest boundaries
 
 - The Stanford reference layer includes a broader course and program index with official source links. Meeting and section examples remain illustrative planning samples and must be verified before registration.
 - The application does not enroll in courses or send messages.
-- Google and magic-link login flows, callback exchange, clean account onboarding, workspace creation, protected routes, server persistence, sign-out, and conflict recovery are implemented. The local app is connected to the hosted Supabase project and both migrations are applied. A complete fresh-account login still requires a user-controlled email link and has not been claimed as browser-verified.
+- Email magic-link login, callback exchange, clean account onboarding, workspace creation, protected routes, server persistence, sign-out, and conflict recovery are implemented. Google login is hidden unless its provider is explicitly enabled. The local app is connected to the hosted Supabase project and both migrations are applied. A complete fresh-account login still requires a user-controlled email link and has not been claimed as browser-verified.
 - Public deployment, video recording, and Devpost submission remain release operations outside the local test suite.
