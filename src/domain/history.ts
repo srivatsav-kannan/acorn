@@ -1,3 +1,4 @@
+import { compareTerms, defaultGraduationTerm, parseTermId } from "@/domain/timeline"
 import type { ApCredit, StudentProfile } from "@/domain/types"
 
 // Academic history is structured context: completed courses, AP and transfer
@@ -37,11 +38,22 @@ export type AcademicHistoryPatch = {
   classYear?: string
   completedCourses?: Array<{ courseId: string, grade?: string }>
   apCredits?: ApCredit[]
+  timeline?: { entryTermId: string, expectedGraduationTermId: string, degree: string }
 }
 
 export const validateAcademicHistoryPatch = (input: Record<string, unknown>): AcademicHistoryPatch => {
   const patch: AcademicHistoryPatch = {}
   if (typeof input.classYear === "string") patch.classYear = input.classYear.trim().slice(0, 30)
+  const timelineInput = input.timeline as Record<string, unknown> | undefined
+  if (timelineInput && typeof timelineInput === "object") {
+    const entryTermId = String(timelineInput.entryTermId ?? "")
+    const degree = String(timelineInput.degree ?? "BS").trim().slice(0, 30) || "BS"
+    if (!parseTermId(entryTermId)) throw new Error("The entry term must look like TERM-2026-AUTUMN")
+    const expectedGraduationTermId = String(timelineInput.expectedGraduationTermId ?? "") || defaultGraduationTerm(entryTermId, degree)
+    if (!parseTermId(expectedGraduationTermId)) throw new Error("The graduation term must look like TERM-2030-SPRING")
+    if (compareTerms(expectedGraduationTermId, entryTermId) <= 0) throw new Error("Graduation must come after the entry term")
+    patch.timeline = { entryTermId, expectedGraduationTermId, degree }
+  }
   if (Array.isArray(input.completedCourses)) {
     if (input.completedCourses.length > 80) throw new Error("Academic history supports at most 80 completed courses")
     patch.completedCourses = input.completedCourses.map((raw) => {
@@ -55,12 +67,13 @@ export const validateAcademicHistoryPatch = (input: Record<string, unknown>): Ac
     if (input.apCredits.length > 24) throw new Error("Academic history supports at most 24 AP or transfer credits")
     patch.apCredits = input.apCredits.map((item) => validateApCredit(item as Record<string, unknown>))
   }
-  if (patch.classYear === undefined && !patch.completedCourses && !patch.apCredits) throw new Error("Academic history needs a class year, completed courses, or credits")
+  if (patch.classYear === undefined && !patch.completedCourses && !patch.apCredits && !patch.timeline) throw new Error("Academic history needs a class year, timeline, completed courses, or credits")
   return patch
 }
 
 export const applyAcademicHistory = (profile: StudentProfile, patch: AcademicHistoryPatch) => {
   if (patch.classYear !== undefined) profile.classYear = patch.classYear || undefined
+  if (patch.timeline) profile.timeline = patch.timeline
   if (patch.completedCourses) {
     profile.completedCourseIds = [...new Set(patch.completedCourses.map((item) => item.courseId))]
     profile.courseGrades = Object.fromEntries(patch.completedCourses.filter((item) => item.grade).map((item) => [item.courseId, item.grade as string]))

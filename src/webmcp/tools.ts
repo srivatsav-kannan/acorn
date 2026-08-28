@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { executeCommand } from "@/domain/commands"
+import { evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan } from "@/domain/planner"
 import { mergedCatalogFor } from "@/domain/reference"
+import { supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
 import { evaluateRequirement } from "@/domain/requirements"
 import { searchCourses, searchWorkspace } from "@/domain/search"
 import type { Actor, WorkspaceState } from "@/domain/types"
@@ -86,9 +88,10 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       examples: [{}],
       execute: async () => {
         const value = await workspace()
-        const currentPlan = value.plans[0]
+        const currentPlan = value.plans.find((plan) => plan.termId === value.currentTermId) ?? value.plans[0]
         const custom = value.institutionId === "INSTITUTION-CUSTOM"
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "The shipped catalog is a sample. Add verified missing courses or programs with extend_reference.", history: { classYear: value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, apCredits: (value.profile.apCredits ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
+        const timeline = supportsTimeline(value) ? timelineFor(value.profile, now()) : null
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, apCredits: (value.profile.apCredits ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before big edits", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
       }
     },
     {
@@ -101,13 +104,13 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "get_plan",
-      description: "Get a term plan with scenarios, selected courses, backups, and commitments.",
-      inputSchema: schema({ planId: field("string", "Stable plan ID") }),
+      description: "Get one term's plan with scenarios, selected courses, backups, and commitments. Look up by planId or termId.",
+      inputSchema: schema({ planId: field("string", "Stable plan ID"), termId: field("string", "Term ID such as TERM-2027-WINTER") }),
       annotations: annotations(true),
       examples: [{ planId: "Use currentPlanId from get_planning_context" }],
-      execute: async ({ planId }) => {
+      execute: async ({ planId, termId }) => {
         const value = await workspace()
-        const plan = value.plans.find((item) => item.id === (planId ?? value.plans[0]?.id))
+        const plan = value.plans.find((item) => item.id === planId) ?? value.plans.find((item) => item.termId === termId) ?? (planId || termId ? undefined : value.plans[0])
         return { workspaceVersion: value.version, plan: plan ? {
           id: plan.id,
           activeScenarioId: plan.activeScenarioId,
@@ -131,7 +134,9 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const value = await workspace()
         const plan = value.plans.find((item) => item.id === planId) ?? value.plans[0]
         const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios[0]
-        return { workspaceVersion: value.version, checks: selected ? checkPlan({ scenario: selected, catalog: mergedCatalogFor(value, repository.catalog), profile: value.profile, evidence: value.evidence, now: now() }) : [] }
+        const merged = mergedCatalogFor(value, repository.catalog)
+        const degree = supportsTimeline(value) ? evaluateDegreePlan(value, merged, now()) : null
+        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { projected: degree.projectedUnits, required: degree.requiredUnits } : null }
       }
     },
     {
@@ -196,11 +201,11 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "edit_plan",
-      description: "Apply an atomic semantic edit to a plan scenario and return a receipt.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), planId: field("string", "Stable plan ID"), scenarioId: field("string", "Stable scenario ID"), operations: field("array", "Atomic plan operations") }, ["expectedVersion", "idempotencyKey", "planId", "scenarioId", "operations"]),
+      description: "Apply an atomic semantic edit to a plan scenario and return a receipt. Pass termId instead of planId to plan a future term. A plan for that term is created when missing, so a four or five year degree map builds term by term.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), planId: field("string", "Stable plan ID"), termId: field("string", "Term ID such as TERM-2027-WINTER, creates the term plan when missing"), scenarioId: field("string", "Stable scenario ID, defaults to the term's active scenario"), operations: field("array", "Atomic plan operations") }, ["expectedVersion", "idempotencyKey", "operations"]),
       annotations: annotations(false),
       examples: [],
-      execute: async (input) => mutate(input, { type: "edit_plan", planId: input.planId, scenarioId: input.scenarioId, operations: input.operations })
+      execute: async (input) => mutate(input, { type: "edit_plan", planId: input.planId, termId: input.termId, scenarioId: input.scenarioId, operations: input.operations })
     },
     {
       name: "extend_reference",

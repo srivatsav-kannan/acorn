@@ -24,7 +24,7 @@ export const meetingsOverlap = (a: Meeting, b: Meeting) => a.days.some((day) => 
 
 const finalsOverlap = (a?: { start: string, end: string }, b?: { start: string, end: string }) => Boolean(a && b && new Date(a.start) < new Date(b.end) && new Date(b.start) < new Date(a.end))
 
-export const checkPlan = ({ scenario, catalog, profile, evidence, now }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], now: Date }): PlanCheck[] => {
+export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = "TERM-2026-AUTUMN" }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], now: Date, termId?: string }): PlanCheck[] => {
   const checks: PlanCheck[] = []
   let sequence = 0
   const add = (code: PlanCheckCode, severity: "error" | "warning", affectedIds: string[], message: string, suggestedRepairs: string[], evidenceIds: string[] = []) => {
@@ -43,9 +43,10 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now }: { scena
   }
 
   const selected = active.map((item) => ({ item, course: catalog.courses.find((course) => course.id === item.courseId), section: catalog.sections.find((section) => section.id === item.sectionId) }))
+  const termHasSchedule = catalog.sections.some((section) => section.termId === termId)
   for (const entry of selected) {
-    if (!entry.section) {
-      const offered = catalog.sections.some((section) => section.courseId === entry.item.courseId && section.termId === "TERM-2026-AUTUMN")
+    if (!entry.section && termHasSchedule) {
+      const offered = catalog.sections.some((section) => section.courseId === entry.item.courseId && section.termId === termId)
       add(offered ? "MISSING_SECTION" : "NOT_OFFERED", "error", [entry.item.id], offered ? "Choose a section before finalizing this course." : "No current term offering is stored for this course.", offered ? ["Select an available section"] : ["Verify the live schedule", "Move the course to a future term"])
     }
     if (entry.course?.prerequisiteUncertain) add("PREREQUISITE_UNCERTAIN", "warning", [entry.item.id], "The prerequisite interpretation needs review.", ["Open the official course page", "Ask an advisor"])

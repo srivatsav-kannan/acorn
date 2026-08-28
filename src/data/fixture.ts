@@ -29,6 +29,8 @@ export const buildFixture = (): Fixture => {
       isFictional: true,
       summary: "CS-first, design-aware planning with room for research and community.",
       catalogYear: "2026-27",
+      classYear: "Sophomore",
+      timeline: { entryTermId: "TERM-2025-AUTUMN", expectedGraduationTermId: "TERM-2029-SPRING", degree: "BS" },
       declaredProgramId: "PROGRAM-CS-BS",
       completedCourseIds: ["COURSE-CS-106A"],
       courseGrades: { "COURSE-CS-106A": "A" },

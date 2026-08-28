@@ -81,6 +81,7 @@ export type StudentProfile = {
   summary: string
   catalogYear: string
   classYear?: string
+  timeline?: { entryTermId: string, expectedGraduationTermId: string, degree: string }
   declaredProgramId: string | null
   completedCourseIds: string[]
   apCredits?: ApCredit[]

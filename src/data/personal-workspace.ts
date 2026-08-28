@@ -1,5 +1,6 @@
 import { CUSTOM_INSTITUTION_ID, customInstitution, getInstitution } from "@/data/institutions/registry"
 import { validateAcademicHistoryPatch, applyAcademicHistory } from "@/domain/history"
+import { defaultTimeline } from "@/domain/timeline"
 import type { Collection, WorkspaceState } from "@/domain/types"
 
 const personalCollections = (): Collection[] => [
@@ -49,6 +50,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
       isFictional: false,
       summary: cleanGoal,
       catalogYear: institution.slug === "custom" ? "Current" : "2026-27",
+      timeline: institution.slug === "custom" ? undefined : defaultTimeline(now()),
       declaredProgramId: null,
       completedCourseIds: [],
       courseGrades: {},

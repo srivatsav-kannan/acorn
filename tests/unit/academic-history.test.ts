@@ -33,7 +33,7 @@ describe("academic history", () => {
     expect(() => validateApCredit({ exam: "AP Calculus BC", score: 9 })).toThrow(/between 1 and 5/)
     expect(() => validateApCredit({ exam: "" })).toThrow(/named exam/)
     expect(() => validateApCredit({ exam: "IB Math", unitsGranted: 99 })).toThrow(/between 0 and 45/)
-    expect(() => validateAcademicHistoryPatch({})).toThrow(/class year, completed courses, or credits/)
+    expect(() => validateAcademicHistoryPatch({})).toThrow(/class year, timeline, completed courses, or credits/)
     const patch = validateAcademicHistoryPatch({ classYear: "Class of 2030", completedCourses: [{ courseId: "COURSE-CS-106A", grade: "A" }] })
     expect(patch.completedCourses).toEqual([{ courseId: "COURSE-CS-106A", grade: "A" }])
   })
@@ -43,14 +43,14 @@ describe("academic history", () => {
     const receipt = await executeCommand(repository, envelope({
       type: "update_academic_history",
       patch: {
-        classYear: "Sophomore",
+        classYear: "Junior",
         completedCourses: [{ courseId: "COURSE-CS-106A", grade: "A" }, { courseId: "COURSE-MATH-19" }],
         apCredits: [{ exam: "AP Calculus BC", score: 5, unitsGranted: 10, satisfiesCourseIds: ["COURSE-MATH-21"] }]
       }
     }))
     expect(receipt).toMatchObject({ ok: true, undoAvailable: true })
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
-    expect(workspace.profile.classYear).toBe("Sophomore")
+    expect(workspace.profile.classYear).toBe("Junior")
     expect(workspace.profile.completedCourseIds).toEqual(["COURSE-CS-106A", "COURSE-MATH-19"])
     expect(workspace.profile.courseGrades).toEqual({ "COURSE-CS-106A": "A" })
     expect(workspace.profile.apCredits).toHaveLength(1)
@@ -58,7 +58,7 @@ describe("academic history", () => {
     const undo = await executeCommand(repository, envelope({ type: "undo_action", receiptId: receipt.receiptId }, 2, "HIST-UNDO"))
     expect(undo.ok).toBe(true)
     const restored = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
-    expect(restored.profile.classYear).toBeUndefined()
+    expect(restored.profile.classYear).toBe("Sophomore")
   })
 
   it("counts AP equivalencies toward prerequisites in plan checks", () => {

@@ -3,6 +3,7 @@ import { validateContextItem } from "@/domain/context"
 import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
 import { applyAcademicHistory, validateAcademicHistoryPatch } from "@/domain/history"
 import { emptyOverlay, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
+import { compareTerms, parseTermId, termLabel } from "@/domain/timeline"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository, RepositoryError } from "@/store/memory-repository"
@@ -20,7 +21,26 @@ const commandError = (message: string) => new RepositoryError("COMMAND_INVALID",
 const actionId = (key: string) => `ACTION-${key.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)}`
 
 const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, any>, changed: ChangedEntity[]) => {
-  const plan = workspace.plans.find((item) => item.id === command.planId)
+  let plan = workspace.plans.find((item) => item.id === command.planId)
+  if (!plan && typeof command.termId === "string") {
+    plan = workspace.plans.find((item) => item.termId === command.termId)
+    if (!plan) {
+      const ref = parseTermId(command.termId)
+      if (!ref) throw commandError("A new term plan needs a term ID like TERM-2027-WINTER")
+      plan = {
+        id: `PLAN-${ref.year}-${ref.season}`,
+        title: termLabel(ref),
+        termId: ref.id,
+        activeScenarioId: `SCENARIO-${ref.year}-${ref.season}-1`,
+        scenarios: [{ id: `SCENARIO-${ref.year}-${ref.season}-1`, name: "First draft", unitLimit: 20, courses: [], commitments: [] }]
+      }
+      workspace.plans.push(plan)
+      workspace.plans.sort((a, b) => compareTerms(a.termId, b.termId))
+      changed.push({ type: "plan", id: plan.id })
+    }
+    command.scenarioId = command.scenarioId ?? plan.activeScenarioId
+    command.planId = plan.id
+  }
   if (!plan) throw commandError("Plan or scenario not found")
   for (const operation of command.operations ?? []) {
     if (operation.type === "create_scenario") {
