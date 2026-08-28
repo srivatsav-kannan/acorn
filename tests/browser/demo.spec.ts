@@ -6,8 +6,8 @@ test("public landing explains the product and routes into the account flow", asy
   await expect(page.getByRole("heading", { level: 1 })).toContainText("every quarter to graduation")
   await expect(page.getByText("15,587 courses")).toBeVisible()
   await page.getByRole("link", { name: "Start planning" }).first().click()
-  await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/\/signup/)
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible()
 })
 
 test("the demo workspace exposes every primary surface", async ({ page }) => {
@@ -21,17 +21,13 @@ test("the demo workspace exposes every primary surface", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Open your workspace" }).first()).toBeVisible()
 })
 
-test("account entry reflects the active authentication configuration", async ({ page }) => {
+test("account entry is a plain email and password form", async ({ page }) => {
   await page.goto("/login")
-  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible()
-  const setupNotice = page.getByText("Account sign-in is unavailable")
-  if (await setupNotice.isVisible()) {
-    await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeDisabled()
-  } else {
-    await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeEnabled()
-    await expect(page.getByRole("button", { name: "Sign in with demo credentials" })).toBeVisible()
-  }
+  await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible()
+  await expect(page.getByLabel("Email")).toBeVisible()
+  await expect(page.getByLabel("Password")).toBeVisible()
   await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0)
+  await expect(page.getByRole("link", { name: "Create an account" })).toBeVisible()
 })
 
 test("workspace and onboarding routes are account-gated", async ({ page }) => {
@@ -39,7 +35,7 @@ test("workspace and onboarding routes are account-gated", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/)
   await page.goto("/app")
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible()
 })
 
 test("student captures context, changes a plan, sees checks, and undoes the action", async ({ page }) => {

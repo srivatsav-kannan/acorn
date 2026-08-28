@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { buildPersonalWorkspace } from "@/data/personal-workspace"
-import { isDemoAccountEmail } from "@/lib/demo-account"
 import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+
+// The database's reset_demo_workspace function is the real guard; this check
+// only saves a round trip for accounts that are obviously not the demo.
+const isDemoAccountEmail = (email: string | undefined) => {
+  const configured = process.env.COURSE_CONTEXT_DEMO_EMAIL?.trim().toLowerCase()
+  return Boolean(configured && email && email.trim().toLowerCase() === configured)
+}
 
 export async function POST() {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, message: "Account storage is not configured." }, { status: 503 })

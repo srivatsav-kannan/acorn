@@ -14,9 +14,8 @@ const workspaceRoute = readFileSync(resolve(process.cwd(), "src/app/api/workspac
 const workspaceProvider = readFileSync(resolve(process.cwd(), "src/components/workspace-provider.tsx"), "utf8")
 const commandEngine = readFileSync(resolve(process.cwd(), "src/domain/commands.ts"), "utf8")
 const loginPage = readFileSync(resolve(process.cwd(), "src/features/auth/login-page.tsx"), "utf8")
-const demoLoginRoute = readFileSync(resolve(process.cwd(), "src/app/api/auth/demo/route.ts"), "utf8")
+const signupPage = readFileSync(resolve(process.cwd(), "src/features/auth/signup-page.tsx"), "utf8")
 const demoResetRoute = readFileSync(resolve(process.cwd(), "src/app/api/demo/reset/route.ts"), "utf8")
-const demoAccountConfig = readFileSync(resolve(process.cwd(), "src/lib/demo-account.ts"), "utf8")
 
 describe("authentication configuration", () => {
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -112,13 +111,13 @@ describe("Supabase migration contract", () => {
     expect(demoResetRoute).toContain("client.auth.signOut()")
   })
 
-  it("authenticates the demo through server-only credentials", () => {
-    expect(demoAccountConfig).toContain("COURSE_CONTEXT_DEMO_EMAIL")
-    expect(demoAccountConfig).toContain("COURSE_CONTEXT_DEMO_PASSWORD")
-    expect(demoAccountConfig).not.toContain("NEXT_PUBLIC")
-    expect(demoLoginRoute).toContain("signInWithPassword")
-    expect(loginPage).toContain("/api/auth/demo")
-    expect(loginPage).toContain("Sign in with demo credentials")
+  it("authenticates every account with a password and nothing fancier", () => {
+    expect(loginPage).toContain("signInWithPassword")
+    expect(loginPage).not.toContain("signInWithOtp")
+    expect(loginPage).not.toContain("signInWithOAuth")
+    expect(signupPage).toContain("auth.signUp")
+    expect(signupPage).toContain("INSTITUTION-STANFORD")
+    expect(signupPage).toContain("identities?.length === 0")
     expect(loginPage).not.toContain("workspace that remembers")
     expect(loginPage).not.toContain("resettable demo")
   })
@@ -140,9 +139,9 @@ describe("Supabase migration contract", () => {
     expect(commandEngine).not.toContain('"USER-DEMO"')
   })
 
-  it("shows Google login only behind an explicit provider flag", () => {
-    expect(loginPage).toContain('NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED === "true"')
-    expect(loginPage).toContain("{googleEnabled &&")
+  it("keeps demo reset server-side and demo-gated", () => {
+    expect(demoResetRoute).toContain("reset_demo_workspace")
+    expect(demoResetRoute).toContain("client.auth.signOut()")
   })
 
   it("protects account routes and confines browser fixture mode to automated tests", () => {

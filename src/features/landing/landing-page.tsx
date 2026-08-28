@@ -36,23 +36,23 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
   const years = [0, 1, 2, 3].map((offset) => quarters.filter((quarter) => quarter.academicYearStart === 2026 + offset))
   const timeline = { entryTermId: "TERM-2026-AUTUMN", expectedGraduationTermId: "TERM-2030-SPRING", degree: "BS" }
   const institutionChoices = listInstitutionChoices()
-  const enterHref = signedIn ? "/app" : "/login"
+  const enterHref = signedIn ? "/app" : "/signup"
   const enterLabel = signedIn ? "Open your workspace" : "Start planning"
 
   return <main className="public-page">
     <header className="public-header">
-      <Link className="wordmark" href="/">CourseContext<i aria-hidden="true">.</i></Link>
+      <Link className="wordmark" href="/">Acorn<i aria-hidden="true">.</i></Link>
       <nav aria-label="Public">
         <a href="#premise">How it works</a>
         <a href="#agents">For agents</a>
-        <Link href="/login">Sign in</Link>
+        <Link href="/login">Log in</Link>
         <Link className="primary-button" href={enterHref}><span className="cta-long">{enterLabel}</span><span className="cta-short">{signedIn ? "Open" : "Start"}</span></Link>
       </nav>
     </header>
 
     <section className="hero">
       <h1>Plan every quarter to graduation in a workspace <em>your agent</em> shares.</h1>
-      <p className="hero-lead">CourseContext keeps the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasoning behind each choice in one durable workspace. An agent working with you reads and edits that same workspace through twelve WebMCP tools, and each change it makes arrives attributed, inspectable, and reversible.</p>
+      <p className="hero-lead">Acorn keeps the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasoning behind each choice in one durable workspace. An agent working with you reads and edits that same workspace through twelve WebMCP tools, and each change it makes arrives attributed, inspectable, and reversible.</p>
       <div className="hero-actions">
         <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
         <a className="secondary-button" href="#agents">How agents work here</a>
@@ -100,7 +100,7 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
     <Reveal><section id="agents" className="webmcp-band">
       <div>
         <h2>Agents work here through twelve real tools.</h2>
-        <p>CourseContext registers its planning tools directly in the page through WebMCP, so an agent working beside you can search your saved context, check a plan against the engine, file research with its sources, and extend the institutional reference when something is missing. Because those tools run through the same command path as your own clicks, every agent edit lands in the ledger with attribution and an undo.</p>
+        <p>Acorn registers its planning tools directly in the page through WebMCP, so an agent working beside you can search your saved context, check a plan against the engine, file research with its sources, and extend the institutional reference when something is missing. Because those tools run through the same command path as your own clicks, every agent edit lands in the ledger with attribution and an undo.</p>
         <p>Read tools carry a read-only annotation, and write tools require the workspace version they started from, so an agent holding stale state receives a clean conflict and retries with fresh context.</p>
       </div>
       <div className="tool-manifest">

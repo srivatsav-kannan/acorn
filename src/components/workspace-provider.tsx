@@ -165,7 +165,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       setMessage({ kind: "error", text: result.message ?? "The demo could not be reset." })
       return
     }
-    router.replace("/login?demo=1&reset=1")
+    router.replace("/login?reset=1")
     router.refresh()
   }
 

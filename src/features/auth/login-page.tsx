@@ -5,85 +5,50 @@ import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
 import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
-export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoRequested = false, nextPath = "/app" }: { initialStatus?: string, demoAvailable?: boolean, demoRequested?: boolean, nextPath?: string }) => {
+export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialStatus?: string, nextPath?: string }) => {
   const router = useRouter()
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [status, setStatus] = useState(initialStatus)
-  const [linkSentTo, setLinkSentTo] = useState("")
   const [busy, setBusy] = useState(false)
   const configured = isSupabaseConfigured()
-  const googleEnabled = configured && process.env.NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED === "true"
 
-  const redirectTo = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
-  const requireConfiguration = () => {
-    if (configured) return true
-    setStatus("Account sign-in is not configured for this deployment.")
-    return false
-  }
-  const continueWithGoogle = async () => {
-    if (!requireConfiguration()) return
-    setBusy(true)
-    setStatus("")
-    const { error } = await createCourseContextBrowserClient().auth.signInWithOAuth({ provider: "google", options: { redirectTo: redirectTo() } })
-    if (error) setStatus(error.message)
-    setBusy(false)
-  }
-  const sendEmailLink = async (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (!requireConfiguration()) return
+    if (!configured) {
+      setStatus("Account sign-in is not configured for this deployment.")
+      return
+    }
     setBusy(true)
     setStatus("")
-    const { error } = await createCourseContextBrowserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo() } })
-    if (error) setStatus(error.message)
-    else setLinkSentTo(email)
-    setBusy(false)
-  }
-
-  const signInToDemo = async () => {
-    setBusy(true)
-    setStatus("")
-    const response = await fetch("/api/auth/demo", { method: "POST" })
-    const result = await response.json() as { ok?: boolean, message?: string }
-    if (!response.ok || !result.ok) {
-      setStatus(result.message ?? "Demo login is unavailable.")
+    const { error } = await createCourseContextBrowserClient().auth.signInWithPassword({ email: email.trim(), password })
+    if (error) {
+      setStatus(/confirm/i.test(error.message) ? "This email has not been confirmed yet. Open the confirmation link we sent, then log in." : /credentials/i.test(error.message) ? "That email and password do not match an account." : error.message)
       setBusy(false)
       return
     }
-    router.replace("/app")
+    router.replace(nextPath)
     router.refresh()
   }
 
-  const demoLogin = demoAvailable && <section className={demoRequested ? "demo-login-card requested" : "demo-login-card"}>
-    <div><strong>Shared demo account</strong><span>A filled example workspace on shared credentials. Changes save to the server and can be reset at any time.</span></div>
-    <button className={demoRequested ? "primary-button full" : "secondary-button full"} type="button" onClick={signInToDemo} disabled={busy}>{busy ? "Signing in…" : "Sign in with demo credentials"}</button>
-  </section>
-
   return <main className="auth-page">
-    <Link className="wordmark auth-wordmark" href="/">CourseContext<i aria-hidden="true">.</i></Link>
+    <Link className="wordmark auth-wordmark" href="/">Acorn<i aria-hidden="true">.</i></Link>
     <section className="auth-card">
       <header>
-        <h1>Sign in</h1>
-        <p>Enter your email and open the link we send. Your first link creates the account, and every later one signs you back in to the same workspace.</p>
+        <h1>Log in</h1>
+        <p>Your workspace and everything in it lives behind your account.</p>
       </header>
-      {demoRequested && demoLogin}
-      {demoRequested && <div className="auth-divider"><span>Personal account</span></div>}
-      <div className="auth-form-panel">
-        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is missing its account storage configuration, so no one can sign in until it is restored.</span></div>}
-        {linkSentTo ? <div className="link-sent" role="status">
-          <strong>Check your inbox</strong>
-          <p>A one-time sign-in link is on its way to <b>{linkSentTo}</b>. Opening it returns you here, signed in.</p>
-          <button className="text-button" type="button" onClick={() => { setLinkSentTo(""); setEmail("") }}>Use a different email</button>
-        </div> : <form className="email-login-form" onSubmit={sendEmailLink}>
-          <label htmlFor="email">Email address</label>
-          <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!configured}/>
-          <small>We email a one-time link instead of using a password.</small>
-          <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Sending link…" : "Email me a sign-in link"}</button>
-        </form>}
-        {googleEnabled && !linkSentTo && <><div className="or"><span />or<span /></div><button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy}><span aria-hidden="true">G</span>Continue with Google</button></>}
-      </div>
-      {!demoRequested && demoLogin}
+      <form className="email-login-form" onSubmit={submit}>
+        <label htmlFor="email">Email</label>
+        <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!configured} />
+        <label htmlFor="password">Password</label>
+        <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required disabled={!configured} />
+        <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Logging in…" : "Log in"}</button>
+      </form>
+      {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is missing its account storage configuration, so no one can log in until it is restored.</span></div>}
       {status && <p className="auth-status" role="status">{status}</p>}
+      <p className="auth-switch">New here? <Link href="/signup">Create an account</Link></p>
     </section>
-    <p className="auth-note">CourseContext helps you plan; enrollment and anything official still go through your university&apos;s own systems.</p>
+    <p className="auth-note">Acorn helps you plan; enrollment and anything official still go through Stanford&apos;s own systems.</p>
   </main>
 }

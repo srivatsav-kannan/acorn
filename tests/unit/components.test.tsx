@@ -9,6 +9,7 @@ import { AppShell } from "@/components/app-shell"
 import { StatusState } from "@/components/status-state"
 import { LandingPage } from "@/features/landing/landing-page"
 import { LoginPage } from "@/features/auth/login-page"
+import { SignupPage } from "@/features/auth/signup-page"
 import { PlanPage } from "@/features/plan/plan-page"
 import { LibraryPage } from "@/features/library/library-page"
 import { ProgramsPage } from "@/features/programs/programs-page"
@@ -37,8 +38,8 @@ describe("public product surfaces", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/every quarter to graduation/i)
     const starts = screen.getAllByRole("link", { name: /start planning/i })
     expect(starts.length).toBeGreaterThan(0)
-    for (const link of starts) expect(link).toHaveAttribute("href", "/login")
-    expect(screen.getByRole("link", { name: /sign in/i })).toBeVisible()
+    for (const link of starts) expect(link).toHaveAttribute("href", "/signup")
+    expect(screen.getByRole("link", { name: /log in/i })).toBeVisible()
     expect(screen.getAllByText(/15,587/).length).toBeGreaterThan(0)
     expect(screen.getByText(/not affiliated with stanford/i)).toBeVisible()
     expect(screen.queryByText(/demo login/i)).not.toBeInTheDocument()
@@ -52,34 +53,32 @@ describe("public product surfaces", () => {
     expect(screen.queryByRole("link", { name: /start planning/i })).not.toBeInTheDocument()
   })
 
-  it("offers email and demo entry without advertising an unconfigured provider", () => {
-    render(<LoginPage demoAvailable />)
-    expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeVisible()
-    expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /sign in with demo credentials/i })).toBeVisible()
-    expect(screen.queryByText(/workspace that remembers/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/resettable demo/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/stanford password/i)).not.toBeInTheDocument()
+  it("logs in with an email and a password, nothing fancier", () => {
+    render(<LoginPage />)
+    expect(screen.getByLabelText("Email")).toBeVisible()
+    expect(screen.getByLabelText("Password")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Log in" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /create an account/i })).toHaveAttribute("href", "/signup")
+    expect(screen.queryByText(/sign-in link/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /demo/i })).not.toBeInTheDocument()
+  })
+
+  it("signs up with name, credentials, and the two dates the map derives from", () => {
+    render(<SignupPage />)
+    expect(screen.getByLabelText("Name")).toBeVisible()
+    expect(screen.getByLabelText("Email")).toBeVisible()
+    expect(screen.getByLabelText("Password")).toBeVisible()
+    expect(screen.getByLabelText("Entered Stanford in autumn")).toBeVisible()
+    expect(screen.getByLabelText("Graduating in spring")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute("href", "/login")
   })
 
   it("fails closed when account storage is not configured", async () => {
-    render(<LoginPage demoAvailable />)
+    render(<LoginPage />)
     expect(screen.getByText(/account sign-in is unavailable/i)).toBeVisible()
-    expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeDisabled()
-    expect(screen.queryByRole("link", { name: /workspace in this browser/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /sign in with demo credentials/i })).toBeVisible()
-  })
-
-  it("signs into the demo through the server credential route", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal("fetch", fetchMock)
-    routerSpies.replace.mockClear()
-    render(<LoginPage demoAvailable demoRequested />)
-    await userEvent.click(screen.getByRole("button", { name: /sign in with demo credentials/i }))
-    expect(fetchMock).toHaveBeenCalledWith("/api/auth/demo", { method: "POST" })
-    expect(routerSpies.replace).toHaveBeenCalledWith("/app")
-    vi.unstubAllGlobals()
+    expect(screen.getByRole("button", { name: "Log in" })).toBeDisabled()
   })
 })
 
@@ -132,7 +131,7 @@ describe("server demo reset", () => {
     render(<WorkspaceProvider mode="account" initialWorkspace={fixture.workspace} userId={fixture.workspace.ownerUserId} catalog={fixture.catalog} isDemoAccount><DemoResetHarness /></WorkspaceProvider>)
     await userEvent.click(screen.getByRole("button", { name: "Reset server demo" }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/demo/reset", { method: "POST" }))
-    expect(routerSpies.replace).toHaveBeenCalledWith("/login?demo=1&reset=1")
+    expect(routerSpies.replace).toHaveBeenCalledWith("/login?reset=1")
     vi.unstubAllGlobals()
   })
 })
