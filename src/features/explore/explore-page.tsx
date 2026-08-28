@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { CloseIcon, SearchIcon } from "@/components/icons"
 import { institutionForWorkspace, isCustomInstitution } from "@/data/institutions/registry"
+import { planForTerm } from "@/domain/degree-plan"
 import { isOverlayCourse } from "@/domain/reference"
 import { searchCourses } from "@/domain/search"
 import type { Catalog, Course, Section, WorkspaceState } from "@/domain/types"
@@ -23,7 +24,7 @@ export const ExplorePage = ({ workspace, catalog, onCommand }: { workspace: Work
   const catalogResource = institution.resources[0]
   const buildPrompt = `My school is ${workspace.institution}. Research its official catalog. In this open CourseContext workspace, use the extend_reference tool to add the courses I am considering, with their current sections and meeting times, and my program with its requirement tree. Cite an official source for every addition and mark anything uncertain.`
   const subjects = useMemo(() => [...new Set(catalog.courses.map((course) => course.subject))].sort(), [catalog.courses])
-  const plan = workspace.plans[0]
+  const plan = planForTerm(workspace, workspace.currentTermId) ?? workspace.plans[0]
   const scenario = plan.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan.scenarios[0]
   const plannedIds = new Set(scenario.courses.map((item) => item.courseId))
   const levels = ["All", "Introductory", "100 level", "200 level and above"]

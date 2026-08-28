@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { AppShell } from "@/components/app-shell"
 import { useWorkspace } from "@/components/workspace-provider"
+import { degreeOptions, defaultGraduationTerm, parseTermId, supportsTimeline, termId, termLabel, timelineFor } from "@/domain/timeline"
 
 const planningDays = [
   ["mon", "Monday"],
@@ -69,6 +70,16 @@ export default function Page() {
     setAddingCredit(false)
   }
   const equivalentMatches = creditEquivalentQuery.trim() && !creditEquivalentId ? value.catalog.courses.filter((course) => `${course.code} ${course.title}`.toLowerCase().includes(creditEquivalentQuery.toLowerCase())).slice(0, 5) : []
+  const timelineSupported = supportsTimeline(value.workspace)
+  const timeline = timelineFor(profile, new Date())
+  const entryYear = parseTermId(timeline.entryTermId)?.year ?? 2026
+  const gradYear = parseTermId(timeline.expectedGraduationTermId)?.year ?? entryYear + 4
+  const saveTimeline = (nextEntryYear: number, nextGradYear: number, nextDegree: string) => {
+    const entryTermId = termId(nextEntryYear, "AUTUMN")
+    const fallback = defaultGraduationTerm(entryTermId, nextDegree)
+    const graduationTermId = nextGradYear > nextEntryYear ? termId(nextGradYear, "SPRING") : fallback
+    return value.onCommand({ type: "update_academic_history", patch: { timeline: { entryTermId, expectedGraduationTermId: graduationTermId, degree: nextDegree } } })
+  }
   const addPriority = async () => {
     await value.onCommand({ type: "set_student_preference", preference: { id: `PREFERENCE-${crypto.randomUUID().toUpperCase()}`, label: priorityLabel.trim(), strength: priorityStrength, value: true } })
     setPriorityLabel("")
@@ -82,6 +93,14 @@ export default function Page() {
     <section className="settings-card profile-settings"><div className="section-heading"><div><p className="eyebrow">Planning profile</p><h2>{profile.name}</h2></div><button className="text-button" type="button" onClick={() => setEditing((current) => !current)}>{editing ? "Cancel" : "Edit profile"}</button></div>
       {editing ? <form onSubmit={(event) => { event.preventDefault(); void saveProfile() }}><label>Name<input value={name} onChange={(event) => setName(event.target.value)} required /></label><label>Goals and planning context<textarea rows={4} value={summary} onChange={(event) => setSummary(event.target.value)} /></label><label>Class standing<input value={classYear} onChange={(event) => setClassYear(event.target.value)} placeholder="Sophomore, Class of 2029" maxLength={30} /></label><div className="settings-inline"><label>Earliest class<input type="time" value={earliestStart} onChange={(event) => setEarliestStart(event.target.value)} /></label><label>Latest class end<input type="time" value={latestEnd} onChange={(event) => setLatestEnd(event.target.value)} /></label></div><fieldset className="protected-days"><legend>Days to keep free</legend><p>Plan checks treat meetings on these days as conflicts.</p><div>{planningDays.map(([day, label]) => <label key={day}><input type="checkbox" checked={excludedDays.includes(day)} onChange={(event) => setExcludedDays((current) => event.target.checked ? [...current, day] : current.filter((item) => item !== day))} /><span>{label}</span></label>)}</div></fieldset><div className="modal-actions"><button className="primary-button" type="submit">Save profile</button></div></form> : <><p>{profile.summary}</p><dl><div><dt>Class standing</dt><dd>{profile.classYear || "Not set"}</dd></div><div><dt>Catalog year</dt><dd>{profile.catalogYear}</dd></div><div><dt>Earliest start</dt><dd>{profile.earliestStart}</dd></div><div><dt>Latest end</dt><dd>{profile.latestEnd}</dd></div><div><dt>Protected days</dt><dd>{profile.excludedDays.length ? planningDays.filter(([day]) => profile.excludedDays.includes(day)).map(([, label]) => label.slice(0, 3)).join(", ") : "None"}</dd></div></dl></>}
     </section>
+    {timelineSupported && <section className="settings-card timeline-settings"><div className="section-heading"><div><h2>Degree timeline</h2></div><span className="muted">{termLabel(timeline.entryTermId)} to {termLabel(timeline.expectedGraduationTermId)}</span></div>
+      <p>Entry, graduation, and degree drive the four and five year map, class standing, and unit targets.</p>
+      <div className="timeline-fields">
+        <label>Degree<select value={timeline.degree} onChange={(event) => void saveTimeline(entryYear, parseTermId(timeline.expectedGraduationTermId)?.year ?? entryYear + (event.target.value.includes("MS") ? 5 : 4), event.target.value)}>{degreeOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}{!degreeOptions.some((option) => option.id === timeline.degree) && <option value={timeline.degree}>{timeline.degree}</option>}</select></label>
+        <label>Entered in autumn<select value={entryYear} onChange={(event) => void saveTimeline(Number(event.target.value), gradYear, timeline.degree)}>{Array.from({ length: 9 }, (_, index) => entryYear - 4 + index).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+        <label>Graduating in spring<select value={gradYear} onChange={(event) => void saveTimeline(entryYear, Number(event.target.value), timeline.degree)}>{Array.from({ length: 8 }, (_, index) => entryYear + 1 + index).map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+      </div>
+    </section>}
     <section className="settings-card completed-settings"><div className="section-heading"><div><p className="eyebrow">Course history</p><h2>Completed courses</h2><span className="count-badge">{completedCourses.length}</span></div></div><p>Add only courses you have completed. This prevents repeated recommendations and improves requirement checks.</p><label className="completed-course-search">Find a course<input value={completedQuery} onChange={(event) => setCompletedQuery(event.target.value)} placeholder="CS 106A or programming" /></label>{courseMatches.length > 0 && <div className="completed-search-results">{courseMatches.map((course) => <button key={course.id} type="button" onClick={() => { void value.onCommand({ type: "set_completed_courses", courseIds: [...profile.completedCourseIds, course.id] }); setCompletedQuery("") }}><b>{course.code}</b><span>{course.title}</span><em>Add</em></button>)}</div>}{completedCourses.length === 0 ? <div className="settings-empty"><strong>No completed courses added</strong><span>Your account starts empty. Add a course when you want it used in planning.</span></div> : <div className="completed-course-list">{completedCourses.map((course) => course && <article key={course.id}><span><strong>{course.code}</strong><small>{course.title}</small></span><button className="text-button" type="button" onClick={() => value.onCommand({ type: "set_completed_courses", courseIds: profile.completedCourseIds.filter((id) => id !== course.id) })}>Remove</button></article>)}</div>}</section>
     <section className="settings-card credit-settings"><div className="section-heading"><div><p className="eyebrow">Course history</p><h2>AP and transfer credit</h2><span className="count-badge">{apCredits.length}</span></div><button className="secondary-button" type="button" onClick={() => setAddingCredit((current) => !current)}>{addingCredit ? "Cancel" : "Add credit"}</button></div>
       <p>Credits count toward prerequisites and requirement checks when you link an equivalent course. Your agent can fill these in for you with the same rules.</p>

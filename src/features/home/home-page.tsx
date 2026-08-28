@@ -1,11 +1,17 @@
 "use client"
 
 import Link from "next/link"
+import { useMemo } from "react"
 import { PlanIcon } from "@/components/icons"
+import { evaluateDegreePlan, planForTerm } from "@/domain/degree-plan"
+import { supportsTimeline, termLabel } from "@/domain/timeline"
 import type { Catalog, WorkspaceState } from "@/domain/types"
 
 export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, catalog: Catalog }) => {
-  const plan = workspace.plans[0]
+  const now = useMemo(() => new Date(), [])
+  const degree = useMemo(() => evaluateDegreePlan(workspace, catalog, now), [workspace, catalog, now])
+  const timelineSupported = supportsTimeline(workspace)
+  const plan = planForTerm(workspace, workspace.currentTermId) ?? workspace.plans[0]
   const scenario = plan?.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan?.scenarios[0]
   const active = scenario?.courses.filter((item) => item.status === "active") ?? []
   const units = active.reduce((sum, item) => sum + item.units, 0)
@@ -40,9 +46,10 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
       </section>
 
       <section className="home-plan-summary">
-        <div className="section-heading"><div><p className="eyebrow">Autumn 2026</p><h2>Current plan</h2></div><Link href="/app/plan">Open</Link></div>
+        <div className="section-heading"><div><h2>{plan ? plan.title : termLabel(workspace.currentTermId)}</h2></div><Link href="/app/plan">Open</Link></div>
         <div className="home-plan-numbers"><strong>{units}</strong><span>units</span><strong>{active.length}</strong><span>courses</span></div>
-        {active.length === 0 ? <div className="compact-empty"><span><PlanIcon width={19} height={19} /></span><p><strong>Your schedule is empty.</strong><small>Add only the courses you choose.</small></p></div> : <ul className="home-course-list">{active.slice(0, 4).map((item) => { const course = catalog.courses.find((candidate) => candidate.id === item.courseId); return <li key={item.id}><b>{course?.code ?? item.courseId}</b><span>{course?.title ?? "Course"}</span><em>{item.units}</em></li> })}</ul>}
+        {active.length === 0 ? <div className="compact-empty"><span><PlanIcon width={19} height={19} /></span><p><strong>Nothing scheduled yet.</strong><small>The catalog is one tab over.</small></p></div> : <ul className="home-course-list">{active.slice(0, 4).map((item) => { const course = catalog.courses.find((candidate) => candidate.id === item.courseId); return <li key={item.id}><b>{course?.code ?? item.courseId}</b><span>{course?.title ?? "Course"}</span><em>{item.units}</em></li> })}</ul>}
+        {timelineSupported && <p className="home-degree-line">{degree.projectedUnits} of {degree.requiredUnits} units planned or complete toward the {degree.timeline.degree}. <Link href="/app/plan">Degree map</Link></p>}
       </section>
 
       <section className="home-context-summary">

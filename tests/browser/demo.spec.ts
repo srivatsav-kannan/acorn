@@ -34,10 +34,10 @@ test("student captures context, changes a plan, sees checks, and undoes the acti
 
   await page.getByRole("link", { name: "Plan", exact: true }).click()
   await page.getByRole("button", { name: /remove design foundations/i }).click()
-  await expect(page.getByText(/13 units/i)).toBeVisible()
+  await expect(page.getByText(/13 units/i).first()).toBeVisible()
   await page.getByRole("button", { name: "Activity" }).click()
   await page.getByRole("button", { name: "Undo" }).first().click()
-  await expect(page.getByText(/15 units/i)).toBeVisible()
+  await expect(page.getByText(/15 units/i).first()).toBeVisible()
 })
 
 test("Stanford browsing filters the catalog and adds a course through the shared command path", async ({ page }) => {
@@ -77,7 +77,7 @@ test("search, scenario comparison, and saved views are real shared workspace con
   await expect(page.getByRole("dialog", { name: "Compare scenarios" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Lighter option" })).toBeVisible()
   await page.getByRole("button", { name: "Open scenario" }).last().click()
-  await expect(page.getByText("13 units")).toBeVisible()
+  await expect(page.getByText("13 units").first()).toBeVisible()
 
   await page.getByRole("link", { name: "Settings", exact: true }).click()
   await page.getByRole("button", { name: "Create planning view" }).click()
@@ -155,7 +155,7 @@ test("course and scenario controls perform persisted semantic edits", async ({ p
   await page.getByRole("button", { name: "Edit Design Foundations" }).click()
   await page.getByLabel("Plan role").selectOption("backup")
   await page.getByRole("button", { name: "Save course" }).click()
-  await expect(page.getByText("13 units")).toBeVisible()
+  await expect(page.getByText("13 units").first()).toBeVisible()
   await page.getByRole("tab", { name: /Lighter option/ }).click()
   await page.getByRole("button", { name: "Scenario settings" }).click()
   await page.getByLabel("Scenario name").fill("Research first")

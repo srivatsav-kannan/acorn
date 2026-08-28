@@ -159,7 +159,7 @@ describe("planning workspace", () => {
     const catalog = buildFixture().catalog
     const { rerender } = render(<HomePage workspace={workspace} catalog={catalog} />)
     expect(screen.getByRole("heading", { name: /Good to see you, Maya/i })).toBeVisible()
-    expect(screen.getByText(/Your schedule is empty/i)).toBeVisible()
+    expect(screen.getByText(/Nothing scheduled yet/i)).toBeVisible()
     expect(screen.getByText("Not chosen")).toBeVisible()
     expect(screen.queryByText(/Alex/i)).not.toBeInTheDocument()
     rerender(<PlanPage workspace={workspace} catalog={catalog} onCommand={vi.fn()} />)
@@ -171,7 +171,7 @@ describe("planning workspace", () => {
     const fixture = buildFixture()
     render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
     expect(screen.getByRole("heading", { name: /autumn plan/i })).toBeVisible()
-    expect(screen.getByText(/15 units/i)).toBeVisible()
+    expect(screen.getAllByText(/15 units/i).length).toBeGreaterThan(0)
     expect(screen.getByLabelText(/weekly calendar/i)).toBeVisible()
     expect(screen.getByText(/Backups/i)).toBeVisible()
     expect(screen.getByRole("heading", { name: "Commitments" })).toBeVisible()
@@ -199,14 +199,32 @@ describe("planning workspace", () => {
     expect(screen.getAllByText("13 units").length).toBeGreaterThan(0)
   })
 
-  it("opens agent guidance and the complete deterministic report", async () => {
+  it("opens the complete deterministic report", async () => {
     const fixture = buildFixture()
     render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    await userEvent.click(screen.getByRole("button", { name: /ask agent to refine/i }))
-    expect(screen.getByRole("dialog", { name: /refine with your agent/i })).toHaveTextContent(/changes stay visible/i)
-    await userEvent.click(screen.getByRole("button", { name: /close agent handoff/i }))
     await userEvent.click(screen.getByRole("button", { name: /complete check report/i }))
     expect(screen.getByRole("dialog", { name: /complete check report/i })).toHaveTextContent(/deterministic/i)
+  })
+
+  it("shows the degree map with sequencing totals and per term planning", async () => {
+    const fixture = buildFixture()
+    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
+    await userEvent.click(screen.getByRole("tab", { name: /degree map/i }))
+    expect(screen.getByText(/of 180 units planned or complete/i)).toBeVisible()
+    expect(screen.getByText("Timeline checks")).toBeVisible()
+    await userEvent.click(screen.getByRole("tab", { name: /this term/i }))
+    const winter = screen.getByRole("tab", { name: /Win 2027/i })
+    await userEvent.click(winter)
+    expect(screen.getByRole("button", { name: /^Plan Winter 2027$/i })).toBeVisible()
+  })
+
+  it("creates a future term plan through the shared command path", async () => {
+    const fixture = buildFixture()
+    const onCommand = vi.fn()
+    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={onCommand} />)
+    await userEvent.click(screen.getByRole("tab", { name: /Spr 2027/i }))
+    await userEvent.click(screen.getByRole("button", { name: /^Plan Spring 2027$/i }))
+    expect(onCommand).toHaveBeenCalledWith({ type: "edit_plan", termId: "TERM-2027-SPRING", operations: [] })
   })
 
   it("supports the accessible list calendar and routes new scenarios through commands", async () => {

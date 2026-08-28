@@ -5,6 +5,7 @@ import Link from "next/link"
 import type { ActivityEntry } from "@/domain/types"
 import { searchWorkspace } from "@/domain/search"
 import { institutionForWorkspace } from "@/data/institutions/registry"
+import { parseTermId, termLabel } from "@/domain/timeline"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
 import { ActivityIcon, ExploreIcon, HomeIcon, LibraryIcon, PlanIcon, ProgramsIcon, SearchIcon, TogetherIcon } from "@/components/icons"
 
@@ -33,6 +34,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
   const [mobile, setMobile] = useState(false)
   const workspaceValue = useOptionalWorkspace()
   const exploreLabel = workspaceValue ? institutionForWorkspace(workspaceValue.workspace).shortName : "Stanford"
+  const quarterLabel = workspaceValue ? (parseTermId(workspaceValue.workspace.currentTermId) ? termLabel(workspaceValue.workspace.currentTermId) : "Current term") : quarter
   const initials = workspaceValue?.workspace.profile.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "AC"
   const searchResults = workspaceValue && searchQuery.trim() ? searchWorkspace(workspaceValue.workspace, workspaceValue.catalog, searchQuery) : null
   useEffect(() => {
@@ -59,7 +61,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     <a className="skip-link" href="#workspace-content">Skip to workspace</a>
     <header className="topbar">
       <Link className="wordmark" href="/app" aria-label="CourseContext workspace"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
-      <div className="term-chip"><span className="live-dot" />{quarter}</div>
+      <div className="term-chip"><span className="live-dot" />{quarterLabel}</div>
       <div className="topbar-actions">
         {workspaceValue && <span className={`save-indicator ${workspaceValue.saveState}`} aria-live="polite"><i />{workspaceValue.saveState === "saving" ? "Saving" : workspaceValue.saveState === "error" ? "Not saved" : workspaceValue.mode === "fixture" ? "Saved locally" : "Saved"}</span>}
         <button className="quiet-button search-button" type="button" aria-label="Search workspace" onClick={() => setSearchOpen(true)}><SearchIcon width={15} height={15} /><span>Search workspace</span><kbd>⌘K</kbd></button>
