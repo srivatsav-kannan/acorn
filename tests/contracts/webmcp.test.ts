@@ -162,6 +162,33 @@ describe("structured context and reference tools", () => {
     expect(empty).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
   })
 
+  it("adds and amends opportunity listings through extend_reference", async () => {
+    const { tools } = setup()
+    const tool = tools.find((candidate) => candidate.name === "extend_reference")!
+    const added = await tool.execute({ expectedVersion: 1, idempotencyKey: "OPP-TOOL-1", opportunity: { kind: "research", name: "Systems Reading Group", summary: "Weekly systems papers with graduate mentors." }, evidence: { ...referenceEvidence, id: "EVIDENCE-OPP-TOOL" } })
+    expect(added).toMatchObject({ ok: true, primaryVisibleId: "OPPORTUNITY-SYSTEMS-READING-GROUP", visibleChange: true })
+    const search = await tools.find((candidate) => candidate.name === "search_workspace")!.execute({ query: "systems reading group" }) as { groups: Array<{ type: string, items: Array<{ id: string }> }> }
+    expect(search.groups.find((group) => group.type === "opportunities")?.items.some((item) => item.id === "OPPORTUNITY-SYSTEMS-READING-GROUP")).toBe(true)
+  })
+
+  it("plans future terms and records the degree timeline through the same tools", async () => {
+    const { tools } = setup()
+    const editPlan = tools.find((candidate) => candidate.name === "edit_plan")!
+    const created = await editPlan.execute({ expectedVersion: 1, idempotencyKey: "TERM-TOOL-1", termId: "TERM-2027-WINTER", operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-TOOL-W", courseId: "COURSE-CS-107", sectionId: null, units: 5, status: "active" } }] })
+    expect(created.ok).toBe(true)
+    const getPlan = tools.find((candidate) => candidate.name === "get_plan")!
+    const byTerm = await getPlan.execute({ termId: "TERM-2027-WINTER" }) as { plan: { id: string } | null }
+    expect(byTerm.plan?.id).toBe("PLAN-2027-WINTER")
+    const missing = await getPlan.execute({ termId: "TERM-2028-SPRING" }) as { plan: unknown }
+    expect(missing.plan).toBeNull()
+    const checks = await tools.find((candidate) => candidate.name === "check_plan")!.execute({ planId: "PLAN-2027-WINTER" }) as { timelineIssues: unknown[], unitsToward: { projected: number } }
+    expect(checks.unitsToward.projected).toBeGreaterThan(0)
+    const timeline = await tools.find((candidate) => candidate.name === "update_student_context")!.execute({ expectedVersion: 2, idempotencyKey: "TL-TOOL-1", academicHistory: { timeline: { entryTermId: "TERM-2026-AUTUMN", degree: "BS-MS" } } })
+    expect(timeline.ok).toBe(true)
+    const context = await tools.find((candidate) => candidate.name === "get_planning_context")!.execute({}) as { timeline: { graduation: string, degree: string } }
+    expect(context.timeline).toMatchObject({ degree: "BS-MS", graduation: "TERM-2031-SPRING" })
+  })
+
   it("reports institution status, history, and the custom-school path in planning context", async () => {
     const { tools } = setup()
     const context = await tools.find((candidate) => candidate.name === "get_planning_context")!.execute({}) as { institution: string, referenceNote: string, history: { completedCourses: number } }

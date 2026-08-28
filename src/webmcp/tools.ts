@@ -3,8 +3,9 @@ import { executeCommand } from "@/domain/commands"
 import { evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan } from "@/domain/planner"
-import { mergedCatalogFor } from "@/domain/reference"
+import { mergedCatalogFor, mergedOpportunities } from "@/domain/reference"
 import { supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
+import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateRequirement } from "@/domain/requirements"
 import { searchCourses, searchWorkspace } from "@/domain/search"
 import type { Actor, WorkspaceState } from "@/domain/types"
@@ -74,11 +75,14 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
   return [
     {
       name: "search_workspace",
-      description: "Search durable student context before external research. Call after get_planning_context for every new planning task.",
+      description: "Search durable student context, courses, programs, and the club and research directory before external research. Call after get_planning_context for every new planning task.",
       inputSchema: schema({ query: field("string", "Question or topic to search for") }, ["query"]),
       annotations: annotations(true),
       examples: [{ query: "professor research" }],
-      execute: async ({ query }) => searchWorkspace(await workspace(), await catalog(), query)
+      execute: async ({ query }) => {
+        const value = await workspace()
+        return searchWorkspace(value, mergedCatalogFor(value, repository.catalog), query, mergedOpportunities(institutionForWorkspace(value).buildOpportunities(), value.referenceOverlay?.opportunities))
+      }
     },
     {
       name: "get_planning_context",
@@ -209,7 +213,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "extend_reference",
-      description: "Add missing institutional reference: a course with an optional section, or a program with a validated requirement tree. Pass exactly one of course or program per call, always with a classified source. Use it when the shipped pack lacks something, and to construct the whole reference for a custom school. Additions are visible, merged into search and checks, and removable by the student.",
+      description: "Add or correct institutional reference: a course with an optional section, a program with a validated requirement tree, or a club, research, or campus program listing. Pass exactly one of course, program, or opportunity per call, always with a classified source. Reusing a shipped entry's ID amends it, and the interface shows the change against the original. Additions merge into search and checks and stay removable.",
       inputSchema: schema({
         expectedVersion: field("number", "Current workspace version"),
         idempotencyKey: field("string", "Unique retry-safe operation key"),
@@ -262,13 +266,31 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           },
           required: ["name", "sourceUrl", "requirements"]
         },
+        opportunity: {
+          type: "object",
+          additionalProperties: false,
+          description: "A club, research program, or campus program listing",
+          properties: {
+            id: field("string", "Stable uppercase ID. Reuse a shipped ID to amend that entry."),
+            kind: { type: "string", enum: ["club", "research", "program"], description: "Listing kind" },
+            name: field("string", "Official name"),
+            summary: field("string", "One or two plain sentences"),
+            url: field("string", "Official site when it exists"),
+            tags: field("array", "Short topical tags"),
+            commitment: field("string", "Typical time commitment"),
+            timing: field("string", "Recruiting cycle or application window")
+          },
+          required: ["name", "summary", "kind"]
+        },
         evidence: evidenceField
       }, ["expectedVersion", "idempotencyKey", "evidence"]),
       annotations: annotations(false, true),
       examples: [],
       execute: async (input) => {
-        if (Boolean(input.course) === Boolean(input.program)) return { ok: false, code: "COMMAND_INVALID", message: "Pass exactly one of course or program per call." }
+        const provided = [input.course, input.program, input.opportunity].filter(Boolean).length
+        if (provided !== 1) return { ok: false, code: "COMMAND_INVALID", message: "Pass exactly one of course, program, or opportunity per call." }
         if (input.program) return mutate(input, { type: "add_reference_program", program: input.program, evidence: input.evidence })
+        if (input.opportunity) return mutate(input, { type: "extend_reference_opportunity", opportunity: input.opportunity, evidence: input.evidence })
         return mutate(input, { type: "extend_reference", course: input.course, section: input.section, evidence: input.evidence })
       }
     },

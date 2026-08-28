@@ -1,5 +1,16 @@
-import type { Catalog, Course, Evidence, Meeting, Program, RequirementRule, Section } from "@/domain/types"
+import importedCatalog from "@/data/institutions/stanford-catalog.json"
+import type { Catalog, Course, Evidence, Meeting, Opportunity, Program, RequirementRule, Section } from "@/domain/types"
 import type { InstitutionReference } from "@/data/institutions/types"
+
+// The full 2026-27 catalog is imported from the public ExploreCourses API by
+// scripts/import-stanford/import-catalog.mjs. Curated rows below add what the
+// feed lacks, prerequisite structure and planning tags, and they win on ID
+// collisions so the demo stays deterministic.
+type ImportedCourse = { c: string, t: string, u?: number | [number, number], w?: string[], o?: string, d?: string, s?: Array<{ n: string, m: Array<{ d: string[], s: string, e: string, l?: string }> }> }
+type ImportedPayload = { meta: { source: string, retrievedAt: string, academicYear: string, courses: number, note: string }, courses: ImportedCourse[] }
+
+const imported = importedCatalog as ImportedPayload
+export const stanfordCatalogMeta = imported.meta
 
 const meeting = (days: Meeting["days"], start: string, end: string, type: Meeting["type"] = "lecture", location = "Main Quad"): Meeting => ({
   days,
@@ -302,12 +313,26 @@ export const buildStanfordEvidence = (): Evidence[] => [
     id: "EVIDENCE-WAYS",
     classification: "official",
     authority: "program_requirements",
-    claim: "The WAYS general education requirement counts are official. Which WAYS each course satisfies varies by year, so the course mappings shown here are planning samples to confirm on ExploreCourses.",
+    claim: "WAYS course counts follow the official requirement, and the course groups use the WAY designations in the imported 2026-27 ExploreCourses catalog.",
     sourceUrl: "https://advising.stanford.edu/current-students/advising-student-handbook/ways-thinking-ways-doing",
     sourceTitle: "Stanford Academic Advising: Ways of Thinking, Ways of Doing",
     retrievedAt: "2026-08-28T12:00:00Z",
     expiresAt: "2027-07-01T00:00:00Z",
-    confidence: 0.85,
+    confidence: 0.95,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-EXPLORECOURSES-IMPORT",
+    classification: "official",
+    authority: "term_schedule",
+    claim: `The 2026-27 catalog and Autumn meeting times were imported from the public ExploreCourses listing. Confirm live sections before enrolling.`,
+    sourceUrl: "https://explorecourses.stanford.edu/",
+    sourceTitle: "Stanford ExploreCourses",
+    retrievedAt: stanfordCatalogMeta.retrievedAt,
+    expiresAt: "2026-12-15T00:00:00Z",
+    confidence: 0.95,
     status: "current",
     addedBy: "system",
     untrustedExternalContent: true
@@ -376,22 +401,96 @@ export const buildStanfordEvidence = (): Evidence[] => [
   }
 ]
 
-export const buildStanfordCatalog = (): Catalog => ({ courses: courses(), sections: sections() })
+const levelFromCode = (code: string) => {
+  const numberPart = code.split(" ").slice(1).join(" ")
+  const digits = /\d+/.exec(numberPart)?.[0]
+  return digits ? Number(digits) : 0
+}
+
+const importedWaysByCode = new Map(imported.courses.filter((row) => row.w?.length).map((row) => [row.c, row.w as string[]]))
+
+const importedCourses = (curatedCodes: Set<string>): Course[] => imported.courses
+  .filter((row) => !curatedCodes.has(row.c))
+  .map((row) => {
+    const units = row.u === undefined ? [3, 3] : typeof row.u === "number" ? [row.u, row.u] : row.u
+    return {
+      id: courseId(row.c),
+      code: row.c,
+      title: row.t,
+      description: row.d ?? "",
+      subject: row.c.split(" ")[0],
+      level: levelFromCode(row.c),
+      minUnits: units[0],
+      maxUnits: units[1],
+      tags: [],
+      ways: row.w,
+      offeredSeasons: row.o,
+      sourceUrl: "https://explorecourses.stanford.edu/",
+      catalogYear: "2026-27"
+    }
+  })
+
+const importedSections = (curatedSectionCourseIds: Set<string>): Section[] => {
+  const result: Section[] = []
+  for (const row of imported.courses) {
+    if (!row.s?.length) continue
+    const id = courseId(row.c)
+    if (curatedSectionCourseIds.has(id)) continue
+    const units = row.u === undefined ? 3 : typeof row.u === "number" ? row.u : row.u[1]
+    for (const section of row.s) {
+      result.push({
+        id: `SECTION-${stanfordSlug(row.c)}-${section.n}`,
+        courseId: id,
+        termId: "TERM-2026-AUTUMN",
+        sectionNumber: section.n,
+        instructor: "See ExploreCourses",
+        units,
+        meetings: section.m.map((meeting) => ({ days: meeting.d as Meeting["days"], start: meeting.s, end: meeting.e, timezone: "America/Los_Angeles", type: "lecture" as const, location: meeting.l })),
+        evidenceIds: ["EVIDENCE-EXPLORECOURSES-IMPORT"]
+      })
+    }
+  }
+  return result
+}
+
+let catalogCache: Catalog | null = null
+
+export const buildStanfordCatalog = (): Catalog => {
+  if (catalogCache) return catalogCache
+  const curated = courses().map((course) => ({ ...course, ways: course.ways ?? importedWaysByCode.get(course.code) }))
+  const curatedCodes = new Set(curated.map((course) => course.code))
+  const curatedSections = sections()
+  const curatedSectionCourseIds = new Set(curatedSections.map((section) => section.courseId))
+  catalogCache = {
+    courses: [...curated, ...importedCourses(curatedCodes)],
+    sections: [...curatedSections, ...importedSections(curatedSectionCourseIds)]
+  }
+  return catalogCache
+}
 
 const ids = (...codes: string[]) => codes.map(courseId)
 const course = (code: string, id?: string): RequirementRule => ({ id: id ?? `RULE-${stanfordSlug(code)}`, type: "course", courseId: courseId(code) })
 const group = (id: string, count: number, ...codes: string[]): RequirementRule => ({ id, type: "course_group", count, courseIds: ids(...codes) })
 
-const waysGroups: Array<[string, string, number, string[]]> = [
-  ["WAYS-AII", "Aesthetic and Interpretive Inquiry", 2, ["PHIL 80", "HISTORY 1", "COLLEGE 101", "COMM 166"]],
-  ["WAYS-AQR", "Applied Quantitative Reasoning", 1, ["STATS 60", "MS&E 120", "ECON 102A", "DATASCI 112", "MS&E 125"]],
-  ["WAYS-CE", "Creative Expression", 2, ["ARTSTUDI 160", "TAPS 103", "DESIGN 1", "DESIGN 60", "ME 101"]],
-  ["WAYS-ED", "Engaging Diversity", 1, ["COLLEGE 102", "HUMBIO 2B", "HISTORY 1"]],
-  ["WAYS-ER", "Ethical Reasoning", 1, ["CS 181", "MS&E 193", "COLLEGE 101", "PHIL 80"]],
-  ["WAYS-FR", "Formal Reasoning", 1, ["CS 103", "MATH 19", "MATH 20", "MATH 21", "MATH 51", "PHIL 150", "CS 157", "STATS 116"]],
-  ["WAYS-SI", "Social Inquiry", 2, ["PSYCH 1", "ECON 1", "COMM 166", "PSYCH 30", "HUMBIO 2B"]],
-  ["WAYS-SMA", "Scientific Method and Analysis", 2, ["PHYSICS 41", "PHYSICS 43", "PHYSICS 45", "BIO 41", "CHEM 31A", "EARTHSYS 10", "PSYCH 50", "HUMBIO 2A"]]
+// WAYS groups come from the official WAY designations in the imported
+// ExploreCourses feed. Each group carries a sample of designated courses, low
+// numbered and described first, because the complete lists run to hundreds.
+const waysDefinitions: Array<[string, string, number]> = [
+  ["A-II", "Aesthetic and Interpretive Inquiry", 2],
+  ["AQR", "Applied Quantitative Reasoning", 1],
+  ["CE", "Creative Expression", 2],
+  ["EDP", "Exploring Difference and Power", 1],
+  ["ER", "Ethical Reasoning", 1],
+  ["FR", "Formal Reasoning", 1],
+  ["SI", "Social Inquiry", 2],
+  ["SMA", "Scientific Method and Analysis", 2]
 ]
+
+const waysCourseIds = (code: string): string[] => imported.courses
+  .filter((row) => row.w?.includes(code))
+  .sort((a, b) => (Number(Boolean(b.d)) - Number(Boolean(a.d))) || (levelFromCode(a.c) - levelFromCode(b.c)) || a.c.localeCompare(b.c))
+  .slice(0, 40)
+  .map((row) => courseId(row.c))
 
 const manualProgram = (id: string, name: string, credential: string, sourceUrl: string, summary: string, requirementTitle: string, reason: string, evidenceId: string): Program => ({
   id,
@@ -476,17 +575,20 @@ export const buildStanfordPrograms = (): Program[] => [{
   catalogYear: "2026-27",
   sourceUrl: "https://advising.stanford.edu/current-students/advising-student-handbook/ways-thinking-ways-doing",
   summary: "Every Stanford undergraduate completes eleven WAYS courses across eight ways of thinking and doing, alongside writing and first-year requirements.",
-  requirements: waysGroups.map(([key, title, count, codes]) => ({
-    id: `REQUIREMENT-${key}`,
-    title: `${title}, ${count === 1 ? "one course" : `${count === 2 ? "two" : count} courses`}`,
-    rule: group(`RULE-${key}`, count, ...codes),
-    evidenceIds: ["EVIDENCE-WAYS"]
-  })).concat([{
-    id: "REQUIREMENT-WAYS-VERIFY",
-    title: "Confirm WAYS designations per course",
-    rule: { id: "RULE-WAYS-VERIFY", type: "manual_review", reason: "WAYS designations are set per course and year on ExploreCourses. The groups above are planning samples, not the complete eligible lists." },
-    evidenceIds: ["EVIDENCE-WAYS"]
-  }])
+  requirements: [
+    ...waysDefinitions.map(([code, title, count]): Program["requirements"][number] => ({
+      id: `REQUIREMENT-WAYS-${code.replaceAll("-", "")}`,
+      title: `${title}, ${count === 1 ? "one course" : "two courses"}`,
+      rule: { id: `RULE-WAYS-${code.replaceAll("-", "")}`, type: "course_group", count, courseIds: waysCourseIds(code) },
+      evidenceIds: ["EVIDENCE-WAYS"]
+    })),
+    {
+      id: "REQUIREMENT-WAYS-VERIFY",
+      title: "The complete WAYS lists live on ExploreCourses",
+      rule: { id: "RULE-WAYS-VERIFY", type: "manual_review", reason: "Each group above shows a sample of officially designated courses from the imported catalog. Hundreds more carry each designation." },
+      evidenceIds: ["EVIDENCE-WAYS"]
+    }
+  ]
 }, {
   id: "PROGRAM-SYMBO-BS",
   name: "Symbolic Systems",
@@ -524,6 +626,38 @@ manualProgram("PROGRAM-MGTSC-BS", "Management Science and Engineering", "BS", "h
 manualProgram("PROGRAM-BIOE-BS", "Bioengineering", "BS", "https://bulletin.stanford.edu/programs/BIOE-BS", "Engineering foundations and design applied to living systems, health, medicine, and biological research.", "Engineering core, depth, and capstone", "Use the official Bioengineering program page and School of Engineering handbook for current rules.", "EVIDENCE-BIOE-PROGRAM")
 ]
 
+// A starting directory of well known clubs, research programs, and campus
+// programs. Entries carry official links where they are stable. Coverage is a
+// sample of a much larger landscape, and workspace additions extend it.
+const opportunityRows: Array<[Opportunity["kind"], string, string, string | undefined, string[], string?, string?]> = [
+  ["research", "CURIS", "The CS department's undergraduate research program. Paid summer research with a faculty group, plus part time quarters.", "https://curis.stanford.edu/", ["cs", "research", "summer"], "Full time in summer", "Applications open winter quarter"],
+  ["research", "Bio-X Undergraduate Summer Research", "Funded interdisciplinary bioscience research across labs in medicine, engineering, and biology.", "https://biox.stanford.edu/", ["bio", "health", "research", "summer"], "Full time in summer", "Applications due late winter"],
+  ["research", "UAR Student Grants", "Undergraduate Advising and Research grants that fund independent research and conference travel in any field.", "https://undergradresearch.stanford.edu/", ["research", "funding"], "Project based", "Multiple deadlines each year"],
+  ["program", "CS198 Section Leading", "Teach CS 106 sections after taking CS 106B. A paid teaching community that many CS students consider formative.", "https://cs198.stanford.edu/", ["cs", "teaching"], "Around 10 hours a week", "Applications each quarter"],
+  ["program", "Structured Liberal Education", "A residential humanities program for first years combining writing, philosophy, and the arts.", "https://sle.stanford.edu/", ["humanities", "residential", "first-year"], "Replaces PWR 1 and fulfills requirements", "Chosen before autumn of frosh year"],
+  ["program", "d.school classes and fellowships", "Design courses, pop up experiences, and fellowships at the Hasso Plattner Institute of Design.", "https://dschool.stanford.edu/", ["design"], "Varies by program"],
+  ["club", "BASES", "The large student entrepreneurship organization. Speaker events, startup challenges, and a builder community.", "https://bases.stanford.edu/", ["startups", "community"], "Flexible", "Recruits early autumn"],
+  ["club", "TreeHacks", "Stanford's flagship intercollegiate hackathon, organized by students each winter.", "https://www.treehacks.com/", ["cs", "hackathon"], "One weekend, or join the organizing team", "Event in February"],
+  ["club", "The Stanford Daily", "The independent student newspaper. Reporting, data, design, and photography desks.", "https://stanforddaily.com/", ["writing", "journalism"], "A few hours a week", "Open joins all year"],
+  ["club", "Stanford Solar Car Project", "A student team that designs, builds, and races a solar vehicle across Australia.", "https://solarcar.stanford.edu/", ["engineering", "hardware"], "Serious build commitment", "Recruits autumn"],
+  ["club", "CS + Social Good", "Students building technology with nonprofits and social ventures through studios, fellowships, and classes.", undefined, ["cs", "impact"], "Project based", "Recruits autumn and spring"],
+  ["club", "Stanford Women in Computer Science", "Community, mentorship, and industry events supporting women and gender minorities in computing.", undefined, ["cs", "community"], "Flexible"],
+  ["club", "Stanford Robotics Club", "Hands on robotics projects across mechanical, electrical, and software subteams.", undefined, ["engineering", "robotics"], "Project based"],
+  ["club", "Stanford Pre-Medical Association", "Advising panels, mentorship, and community for students exploring medicine.", undefined, ["health", "community"], "Flexible"]
+]
+
+export const buildStanfordOpportunities = (): Opportunity[] => opportunityRows.map(([kind, name, summary, url, tags, commitment, timing]) => ({
+  id: `OPPORTUNITY-${name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
+  kind,
+  name,
+  summary,
+  url,
+  tags,
+  commitment,
+  timing,
+  sourceUrl: url ?? "https://studentaffairs.stanford.edu/"
+}))
+
 export const stanfordInstitution: InstitutionReference = {
   id: "INSTITUTION-STANFORD",
   slug: "stanford",
@@ -542,6 +676,7 @@ export const stanfordInstitution: InstitutionReference = {
   buildCatalog: buildStanfordCatalog,
   buildPrograms: buildStanfordPrograms,
   buildEvidence: buildStanfordEvidence,
+  buildOpportunities: buildStanfordOpportunities,
   resources: [
     { id: "RESOURCE-BULLETIN", title: "Stanford Bulletin", url: "https://bulletin.stanford.edu/", note: "The official catalog of programs, requirements, and policies.", kind: "official" },
     { id: "RESOURCE-EXPLORECOURSES", title: "ExploreCourses", url: "https://explorecourses.stanford.edu/", note: "The official course and section listing with live meeting times.", kind: "official" },

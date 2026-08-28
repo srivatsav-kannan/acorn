@@ -1,4 +1,4 @@
-import type { Catalog, Evidence, Program } from "@/domain/types"
+import type { Catalog, Evidence, Opportunity, Program } from "@/domain/types"
 
 export type InstitutionStatus = "full" | "planned"
 
@@ -31,6 +31,7 @@ export type InstitutionReference = {
   buildCatalog: () => Catalog
   buildPrograms: () => Program[]
   buildEvidence: () => Evidence[]
+  buildOpportunities: () => Opportunity[]
   resources: InstitutionResource[]
 }
 

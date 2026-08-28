@@ -39,6 +39,7 @@ export const customInstitution = (name: string): InstitutionReference => ({
   buildCatalog: () => ({ courses: [], sections: [] }),
   buildPrograms: () => [],
   buildEvidence: () => [],
+  buildOpportunities: () => [],
   resources: []
 })
 

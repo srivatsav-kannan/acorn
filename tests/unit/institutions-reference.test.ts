@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { buildFixture } from "@/data/fixture"
 import { getInstitution, institutions, listInstitutionChoices, plannedInstitutions } from "@/data/institutions/registry"
-import { stanfordInstitution } from "@/data/institutions/stanford"
+import { buildStanfordOpportunities, stanfordCatalogMeta, stanfordInstitution } from "@/data/institutions/stanford"
 import { executeCommand } from "@/domain/commands"
-import { isOverlayCourse, mergeCatalog, mergedCatalogFor, validateOverlayCourse, validateOverlaySection, workspaceOverlay } from "@/domain/reference"
+import { isOverlayCourse, mergeCatalog, mergedCatalogFor, mergedOpportunities, referenceChanges, validateOpportunity, validateOverlayCourse, validateOverlaySection, workspaceOverlay } from "@/domain/reference"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 const actor = { type: "agent" as const, id: "AGENT-TEST" }
@@ -60,6 +60,71 @@ describe("institution registry", () => {
     const courseIds = new Set(catalog.courses.map((course) => course.id))
     for (const course of catalog.courses) for (const prerequisite of course.prerequisites ?? []) expect(courseIds.has(prerequisite)).toBe(true)
     for (const section of catalog.sections) expect(courseIds.has(section.courseId)).toBe(true)
+  })
+})
+
+describe("imported catalog", () => {
+  it("carries the complete ExploreCourses import with curated rows winning collisions", () => {
+    const catalog = stanfordInstitution.buildCatalog()
+    expect(stanfordCatalogMeta.courses).toBeGreaterThan(15000)
+    expect(catalog.courses.length).toBeGreaterThan(15000)
+    const cs106b = catalog.courses.find((course) => course.code === "CS 106B")!
+    expect(cs106b.prerequisites).toEqual(["COURSE-CS-106A"])
+    expect(cs106b.ways).toContain("FR")
+    const importedOnly = catalog.courses.find((course) => course.code === "ATHLETIC 50")
+    expect(importedOnly).toBeDefined()
+    expect(importedOnly?.offeredSeasons).toBeTruthy()
+    const importedSection = catalog.sections.find((section) => section.evidenceIds.includes("EVIDENCE-EXPLORECOURSES-IMPORT"))
+    expect(importedSection).toBeDefined()
+    const ids = new Set(catalog.courses.map((course) => course.id))
+    expect(catalog.courses.length).toBe(ids.size)
+  })
+
+  it("builds WAYS groups from official designations in the import", () => {
+    const ways = stanfordInstitution.buildPrograms().find((program) => program.id === "PROGRAM-WAYS-GER")!
+    expect(ways.requirements).toHaveLength(9)
+    const formalReasoning = ways.requirements.find((requirement) => requirement.id === "REQUIREMENT-WAYS-FR")!
+    expect(formalReasoning.rule).toMatchObject({ type: "course_group", count: 1 })
+    expect((formalReasoning.rule as { courseIds: string[] }).courseIds.length).toBeGreaterThan(20)
+  })
+})
+
+describe("opportunity directory", () => {
+  const opportunityEvidence = { id: "EVIDENCE-OPP-TEST", title: "Club listing", classification: "student", claim: "A listing.", sourceUrl: "https://example.edu/club", sourceTitle: "Club", retrievedAt: "2026-08-28T00:00:00Z", confidence: 0.7, status: "current" }
+
+  it("ships a starting directory and validates additions", () => {
+    const base = buildStanfordOpportunities()
+    expect(base.length).toBeGreaterThanOrEqual(12)
+    expect(base.every((item) => ["club", "research", "program"].includes(item.kind))).toBe(true)
+    expect(new Set(base.map((item) => item.id)).size).toBe(base.length)
+    expect(validateOpportunity({ name: "Chess Club", summary: "Weekly games.", kind: "club" }).id).toBe("OPPORTUNITY-CHESS-CLUB")
+    expect(() => validateOpportunity({ name: "X", summary: "", kind: "club" })).toThrow(/summary/)
+    expect(() => validateOpportunity({ name: "X", summary: "Y", kind: "empire" })).toThrow(/kind/)
+    expect(() => validateOpportunity({ name: "X", summary: "Y", kind: "club", url: "javascript:x" })).toThrow()
+  })
+
+  it("adds, amends with a visible diff, and restores through commands", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const envelope = (command: Record<string, unknown>, expectedVersion: number, key: string) => ({ actor: { type: "agent" as const, id: "AGENT-TEST" }, ownerUserId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", expectedVersion, idempotencyKey: key, command })
+    const added = await executeCommand(repository, envelope({ type: "extend_reference_opportunity", opportunity: { kind: "club", name: "Quantum Computing Association", summary: "Talks and reading groups on quantum computing." }, evidence: opportunityEvidence }, 1, "OPP-1"))
+    expect(added).toMatchObject({ ok: true, primaryVisibleId: "OPPORTUNITY-QUANTUM-COMPUTING-ASSOCIATION" })
+
+    const base = buildStanfordOpportunities()
+    const shipped = base.find((item) => item.id === "OPPORTUNITY-CURIS")!
+    const amended = await executeCommand(repository, envelope({ type: "extend_reference_opportunity", opportunity: { ...shipped, timing: "Applications open in January", addedBy: undefined }, evidence: { ...opportunityEvidence, id: "EVIDENCE-OPP-AMEND" } }, 2, "OPP-2"))
+    expect(amended.ok).toBe(true)
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const merged = mergedOpportunities(base, workspace.referenceOverlay?.opportunities)
+    expect(merged.filter((item) => item.id === "OPPORTUNITY-CURIS")).toHaveLength(1)
+    const current = merged.find((item) => item.id === "OPPORTUNITY-CURIS")!
+    const changes = referenceChanges(shipped as unknown as Record<string, unknown>, current as unknown as Record<string, unknown>, ["name", "summary", "url", "commitment", "timing"])
+    expect(changes).toEqual([{ field: "timing", label: "Timing", was: "Applications open winter quarter", now: "Applications open in January" }])
+
+    const restored = await executeCommand(repository, envelope({ type: "remove_reference_opportunity", opportunityId: "OPPORTUNITY-CURIS" }, 3, "OPP-3"))
+    expect(restored.ok).toBe(true)
+    const after = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(after.referenceOverlay?.opportunities?.some((item) => item.id === "OPPORTUNITY-CURIS")).toBe(false)
+    await expect(executeCommand(repository, envelope({ type: "remove_reference_opportunity", opportunityId: "OPPORTUNITY-CURIS" }, 4, "OPP-4"))).rejects.toThrow(/shipped reference/)
   })
 })
 

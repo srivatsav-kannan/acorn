@@ -2,7 +2,7 @@
 import { validateContextItem } from "@/domain/context"
 import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
 import { applyAcademicHistory, validateAcademicHistoryPatch } from "@/domain/history"
-import { emptyOverlay, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
+import { emptyOverlay, validateOpportunity, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
 import { compareTerms, parseTermId, termLabel } from "@/domain/timeline"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
@@ -296,6 +296,36 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       const [removed] = workspace.programs.splice(index, 1)
       if (workspace.profile.declaredProgramId === removed.id) workspace.profile.declaredProgramId = null
       changed.push({ type: "reference_program", id: removed.id })
+    } else if (command.type === "extend_reference_opportunity") {
+      let evidence, opportunity
+      try {
+        evidence = validateEvidence(command.evidence)
+        opportunity = validateOpportunity(command.opportunity ?? {})
+      } catch (error) { throw commandError((error as Error).message) }
+      if (!evidence.id) throw commandError("Reference evidence needs a stable ID")
+      opportunity.addedBy = envelope.actor
+      opportunity.evidenceIds = [evidence.id]
+      const overlay = workspace.referenceOverlay ?? emptyOverlay()
+      overlay.opportunities = overlay.opportunities ?? []
+      workspace.referenceOverlay = overlay
+      const index = overlay.opportunities.findIndex((item) => item.id === opportunity.id)
+      if (index >= 0) overlay.opportunities[index] = opportunity
+      else overlay.opportunities.push(opportunity)
+      changed.push({ type: "reference_opportunity", id: opportunity.id })
+      const evidenceIndex = workspace.evidence.findIndex((item) => item.id === evidence.id)
+      if (evidenceIndex >= 0) workspace.evidence[evidenceIndex] = evidence
+      else workspace.evidence.push(evidence)
+      changed.push({ type: "evidence", id: evidence.id })
+      const libraryItem = upsertResearchLibraryItem(workspace, evidence, envelope.actor)
+      changed.push({ type: "context_item", id: libraryItem.id })
+    } else if (command.type === "remove_reference_opportunity") {
+      const overlay = workspace.referenceOverlay ?? emptyOverlay()
+      overlay.opportunities = overlay.opportunities ?? []
+      const index = overlay.opportunities.findIndex((item) => item.id === command.opportunityId)
+      if (index < 0) throw commandError("This entry is part of the shipped reference or does not exist")
+      const [removed] = overlay.opportunities.splice(index, 1)
+      workspace.referenceOverlay = overlay
+      changed.push({ type: "reference_opportunity", id: removed.id })
     } else if (command.type === "remove_reference_course") {
       const overlay = workspace.referenceOverlay ?? emptyOverlay()
       const index = overlay.courses.findIndex((item) => item.id === command.courseId)
@@ -339,7 +369,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       undoAvailable,
       actor: envelope.actor,
       visibleChange: true,
-      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : command.type === "extend_reference" ? changed.find((item) => item.type === "reference_course")?.id : command.type === "add_reference_program" ? changed.find((item) => item.type === "reference_program")?.id : undefined
+      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : command.type === "extend_reference" ? changed.find((item) => item.type === "reference_course")?.id : command.type === "add_reference_program" ? changed.find((item) => item.type === "reference_program")?.id : command.type === "extend_reference_opportunity" ? changed.find((item) => item.type === "reference_opportunity")?.id : undefined
     }
     workspace.receipts.push(receipt)
     workspace.activity.push({

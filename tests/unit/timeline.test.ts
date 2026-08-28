@@ -57,6 +57,33 @@ describe("term arithmetic", () => {
   })
 })
 
+describe("edge handling", () => {
+  it("degrades cleanly on non-quarter terms and boundary inputs", async () => {
+    const { allPlannedCourseIds } = await import("@/domain/degree-plan")
+    const { supportsTimeline, nextTerm, standingForTerm, termLabel: label } = await import("@/domain/timeline")
+    expect(supportsTimeline({ currentTermId: "TERM-CURRENT" })).toBe(false)
+    expect(supportsTimeline({ currentTermId: "TERM-2026-AUTUMN" })).toBe(true)
+    expect(label("TERM-CURRENT")).toBe("current")
+    expect(() => nextTerm("TERM-NOPE")).toThrow(/Unrecognized/)
+    expect(standingForTerm({ entryTermId: "TERM-2026-AUTUMN", expectedGraduationTermId: "TERM-2030-SPRING", degree: "BS" }, "TERM-2025-AUTUMN")).toBe("Before entry")
+    expect(standingForTerm({ entryTermId: "TERM-X", expectedGraduationTermId: "TERM-Y", degree: "BS" }, "TERM-2025-AUTUMN")).toBe("")
+    expect(termSequence("TERM-2027-SPRING", "TERM-2026-AUTUMN").map((ref) => ref.id)).toEqual(["TERM-2027-SPRING"])
+    expect(termSequence("TERM-NOPE", "TERM-2026-AUTUMN")).toEqual([])
+    const fixture = buildFixture()
+    expect(allPlannedCourseIds(fixture.workspace)).toContain("COURSE-CS-106B")
+  })
+
+  it("counts standalone granted units toward the degree total", () => {
+    const fixture = buildFixture()
+    fixture.workspace.profile.apCredits = [
+      { id: "AP-1", exam: "AP Calculus BC", unitsGranted: 10 },
+      { id: "AP-2", exam: "AP CS A", unitsGranted: 5, satisfiesCourseIds: ["COURSE-CS-106A"] }
+    ]
+    const evaluation = evaluateDegreePlan(fixture.workspace, fixture.catalog, now)
+    expect(evaluation.completedUnits).toBe(15)
+  })
+})
+
 describe("degree plan evaluation", () => {
   it("carries completion forward so sequencing works across terms", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())

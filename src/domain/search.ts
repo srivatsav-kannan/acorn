@@ -1,4 +1,4 @@
-import type { Catalog, Course, Day, Section, WorkspaceState } from "@/domain/types"
+import type { Catalog, Course, Day, Opportunity, Section, WorkspaceState } from "@/domain/types"
 
 export type CourseSearchFilters = {
   query: string
@@ -18,8 +18,14 @@ const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "
 
 export const searchCourses = (catalog: Catalog, filters: CourseSearchFilters): CourseSearchResult[] => {
   const query = normalize(filters.query)
+  const sectionsByCourse = new Map<string, Section[]>()
+  for (const section of catalog.sections) {
+    const list = sectionsByCourse.get(section.courseId)
+    if (list) list.push(section)
+    else sectionsByCourse.set(section.courseId, [section])
+  }
   const results = catalog.courses.map((course) => {
-    const sections = catalog.sections.filter((section) => section.courseId === course.id)
+    const sections = (sectionsByCourse.get(course.id) ?? [])
       .filter((section) => !filters.termId || section.termId === filters.termId)
       .filter((section) => filters.minUnits === undefined || section.units >= filters.minUnits)
       .filter((section) => filters.maxUnits === undefined || section.units <= filters.maxUnits)
@@ -37,7 +43,7 @@ export const searchCourses = (catalog: Catalog, filters: CourseSearchFilters): C
   return query && results.some((item) => normalize(item.course.code) === query) ? results.filter((item) => normalize(item.course.code) === query) : results
 }
 
-export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, query: string) => {
+export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, query: string, opportunities: Opportunity[] = []) => {
   const normalized = query.toLowerCase().trim()
   const tokens = normalized.split(/[^a-z0-9]+/).filter((token) => token.length > 2)
   const matches = (value: string) => {
@@ -58,6 +64,8 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   if (courses.length) groups.push({ type: "courses", items: courses.map(({ course }) => ({ id: course.id, title: `${course.code} · ${course.title}`, summary: brief(course.description) })) })
   const programs = workspace.programs.filter((program) => matches(`${program.name} ${program.credential}`))
   if (programs.length) groups.push({ type: "programs", items: programs.slice(0, 6).map((program) => ({ id: program.id, title: program.name, summary: program.credential })) })
+  const matchedOpportunities = opportunities.filter((item) => matches(`${item.name} ${item.summary} ${item.tags.join(" ")}`))
+  if (matchedOpportunities.length) groups.push({ type: "opportunities", items: matchedOpportunities.slice(0, 6).map((item) => ({ id: item.id, title: item.name, summary: brief(item.summary) })) })
   const total = groups.reduce((sum, group) => sum + group.items.length, 0)
   return {
     query,

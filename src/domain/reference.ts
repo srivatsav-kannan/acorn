@@ -1,5 +1,5 @@
 import { assertSafeExternalUrl } from "@/domain/security"
-import type { Catalog, Course, Program, ReferenceOverlay, RequirementRule, Section, WorkspaceState } from "@/domain/types"
+import type { Catalog, Course, Opportunity, Program, ReferenceOverlay, RequirementRule, Section, WorkspaceState } from "@/domain/types"
 
 // The institutional catalog is shared and read-only. A workspace can carry its
 // own reference overlay: courses and sections an agent or student added with a
@@ -23,6 +23,30 @@ export const mergeCatalog = (base: Catalog, overlay: ReferenceOverlay | undefine
 }
 
 export const mergedCatalogFor = (workspace: WorkspaceState, base: Catalog): Catalog => mergeCatalog(base, workspace.referenceOverlay)
+
+export const mergedOpportunities = (base: Opportunity[], overlay: Opportunity[] | undefined): Opportunity[] => {
+  if (!overlay || overlay.length === 0) return base
+  const overlayIds = new Set(overlay.map((item) => item.id))
+  return [...base.filter((item) => !overlayIds.has(item.id)), ...overlay]
+}
+
+// When a workspace entry shares an ID with a shipped one, it is an amendment.
+// The base entry stays available so the interface can show what changed and
+// offer a way back to the original.
+export type ReferenceFieldChange = { field: string, label: string, was: string, now: string }
+
+const changeLabels: Record<string, string> = { title: "Title", description: "Description", minUnits: "Minimum units", maxUnits: "Maximum units", name: "Name", summary: "Summary", url: "Link", commitment: "Commitment", timing: "Timing" }
+
+export const referenceChanges = <T extends Record<string, unknown>>(base: T | undefined, current: T, fields: string[]): ReferenceFieldChange[] => {
+  if (!base) return []
+  const changes: ReferenceFieldChange[] = []
+  for (const field of fields) {
+    const was = String(base[field] ?? "").trim()
+    const now = String(current[field] ?? "").trim()
+    if (was !== now) changes.push({ field, label: changeLabels[field] ?? field, was: was || "Empty", now: now || "Empty" })
+  }
+  return changes
+}
 
 const requireText = (value: unknown, field: string, max = 200): string => {
   const text = String(value ?? "").trim()
@@ -51,6 +75,27 @@ export const validateOverlayCourse = (input: Record<string, unknown>): Course =>
     catalogYear: typeof input.catalogYear === "string" ? input.catalogYear : undefined,
     prerequisites: Array.isArray(input.prerequisites) ? input.prerequisites.map((item) => String(item)).slice(0, 12) : undefined,
     prerequisiteUncertain: input.prerequisiteUncertain === true ? true : undefined
+  }
+}
+
+export const validateOpportunity = (input: Record<string, unknown>): Opportunity => {
+  const name = requireText(input.name, "name", 100)
+  const id = requireText(input.id ?? `OPPORTUNITY-${name.toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "")}`, "stable ID", 90)
+  if (!/^[A-Z][A-Z0-9-]+$/.test(id)) throw new Error("An opportunity ID must be an uppercase stable identifier")
+  const kind = String(input.kind ?? "club")
+  if (!["club", "research", "program"].includes(kind)) throw new Error("An opportunity kind must be club, research, or program")
+  const url = typeof input.url === "string" && input.url.trim() ? input.url.trim() : undefined
+  if (url) assertSafeExternalUrl(url)
+  return {
+    id,
+    kind: kind as Opportunity["kind"],
+    name,
+    summary: requireText(input.summary, "one sentence summary", 300),
+    url,
+    tags: Array.isArray(input.tags) ? input.tags.map((tag) => String(tag).slice(0, 30)).slice(0, 8) : [],
+    commitment: typeof input.commitment === "string" && input.commitment.trim() ? input.commitment.trim().slice(0, 80) : undefined,
+    timing: typeof input.timing === "string" && input.timing.trim() ? input.timing.trim().slice(0, 120) : undefined,
+    sourceUrl: typeof input.sourceUrl === "string" && input.sourceUrl.trim() ? input.sourceUrl.trim() : url
   }
 }
 

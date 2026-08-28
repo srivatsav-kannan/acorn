@@ -119,7 +119,7 @@ export const buildFixture = (): Fixture => {
     undoSnapshots: {},
     referenceOverlay: { courses: [], sections: [] }
   }
-  return structuredClone({ workspace, catalog })
+  return { workspace: structuredClone(workspace), catalog }
 }
 
 export const fixtureHash = (fixture: Fixture): string => {

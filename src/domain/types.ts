@@ -23,6 +23,8 @@ export type Course = {
   prerequisites?: string[]
   prerequisiteUncertain?: boolean
   tags: string[]
+  ways?: string[]
+  offeredSeasons?: string
   sourceUrl?: string
   catalogYear?: string
 }
@@ -224,9 +226,24 @@ export type ActivityEntry = {
   undoneAt?: string
 }
 
+export type Opportunity = {
+  id: string
+  kind: "club" | "research" | "program"
+  name: string
+  summary: string
+  url?: string
+  tags: string[]
+  commitment?: string
+  timing?: string
+  sourceUrl?: string
+  addedBy?: Actor
+  evidenceIds?: string[]
+}
+
 export type ReferenceOverlay = {
   courses: Course[]
   sections: Section[]
+  opportunities?: Opportunity[]
 }
 
 export type WorkspaceState = {

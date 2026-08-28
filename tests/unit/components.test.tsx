@@ -85,8 +85,8 @@ describe("custom institution workspace", () => {
   it("shows the agent-built beta state in the empty catalog", () => {
     const workspace = customWorkspace()
     render(<ExplorePage workspace={workspace} catalog={{ courses: [], sections: [] }} onCommand={vi.fn()} />)
-    expect(screen.getByText(/University of Wherever reference · Beta/i)).toBeVisible()
-    expect(screen.getByText(/Your catalog starts empty. Your agent fills it./i)).toBeVisible()
+    expect(screen.getByText(/University of Wherever · Beta/i)).toBeVisible()
+    expect(screen.getByText(/The catalog starts empty. Your agent fills it./i)).toBeVisible()
     expect(screen.getByText(/extend_reference/)).toBeVisible()
     expect(screen.queryByText(/Stanford Bulletin/i)).not.toBeInTheDocument()
   })
@@ -95,12 +95,12 @@ describe("custom institution workspace", () => {
     const workspace = customWorkspace()
     render(<ProgramsPage workspace={workspace} catalog={{ courses: [], sections: [] }} onCommand={vi.fn()} />)
     expect(screen.getByRole("heading", { name: /No programs here yet/i })).toBeVisible()
-    expect(screen.getByText(/Ask your agent to add your program./i)).toBeVisible()
+    expect(screen.getByText(/it can build your program reference/i)).toBeVisible()
   })
 
   it("offers the WebMCP agent handoff and optional structured history at onboarding", async () => {
     render(<OnboardingPage />)
-    expect(screen.getByText(/Let it fill this in for you./i)).toBeVisible()
+    expect(screen.getByText(/Already keep your context with an agent\?/i)).toBeVisible()
     expect(screen.getByRole("button", { name: /copy agent instruction/i })).toBeVisible()
     await userEvent.click(screen.getByRole("button", { name: /Other/i }))
     expect(screen.getByLabelText(/university's name/i)).toBeVisible()
