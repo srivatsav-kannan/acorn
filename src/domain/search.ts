@@ -25,8 +25,8 @@ export const searchCourses = (catalog: Catalog, filters: CourseSearchFilters): C
     else sectionsByCourse.set(section.courseId, [section])
   }
   const results = catalog.courses.map((course) => {
-    const sections = (sectionsByCourse.get(course.id) ?? [])
-      .filter((section) => !filters.termId || section.termId === filters.termId)
+    const termSections = (sectionsByCourse.get(course.id) ?? []).filter((section) => !filters.termId || section.termId === filters.termId)
+    const sections = termSections
       .filter((section) => filters.minUnits === undefined || section.units >= filters.minUnits)
       .filter((section) => filters.maxUnits === undefined || section.units <= filters.maxUnits)
       .filter((section) => !filters.excludedDays?.some((day) => section.meetings.some((item) => item.days.includes(day))))
@@ -37,7 +37,9 @@ export const searchCourses = (catalog: Catalog, filters: CourseSearchFilters): C
     let score = query === code && query ? 1000 : code.startsWith(query) && query ? 700 : text.includes(query) && query ? 300 : query ? 0 : 100
     if (filters.subjects && !filters.subjects.includes(course.subject)) score = 0
     if (filters.levels && !filters.levels.includes(course.level)) score = 0
-    if ((filters.termId || filters.minUnits !== undefined || filters.maxUnits !== undefined || filters.excludedDays || filters.earliestStart || filters.latestEnd) && sections.length === 0) score = 0
+    // A course with stored sections must keep at least one that fits the
+    // constraints. A course with no stored schedule stays visible as unknown.
+    if (termSections.length > 0 && sections.length === 0) score = 0
     return { course, sections, score }
   }).filter((item) => item.score > 0).sort((a, b) => b.score - a.score || a.course.code.localeCompare(b.course.code))
   return query && results.some((item) => normalize(item.course.code) === query) ? results.filter((item) => normalize(item.course.code) === query) : results

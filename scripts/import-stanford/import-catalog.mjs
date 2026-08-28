@@ -48,8 +48,10 @@ const cached = async (name, url) => {
 }
 
 const decode = (value) => value
+  .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+  .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
   .replaceAll("&amp;", "&").replaceAll("&lt;", "<").replaceAll("&gt;", ">")
-  .replaceAll("&quot;", '"').replaceAll("&#39;", "'").replaceAll("&nbsp;", " ")
+  .replaceAll("&quot;", '"').replaceAll("&apos;", "'").replaceAll("&nbsp;", " ")
   .replace(/\s+/g, " ").trim()
 
 const tag = (block, name) => {
