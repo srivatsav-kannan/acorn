@@ -155,3 +155,42 @@ describe("custom institutions", () => {
   })
 })
 
+
+describe("Stanford AP chart presets", () => {
+  it("lists unique exams whose grants pass the credit validator", async () => {
+    const { apExamPresets } = await import("@/data/institutions/stanford-ap")
+    const names = apExamPresets.map((preset) => preset.exam)
+    expect(new Set(names).size).toBe(names.length)
+    for (const preset of apExamPresets) {
+      for (const grant of preset.grants) {
+        expect(() => validateApCredit({ id: "AP-TEST", exam: preset.exam, score: grant.score, unitsGranted: grant.units })).not.toThrow()
+        expect(grant.score).toBeGreaterThanOrEqual(3)
+        expect(grant.score).toBeLessThanOrEqual(5)
+      }
+    }
+  })
+
+  it("grants the published defaults for the calculus and physics sequences", async () => {
+    const { apGrantFor } = await import("@/data/institutions/stanford-ap")
+    expect(apGrantFor("AP Calculus BC", 5)).toMatchObject({ units: 10, satisfiesCodes: ["MATH 19", "MATH 20", "MATH 21"] })
+    expect(apGrantFor("AP Calculus BC", 4)?.satisfiesCodes).toEqual(["MATH 19", "MATH 20"])
+    expect(apGrantFor("AP Physics C: Mechanics", 4)).toMatchObject({ units: 4, satisfiesCodes: ["PHYSICS 41"] })
+    expect(apGrantFor("AP Spanish Language and Culture", 4)?.units).toBe(10)
+  })
+
+  it("records exams Stanford credits nothing for without inventing units", async () => {
+    const { apGrantFor, apPresetFor } = await import("@/data/institutions/stanford-ap")
+    for (const exam of ["AP Computer Science A", "AP Statistics", "AP Psychology"]) {
+      expect(apPresetFor(exam)).toBeDefined()
+      expect(apGrantFor(exam, 5)).toBeNull()
+    }
+    expect(apGrantFor("Not An Exam", 5)).toBeNull()
+  })
+
+  it("offers deterministic score and unit choices for the form", async () => {
+    const { apScoreChoices, apUnitChoices } = await import("@/data/institutions/stanford-ap")
+    expect(apScoreChoices).toEqual([5, 4, 3, 2, 1])
+    expect(apUnitChoices).toEqual([...apUnitChoices].sort((a, b) => a - b))
+    expect(new Set(apUnitChoices).size).toBe(apUnitChoices.length)
+  })
+})

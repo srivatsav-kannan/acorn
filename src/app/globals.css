@@ -61,7 +61,7 @@ b, strong { letter-spacing: -.004em; }
 .wordmark i { color: var(--red); font-style: normal; }
 
 /* Buttons rest in ink and answer in cardinal. */
-.primary-button, .secondary-button, .google-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 20px; font-size: 13.5px; font-weight: 600; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
+.primary-button, .secondary-button, .google-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 20px; font-size: 13.5px; font-weight: 600; white-space: nowrap; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
 .primary-button { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); }
 .primary-button:hover { background: var(--red); border-color: var(--red); color: #fff; }
 .primary-button:active, .secondary-button:active { transform: scale(.98); }
@@ -79,13 +79,14 @@ b, strong { letter-spacing: -.004em; }
 
 /* ---------- Public pages ---------- */
 .public-page { min-height: 100vh; background: var(--paper); }
-.public-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; height: 66px; padding: 0 max(28px, calc((100vw - 1200px) / 2)); border-bottom: 1px solid var(--line); background: rgba(249, 247, 241, .94); backdrop-filter: blur(6px); }
+.public-header { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; height: 66px; padding: 0 max(28px, calc((100vw - 1200px) / 2)); border-bottom: 1px solid var(--line); background: var(--paper); }
 .public-header .wordmark { font-size: 20px; }
 .public-header nav { display: flex; align-items: center; gap: 26px; font-size: 13.5px; font-weight: 560; }
 .public-header nav a { color: var(--muted); transition: color .15s ease; }
 .public-header nav a:hover { color: var(--ink); }
 .public-header nav .primary-button { min-height: 38px; padding: 0 16px; color: var(--paper); font-size: 13px; }
 .public-header nav .primary-button:hover { color: #fff; }
+.cta-short { display: none; }
 
 .hero { max-width: 880px; margin: auto; padding: 96px 24px 72px; text-align: center; }
 .hero > * { animation: rise .55s var(--ease-out) both; }
@@ -102,7 +103,7 @@ b, strong { letter-spacing: -.004em; }
 /* The ticker is the ornament this product has earned: real rows from the real
    catalog, drifting past. It pauses under the cursor and holds still for
    reduced motion. */
-.ticker-band { overflow: hidden; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); }
+.ticker-band { overflow: hidden; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .ticker-track { display: flex; width: max-content; animation: marquee 80s linear infinite; }
 .ticker-band:hover .ticker-track { animation-play-state: paused; }
 .ticker-run { display: flex; }
@@ -836,6 +837,8 @@ b, strong { letter-spacing: -.004em; }
 .timeline-fields label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 620; }
 .timeline-fields select { min-height: 42px; border: 1px solid var(--line-strong); padding: 0 10px; background: var(--field); font-size: 13px; font-weight: 450; }
 .heading-sub { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.inline-select { border: 1px solid var(--line-strong); background: var(--field); padding: 5px 8px; font-size: 12.5px; font-weight: 600; }
+.settings-card dl .inline-select { max-width: 240px; }
 
 /* ---------- Degree timeline ---------- */
 .view-toggle { display: flex; padding: 3px; border: 1px solid var(--line-strong); }
@@ -1058,9 +1061,14 @@ b, strong { letter-spacing: -.004em; }
 }
 
 @media (max-width: 600px) {
-  .public-header { height: 60px; padding: 0 18px; }
-  .public-header nav { gap: 16px; }
+  .public-header { height: 60px; padding: 0 16px; }
+  .public-header .wordmark { font-size: 17px; }
+  .public-header nav { gap: 12px; }
+  .public-header nav a { white-space: nowrap; }
   .public-header nav a:first-child, .public-header nav a:nth-child(2) { display: none; }
+  .public-header nav .primary-button { min-height: 34px; padding: 0 12px; font-size: 12.5px; }
+  .public-header .cta-long { display: none; }
+  .public-header .cta-short { display: inline; }
   .hero h1 { font-size: 40px; }
   .hero-lead { font-size: 15px; }
   .hero-actions { flex-direction: column; }

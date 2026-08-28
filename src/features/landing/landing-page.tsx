@@ -46,7 +46,7 @@ export const LandingPage = ({ hasWorkspace = false }: { hasWorkspace?: boolean }
         <a href="#premise">How it works</a>
         <a href="#agents">For agents</a>
         <Link href="/login">Sign in</Link>
-        <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
+        <Link className="primary-button" href={enterHref}><span className="cta-long">{enterLabel}</span><span className="cta-short">{hasWorkspace ? "Open" : "Start"}</span></Link>
       </nav>
     </header>
 
