@@ -2,10 +2,10 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { CUSTOM_INSTITUTION_ID, listInstitutionChoices } from "@/data/institutions/registry"
 
-export const OnboardingPage = () => {
+export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?: boolean }) => {
   const router = useRouter()
   const institutionChoices = listInstitutionChoices()
   const thisYear = useMemo(() => new Date().getFullYear(), [])
@@ -15,9 +15,22 @@ export const OnboardingPage = () => {
   const [gradYear, setGradYear] = useState(thisYear + 4)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [existingWorkspace, setExistingWorkspace] = useState(false)
   const isCustom = institutionId === CUSTOM_INSTITUTION_ID
   const entryYears = Array.from({ length: 8 }, (_, index) => thisYear + 1 - index)
   const gradYears = Array.from({ length: 8 }, (_, index) => entryYear + 1 + index)
+
+  useEffect(() => {
+    if (!browserWorkspace) return
+    const timeout = window.setTimeout(() => {
+      try {
+        setExistingWorkspace(localStorage.getItem("course-context-local-v1") !== null)
+      } catch {
+        setExistingWorkspace(false)
+      }
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [browserWorkspace])
 
   const changeEntryYear = (year: number) => {
     const length = gradYear - entryYear
@@ -45,21 +58,22 @@ export const OnboardingPage = () => {
     router.refresh()
   }
 
-  const signOut = async () => {
+  const leave = async () => {
     await fetch("/api/auth/signout", { method: "POST", redirect: "follow" })
-    router.push("/login")
+    router.push("/")
     router.refresh()
   }
 
-  return <main className="onboarding-page onboarding-rebuild">
+  return <main className="onboarding-page">
     <header className="onboarding-header">
-      <Link className="wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
-      <button className="text-button" type="button" onClick={signOut}>Sign out</button>
+      <Link className="wordmark" href="/">CourseContext<i aria-hidden="true">.</i></Link>
+      <button className="text-button" type="button" onClick={leave}>{browserWorkspace ? "Back to the front page" : "Sign out"}</button>
     </header>
     <div className="onboarding-center">
       <form className="onboarding-facts-card" onSubmit={(event) => { event.preventDefault(); void finish() }}>
         <h1>Three facts, then you are in.</h1>
-        <p>Everything else, from your name to your course history, can be added inside at any time.</p>
+        <p>Everything else, from your name to your course history, can be added inside at any time, by you or by your agent.</p>
+        {existingWorkspace && <p className="onboarding-existing" role="status">This browser already holds a workspace. <Link href="/app">Open it</Link> instead, or continue below to replace it.</p>}
         <label>
           <span>University</span>
           <select value={institutionId} onChange={(event) => setInstitutionId(event.target.value)}>

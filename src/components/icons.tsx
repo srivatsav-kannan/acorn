@@ -48,3 +48,28 @@ export const InfoIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)
 export const UndoIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)}><path d="M8 6 4 10l4 4" /><path d="M4 10h10a6 6 0 1 1 0 12h-3" transform="translate(0 -2)" /></svg>
 
 export const ArrowIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)}><path d="M4 12h16" /><path d="m13 5 7 7-7 7" /></svg>
+
+// Filled glyphs for the mobile navigation. Solid silhouettes read at 19px
+// where hairline strokes dissolve.
+const fill = (props: SVGProps<SVGSVGElement>): SVGProps<SVGSVGElement> => ({
+  width: 19,
+  height: 19,
+  viewBox: "0 0 24 24",
+  fill: "currentColor",
+  "aria-hidden": true,
+  ...props
+})
+
+export const HomeFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><path d="M12 3.2 3.2 10.4V20.5h6.2v-5.3h5.2v5.3h6.2V10.4Z" /></svg>
+
+export const PlanFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><path fillRule="evenodd" d="M4 5h16v15.5H4Zm2.2 6.2h11.6v7H6.2Z" /><path d="M7 2.8h2.2v3.4H7Zm7.8 0H17v3.4h-2.2Z" /></svg>
+
+export const ExploreFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><path d="M11.2 6.1C9.8 4.9 7.6 4.2 4.5 4.2v13.6c3.1 0 5.3.7 6.7 1.9Zm1.6 0v13.6c1.4-1.2 3.6-1.9 6.7-1.9V4.2c-3.1 0-5.3.7-6.7 1.9Z" /></svg>
+
+export const LibraryFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><path d="M4 3.8h3.2v16.4H4Zm5.4 0h3.2v16.4H9.4Zm6-.1 3 .6-.4 16.1-3-.6Z" /></svg>
+
+export const ProgramsFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><path d="M12 3.6 1.8 8.4 12 13.2l10.2-4.8Z" /><path d="M6.2 11.7v4.5c0 1.6 2.6 2.9 5.8 2.9s5.8-1.3 5.8-2.9v-4.5L12 14.4Z" /></svg>
+
+export const ProfileFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><circle cx="12" cy="8.2" r="4" /><path d="M4.4 20.2c.9-3.8 3.9-5.9 7.6-5.9s6.7 2.1 7.6 5.9Z" /></svg>
+
+export const TogetherFill = (props: SVGProps<SVGSVGElement>) => <svg {...fill(props)}><circle cx="8.6" cy="12" r="5.4" /><circle cx="15.4" cy="12" r="5.4" fill="none" stroke="currentColor" strokeWidth="2" /></svg>

@@ -32,12 +32,20 @@ describe("public product surfaces", () => {
     expect(screen.getByText(/No sample student data/i)).toBeVisible()
   })
 
-  it("explains the product and exposes both entry paths", () => {
+  it("explains the product with real catalog numbers and one way in", () => {
     render(<LandingPage />)
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/academic workspace/i)
-    expect(screen.getByRole("link", { name: /demo login/i })).toBeVisible()
-    expect(screen.getByRole("link", { name: /create a workspace/i })).toBeVisible()
-    expect(screen.getByText(/not an official stanford/i)).toBeVisible()
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/twelve quarters/i)
+    expect(screen.getAllByRole("link", { name: /start planning/i }).length).toBeGreaterThan(0)
+    expect(screen.getByRole("link", { name: /sign in/i })).toBeVisible()
+    expect(screen.getAllByText(/15,587/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/not affiliated with stanford/i)).toBeVisible()
+    expect(screen.queryByText(/demo login/i)).not.toBeInTheDocument()
+  })
+
+  it("greets a returning browser workspace with its own door", () => {
+    render(<LandingPage hasWorkspace />)
+    expect(screen.getAllByRole("link", { name: /open your workspace/i }).length).toBeGreaterThan(0)
+    expect(screen.queryByRole("link", { name: /start planning/i })).not.toBeInTheDocument()
   })
 
   it("offers email and demo entry without advertising an unconfigured provider", () => {
@@ -50,11 +58,12 @@ describe("public product surfaces", () => {
     expect(screen.queryByText(/stanford password/i)).not.toBeInTheDocument()
   })
 
-  it("fails clearly into demo mode when hosted authentication is not configured", async () => {
+  it("points an unconfigured deployment at the browser workspace instead", async () => {
     render(<LoginPage demoAvailable />)
     expect(screen.getByText(/account sign-in is unavailable/i)).toBeVisible()
     expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeDisabled()
+    expect(screen.getByRole("link", { name: /create a workspace in this browser/i })).toHaveAttribute("href", "/start")
     expect(screen.getByRole("button", { name: /sign in with demo credentials/i })).toBeVisible()
   })
 

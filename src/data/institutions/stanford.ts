@@ -7,7 +7,7 @@ import type { InstitutionReference } from "@/data/institutions/types"
 // feed lacks, prerequisite structure and planning tags, and they win on ID
 // collisions so the demo stays deterministic.
 type ImportedCourse = { c: string, t: string, u?: number | [number, number], w?: string[], o?: string, d?: string, s?: Array<{ n: string, m: Array<{ d: string[], s: string, e: string, l?: string }> }> }
-type ImportedPayload = { meta: { source: string, retrievedAt: string, academicYear: string, courses: number, note: string }, courses: ImportedCourse[] }
+type ImportedPayload = { meta: { source: string, retrievedAt: string, academicYear: string, departments: number, courses: number, note: string }, courses: ImportedCourse[] }
 
 const imported = importedCatalog as ImportedPayload
 export const stanfordCatalogMeta = imported.meta

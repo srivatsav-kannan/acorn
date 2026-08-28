@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
 import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
-export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoRequested = false, localAvailable = false, nextPath = "/app" }: { initialStatus?: string, demoAvailable?: boolean, demoRequested?: boolean, localAvailable?: boolean, nextPath?: string }) => {
+export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoRequested = false, nextPath = "/app" }: { initialStatus?: string, demoAvailable?: boolean, demoRequested?: boolean, nextPath?: string }) => {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState(initialStatus)
@@ -54,41 +54,36 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
   }
 
   const demoLogin = demoAvailable && <section className={demoRequested ? "demo-login-card requested" : "demo-login-card"}>
-    <div><strong>Demo account</strong><span>Sign in with the shared demo credentials. Changes are saved to the server.</span></div>
+    <div><strong>Shared demo account</strong><span>A filled workspace on shared credentials. Changes save to the server and reset on demand.</span></div>
     <button className={demoRequested ? "primary-button full" : "secondary-button full"} type="button" onClick={signInToDemo} disabled={busy}>{busy ? "Signing in…" : "Sign in with demo credentials"}</button>
   </section>
 
-  return <main className="auth-page auth-simple">
-    <Link className="wordmark auth-wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
+  return <main className="auth-page">
+    <Link className="wordmark auth-wordmark" href="/">CourseContext<i aria-hidden="true">.</i></Link>
     <section className="auth-card">
       <header>
         <h1>Sign in</h1>
-        <p>Use your email, or sign in with the shared demo account.</p>
+        <p>Accounts sync a workspace to the server. If you started in this browser, your workspace is already waiting at the front page.</p>
       </header>
       {demoRequested && demoLogin}
       {demoRequested && <div className="auth-divider"><span>Personal account</span></div>}
       <div className="auth-form-panel">
-        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is not connected to account storage.</span></div>}
+        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment has no account storage. Workspaces run in the browser instead.</span><Link className="secondary-button" href="/start">Create a workspace in this browser</Link></div>}
         {linkSentTo ? <div className="link-sent" role="status">
-          <span className="link-sent-mark" aria-hidden="true">✓</span>
           <strong>Check your inbox</strong>
-          <p>We sent a one-time sign-in link to <b>{linkSentTo}</b>. Opening it returns you here, signed in.</p>
+          <p>A one-time sign-in link is on its way to <b>{linkSentTo}</b>. Opening it returns you here, signed in.</p>
           <button className="text-button" type="button" onClick={() => { setLinkSentTo(""); setEmail("") }}>Use a different email</button>
         </div> : <form className="email-login-form" onSubmit={sendEmailLink}>
           <label htmlFor="email">Email address</label>
           <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!configured}/>
-          <small>We will send a one-time sign-in link. No password needed.</small>
+          <small>One-time link, no password.</small>
           <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Sending link…" : "Email me a sign-in link"}</button>
         </form>}
         {googleEnabled && !linkSentTo && <><div className="or"><span />or<span /></div><button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy}><span aria-hidden="true">G</span>Continue with Google</button></>}
       </div>
       {!demoRequested && demoLogin}
-      {localAvailable && <section className="demo-login-card">
-        <div><strong>Local workspace</strong><span>Onboard and plan in this browser. Everything stays on this device.</span></div>
-        <a className="secondary-button full" href="/local">Start a local workspace</a>
-      </section>}
       {status && <p className="auth-status" role="status">{status}</p>}
     </section>
-    <p className="auth-note">Independent planning aid. CourseContext cannot enroll or submit forms for you.</p>
+    <p className="auth-note">CourseContext is a planning aid. It cannot enroll you or submit anything to your university.</p>
   </main>
 }

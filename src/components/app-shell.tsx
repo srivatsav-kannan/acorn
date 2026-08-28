@@ -9,7 +9,7 @@ import { searchWorkspace } from "@/domain/search"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { parseTermId, termLabel } from "@/domain/timeline"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
-import { ActivityIcon, ExploreIcon, HomeIcon, LibraryIcon, PlanIcon, ProfileIcon, ProgramsIcon, SearchIcon, TogetherIcon } from "@/components/icons"
+import { ExploreFill, HomeFill, LibraryFill, PlanFill, ProfileFill, ProgramsFill, SearchIcon, TogetherFill } from "@/components/icons"
 
 const navigation = [
   ["Home", "/app", "home"],
@@ -21,14 +21,14 @@ const navigation = [
   ["Plan together", "/app/agent", "agent"]
 ] as const
 
-const navIcon = (key: string) => {
-  if (key === "home") return <HomeIcon />
-  if (key === "plan") return <PlanIcon />
-  if (key === "explore") return <ExploreIcon />
-  if (key === "library") return <LibraryIcon />
-  if (key === "programs") return <ProgramsIcon />
-  if (key === "profile") return <ProfileIcon />
-  return <TogetherIcon />
+const mobileGlyph = (key: string) => {
+  if (key === "home") return <HomeFill />
+  if (key === "plan") return <PlanFill />
+  if (key === "explore") return <ExploreFill />
+  if (key === "library") return <LibraryFill />
+  if (key === "programs") return <ProgramsFill />
+  if (key === "profile") return <ProfileFill />
+  return <TogetherFill />
 }
 
 const pageForPath = (pathname: string | null) => {
@@ -81,30 +81,24 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
   return <div className="app-frame">
     <a className="skip-link" href="#workspace-content">Skip to workspace</a>
     <header className="topbar">
-      <Link className="wordmark" href="/app" aria-label="CourseContext workspace"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
-      <div className="term-chip"><span className="live-dot" />{quarterLabel}</div>
+      <Link className="wordmark" href="/app" aria-label="CourseContext workspace">CourseContext<i aria-hidden="true">.</i></Link>
+      <span className="term-tag">{quarterLabel}</span>
       <div className="topbar-actions">
-        {workspaceValue && <span className={`save-indicator ${workspaceValue.saveState}`} aria-live="polite"><i />{workspaceValue.saveState === "saving" ? "Saving" : workspaceValue.saveState === "error" ? "Not saved" : workspaceValue.mode === "fixture" ? "Saved locally" : "Saved"}</span>}
-        <button className="quiet-button search-button" type="button" aria-label="Search workspace" onClick={() => setSearchOpen(true)}><SearchIcon width={15} height={15} /><span>Search workspace</span><kbd>⌘K</kbd></button>
-        <button className="icon-label-button" type="button" onClick={() => setActivityOpen(true)} aria-label="Activity"><ActivityIcon width={15} height={15} /><span>Activity</span></button>
+        {workspaceValue && <span className={`save-indicator ${workspaceValue.saveState}`} aria-live="polite"><i />{workspaceValue.saveState === "saving" ? "Saving" : workspaceValue.saveState === "error" ? "Not saved" : workspaceValue.mode === "fixture" ? "Saved in this browser" : "Saved"}</span>}
+        <button className="quiet-button search-button" type="button" aria-label="Search workspace" onClick={() => setSearchOpen(true)}><SearchIcon width={14} height={14} /><span>Search</span><kbd>⌘K</kbd></button>
+        <button className="topbar-text-button" type="button" onClick={() => setActivityOpen(true)} aria-label="Activity">Activity</button>
         <Link className="avatar-button" href="/app/profile" aria-label="Account">{initials}</Link>
       </div>
     </header>
     <aside className="sidebar">
       <nav aria-label="Primary">
-        <p className="nav-label">Workspace</p>
-        {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{navIcon(key)}</span><span className="nav-text">{key === "explore" ? exploreLabel : name}</span></Link>)}
+        {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "nav-link active" : "nav-link"} href={href}>{key === "explore" ? exploreLabel : name}</Link>)}
       </nav>
-      <div className="sidebar-context">
-        <p className="nav-label">Current focus</p>
-        <strong>{workspaceValue?.workspace.plans[0]?.title ?? "Autumn planning"}</strong>
-        <span>{workspaceValue?.workspace.profile.summary || "Add a planning goal"}</span>
-      </div>
       <Link className="settings-link" href="/app/settings">Settings</Link>
     </aside>
     <main id="workspace-content" className="workspace-main">{children}</main>
     {mobile && <nav className="mobile-nav" aria-label="Mobile">
-      {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "active" : ""} href={href} aria-label={key === "explore" ? exploreLabel : name}><span aria-hidden="true">{navIcon(key)}</span><span aria-hidden="true">{key === "explore" ? exploreLabel : name === "Plan together" ? "Together" : name}</span></Link>)}
+      {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "active" : ""} href={href} aria-label={key === "explore" ? exploreLabel : name}><span aria-hidden="true">{mobileGlyph(key)}</span><span aria-hidden="true">{key === "explore" ? exploreLabel : name === "Plan together" ? "Together" : name}</span></Link>)}
     </nav>}
     {activityOpen && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setActivityOpen(false)}>
       <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>

@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
-import { Inter, Newsreader } from "next/font/google"
+import { Instrument_Sans, Source_Serif_4 } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" })
-const newsreader = Newsreader({ subsets: ["latin"], variable: "--font-serif", style: ["normal", "italic"], display: "swap" })
+const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" })
+const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif", style: ["normal", "italic"], display: "swap" })
 
 export const metadata: Metadata = {
   title: "CourseContext",
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${newsreader.variable}`}><body>{children}</body></html>
+  return <html lang="en" data-scroll-behavior="smooth" className={`${sans.variable} ${serif.variable}`}><body>{children}</body></html>
 }

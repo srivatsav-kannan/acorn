@@ -11,5 +11,5 @@ const messages: Record<string, string> = {
 export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string, demo?: string, reset?: string, next?: string }> }) {
   const { error, demo, reset, next } = await searchParams
   const initialStatus = reset === "1" ? "Demo reset. Sign in to begin onboarding." : error ? messages[error] ?? "Sign-in could not be completed." : ""
-  return <LoginPage initialStatus={initialStatus} demoAvailable={isSupabaseServerConfigured() && isDemoAccountConfigured()} demoRequested={demo === "1"} localAvailable={process.env.COURSE_CONTEXT_E2E_FIXTURE === "true"} nextPath={safeNextPath(next ?? null)} />
+  return <LoginPage initialStatus={initialStatus} demoAvailable={isSupabaseServerConfigured() && isDemoAccountConfigured()} demoRequested={demo === "1"} nextPath={safeNextPath(next ?? null)} />
 }

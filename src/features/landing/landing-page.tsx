@@ -1,67 +1,107 @@
 import Link from "next/link"
+import { Reveal } from "@/components/reveal"
+import { buildStanfordCatalog, stanfordCatalogMeta } from "@/data/institutions/stanford"
 import { listInstitutionChoices } from "@/data/institutions/registry"
+import { standingForTerm, termSequence } from "@/domain/timeline"
 
 const readTools: Array<[string, string]> = [
-  ["search_workspace", "read saved context first"],
-  ["get_planning_context", "goals, constraints, versions"],
-  ["search_courses", "catalog and current sections"],
-  ["get_plan", "scenarios and commitments"],
-  ["check_plan", "deterministic conflict checks"],
-  ["get_program_progress", "requirement evaluation"]
+  ["search_workspace", "Search saved context before searching the world."],
+  ["get_planning_context", "Goals, constraints, history, and current versions."],
+  ["search_courses", "The full catalog with live section data."],
+  ["get_plan", "Scenarios, courses, and commitments for any term."],
+  ["check_plan", "Deterministic conflict and prerequisite checks."],
+  ["get_program_progress", "Requirement-by-requirement degree evaluation."]
 ]
 
 const writeTools: Array<[string, string]> = [
-  ["edit_plan", "atomic schedule changes"],
-  ["save_research", "sourced findings, visibly filed"],
-  ["save_workspace_item", "notes, tasks, people, decisions"],
-  ["update_student_context", "preferences and constraints"],
-  ["extend_reference", "add missing courses and programs"],
-  ["configure_view", "safe block-based views"]
+  ["edit_plan", "Atomic schedule changes with receipts."],
+  ["save_research", "Findings filed with sources and retrieval dates."],
+  ["save_workspace_item", "Notes, tasks, people, and decisions."],
+  ["update_student_context", "Preferences, history, and constraints."],
+  ["extend_reference", "Add or amend courses, sections, and programs."],
+  ["configure_view", "Compose saved views from safe blocks."]
 ]
 
-export const LandingPage = () => {
-  const allChoices = listInstitutionChoices()
-  const institutionChoices = [...allChoices.filter((choice) => choice.status === "full").slice(0, 1), ...allChoices.filter((choice) => choice.status === "planned").slice(0, 3), ...allChoices.filter((choice) => choice.status === "custom")]
+// Recognizable courses for the ticker, resolved against the real import so
+// every code, title, and unit count on this page is catalog truth.
+const tickerCodes = ["CS 106A", "CS 106B", "MATH 51", "CS 107", "PHYSICS 41", "ECON 1", "CS 109", "PSYCH 1", "CS 148", "ENGR 40M", "PHIL 80", "CS 161", "CME 100", "CS 229", "EARTHSYS 10", "MS&E 178"]
+
+const importedOn = new Date(stanfordCatalogMeta.retrievedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+
+export const LandingPage = ({ hasWorkspace = false }: { hasWorkspace?: boolean }) => {
+  const catalog = buildStanfordCatalog()
+  const byCode = new Map(catalog.courses.map((course) => [course.code, course]))
+  const tickerCourses = tickerCodes.map((code) => byCode.get(code)).filter((course) => course !== undefined)
+  const quarters = termSequence("TERM-2026-AUTUMN", "TERM-2030-SPRING")
+  const years = [0, 1, 2, 3].map((offset) => quarters.filter((quarter) => quarter.academicYearStart === 2026 + offset))
+  const timeline = { entryTermId: "TERM-2026-AUTUMN", expectedGraduationTermId: "TERM-2030-SPRING", degree: "BS" }
+  const institutionChoices = listInstitutionChoices()
+  const enterHref = hasWorkspace ? "/app" : "/start"
+  const enterLabel = hasWorkspace ? "Open your workspace" : "Start planning"
+
   return <main className="public-page">
     <header className="public-header">
-      <Link className="wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
-      <nav aria-label="Public"><a href="#how">How it works</a><a href="#agents">For agents</a><a href="/login">Sign in</a></nav>
+      <Link className="wordmark" href="/">CourseContext<i aria-hidden="true">.</i></Link>
+      <nav aria-label="Public">
+        <a href="#premise">How it works</a>
+        <a href="#agents">For agents</a>
+        <Link href="/login">Sign in</Link>
+        <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
+      </nav>
     </header>
 
     <section className="hero">
-      <div className="hero-copy">
-        <p className="eyebrow">Course planning, with context that lasts</p>
-        <h1>An academic workspace you and your agent <em>actually share</em>.</h1>
-        <p className="hero-lead">Plan every quarter to graduation, track degree progress, and keep the research behind each decision. Your agent reads the same workspace you see and makes changes you can inspect and undo.</p>
-        <div className="hero-actions"><a className="primary-button" href="/demo">Demo login</a><a className="secondary-button" href="/login">Create a workspace</a></div>
-        <p className="trust-note">No university login required. Nothing is submitted anywhere on your behalf.</p>
+      <h1>Four years is twelve quarters.<br />Plan <em>all</em> of them.</h1>
+      <p className="hero-lead">CourseContext is an academic workspace with the memory for it: the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasons behind every choice. Your agent works in the same workspace through twelve WebMCP tools, and everything it changes is attributed, inspectable, and undoable.</p>
+      <div className="hero-actions">
+        <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
+        <a className="secondary-button" href="#agents">How agents work here</a>
       </div>
-      <div className="hero-product" aria-label="CourseContext product preview">
-        <div className="preview-bar"><span className="wordmark-mark">C</span><b>Autumn plan</b><span>15 units</span></div>
-        <div className="preview-body">
-          <div className="preview-list">
-            <p>Primary scenario</p>
-            <div><i className="course-color red" /><span><b>CS 106B</b><small>Programming Abstractions</small></span><em>5</em></div>
-            <div><i className="course-color blue" /><span><b>MATH 51</b><small>Linear Algebra and Applications</small></span><em>5</em></div>
-            <div><i className="course-color gold" /><span><b>DESIGN 60</b><small>Design Foundations</small></span><em>2</em></div>
-          </div>
-          <div className="preview-calendar"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><div className="preview-event event-one">CS 106B</div><div className="preview-event event-two">MATH 51</div><div className="preview-event event-three">DESIGN 60</div></div>
-        </div>
-        <div className="preview-agent"><span>✓</span><p><b>Plan check complete</b><small>No hard conflicts. Friday remains open.</small></p></div>
-      </div>
+      <p className="hero-note">Free, and it cannot enroll you in anything. It plans; you register.</p>
     </section>
 
-    <section id="how" className="principles">
-      <article><span>01</span><h2>Context that lasts</h2><p>Preferences, sources, ideas, and decisions live in one inspectable workspace instead of disappearing inside a chat transcript.</p></article>
-      <article><span>02</span><h2>One action model</h2><p>Every human click and agent edit uses the same semantic command, validation, receipt, and undo path. You always see who changed what.</p></article>
-      <article><span>03</span><h2>Research with provenance</h2><p>The agent searches what you already know first, labels information gaps, and saves useful findings with sources and retrieval dates.</p></article>
+    <div className="ticker-band" aria-hidden="true">
+      <div className="ticker-track">
+        {[0, 1].map((copy) => <div className="ticker-run" key={copy}>
+          {tickerCourses.map((course) => <span className="ticker-item" key={`${copy}-${course.id}`}><b>{course.code}</b>{course.title}<em>{course.minUnits === course.maxUnits ? `${course.maxUnits} units` : `${course.minUnits} to ${course.maxUnits} units`}</em></span>)}
+        </div>)}
+      </div>
+    </div>
+
+    <section id="premise" className="principles">
+      <Reveal><article>
+        <span>01</span>
+        <h2>Chat forgets. The workspace does not.</h2>
+        <p>Preferences, sources, open questions, and decisions live in an inspectable workspace instead of scrolling away inside a transcript. When you or your agent search, saved context answers first, and real gaps are named instead of papered over.</p>
+      </article></Reveal>
+      <Reveal><article>
+        <span>02</span>
+        <h2>One command path, two hands on it.</h2>
+        <p>A human click and an agent tool call run the same semantic command, with the same validation, the same receipt, and the same undo. The activity ledger records who changed what, and nothing edits the page by pretending to be you.</p>
+      </article></Reveal>
+      <Reveal><article>
+        <span>03</span>
+        <h2>Deterministic where it matters.</h2>
+        <p>Quarter arithmetic, unit totals, prerequisite and conflict checks, and class standing are computed by the timeline engine, never guessed by a model. Your agent reads exactly the numbers you see.</p>
+      </article></Reveal>
     </section>
 
-    <section id="agents" className="webmcp-band">
+    <Reveal><section className="timeline-band">
+      <h2>Autumn 2026 to Spring 2030, laid out.</h2>
+      <p>Entry year and graduation year define the whole map. The engine derives every quarter in between, your standing in each, unit targets, and cross-term sequencing checks, for four-year degrees and five-year coterms alike.</p>
+      <div className="quarter-rail">
+        {years.map((yearQuarters, index) => <div className="quarter-rail-year" key={index}>
+          <div className="quarter-rail-head"><b>Year {index + 1}</b><span>{standingForTerm(timeline, yearQuarters[0].id)}</span></div>
+          <ul>{yearQuarters.map((quarter) => <li key={quarter.id}>{quarter.season[0]}{quarter.season.slice(1).toLowerCase()} {quarter.year}</li>)}</ul>
+        </div>)}
+      </div>
+    </section></Reveal>
+
+    <Reveal><section id="agents" className="webmcp-band">
       <div>
-        <p className="eyebrow">Built on WebMCP</p>
         <h2>The page itself is the tool surface.</h2>
-        <p>CourseContext registers twelve planning tools in the browser through WebMCP. An agent working with you reads your context, checks plans against deterministic rules, and files research where you can find it. No pixel scraping, no filter clicking.</p>
+        <p>CourseContext registers twelve planning tools in the browser through WebMCP&apos;s <code>document.modelContext</code>. An agent sitting next to you reads your saved context, checks plans against deterministic rules, and files research where you can find it. No pixel scraping, no pretending to click.</p>
+        <p>Reads are annotated read-only. Writes require the workspace version they were based on, so a stale agent conflicts instead of clobbering, exactly like a second human editor would.</p>
       </div>
       <div className="tool-manifest">
         <header><b>Registered tools</b><span>document.modelContext</span></header>
@@ -69,21 +109,24 @@ export const LandingPage = () => {
           {[...readTools, ...writeTools].map(([name, note]) => <li key={name}><code>{name}</code><span>{note}</span></li>)}
         </ul>
       </div>
-    </section>
+    </section></Reveal>
 
-    <section className="institution-band">
-      <p className="eyebrow">Institutional context</p>
-      <h2>Stanford today. Built to travel.</h2>
-      <p>Every course in the 2026-27 Stanford catalog is imported and searchable, with requirement maps, WAYS tracking, and a club and research directory. Other universities plug into the same model, and your agent fills what is missing.</p>
-      <div className="institution-grid">
-        {institutionChoices.slice(0, 5).map((choice) => <article key={choice.id}>
-          <span className={choice.status === "full" ? "institution-status live" : choice.status === "custom" ? "institution-status beta" : "institution-status"}>{choice.status === "full" ? "Available" : choice.status === "custom" ? "Beta" : "Planned"}</span>
-          <h3>{choice.status === "custom" ? "Your school" : choice.shortName}</h3>
-          <p>{choice.status === "full" ? "Full 2026-27 catalog import, requirement maps, WAYS, clubs, and research." : choice.status === "custom" ? "Name your university and your agent researches and builds its reference." : "Public catalog maps onto the same reference model."}</p>
-        </article>)}
-      </div>
-    </section>
+    <Reveal><section className="institution-band">
+      <h2>Stanford today, in full.</h2>
+      <p>Every course in the {stanfordCatalogMeta.academicYear} catalog is imported and searchable: {stanfordCatalogMeta.courses.toLocaleString()} courses across {stanfordCatalogMeta.departments} departments, with published section times, WAYS designations, requirement maps, and a directory of clubs and research programs. Other universities plug into the same reference model, and at a school without a shipped pack your agent builds the reference itself, visibly and with sources.</p>
+      <ul className="institution-table">
+        {institutionChoices.map((choice) => <li key={choice.id}>
+          <b>{choice.status === "custom" ? "Another university" : choice.shortName}</b>
+          <span>{choice.status === "full" ? "Full catalog import, sections, WAYS, programs, clubs, and research." : choice.status === "custom" ? "Named at onboarding; the reference is agent-built." : "Maps onto the same reference model."}</span>
+          <em className={choice.status === "full" ? "live" : choice.status === "custom" ? "beta" : ""}>{choice.status === "full" ? "Available" : choice.status === "custom" ? "Beta" : "Planned"}</em>
+        </li>)}
+      </ul>
+    </section></Reveal>
 
-    <footer className="public-footer"><span>Built for the WebMCP Challenge</span><span>Not an official Stanford University product.</span></footer>
+    <footer className="public-footer">
+      <span>Built for the WebMCP Challenge.</span>
+      <span>Catalog imported from ExploreCourses on {importedOn}.</span>
+      <span>Independent project, not affiliated with Stanford University.</span>
+    </footer>
   </main>
 }

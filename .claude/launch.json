@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "course-context-fixture",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["COURSE_CONTEXT_E2E_FIXTURE=true", "npm", "run", "dev", "--", "-p", "3020"],
+      "port": 3020
+    }
+  ]
+}

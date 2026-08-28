@@ -152,6 +152,12 @@ describe("Supabase migration contract", () => {
     expect(proxySource).toContain("/onboarding")
   })
 
+  it("admits a browser workspace by cookie without any account machinery", () => {
+    expect(proxySource).toContain('course_context_local')
+    expect(onboardingRoute).toContain('course_context_local')
+    expect(onboardingRoute.indexOf("course_context_local")).toBeLessThan(onboardingRoute.indexOf("isSupabaseServerConfigured()"))
+  })
+
   it("validates ownership and optimistic versions before persisted commits", () => {
     expect(workspaceRoute).toContain("workspace.ownerUserId !== data.user.id")
     expect(workspaceRoute).toContain("workspace.version !== Number(body.expectedVersion) + 1")

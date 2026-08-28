@@ -30,9 +30,11 @@ export async function POST(request: Request) {
   const entryYear = Number(input.entryYear)
   const gradYear = Number(input.gradYear)
 
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true") {
-    const jar = await cookies()
-    if (jar.get("course_context_local")?.value === "1") {
+  // A browser workspace is built server-side from the same builder accounts
+  // use, then handed back for this browser's storage. No account required.
+  const jar = await cookies()
+  if (jar.get("course_context_local")?.value === "1") {
+    try {
       const workspace = buildPersonalWorkspace({
         userId: "USER-LOCAL",
         email: "",
@@ -42,6 +44,8 @@ export async function POST(request: Request) {
         gradYear
       })
       return NextResponse.json({ ok: true, workspace })
+    } catch (error) {
+      return NextResponse.json({ ok: false, message: (error as Error).message }, { status: 400 })
     }
   }
 
