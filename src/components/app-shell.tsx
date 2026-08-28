@@ -9,7 +9,7 @@ import { searchWorkspace } from "@/domain/search"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { parseTermId, termLabel } from "@/domain/timeline"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
-import { ActivityIcon, ExploreIcon, HomeIcon, LibraryIcon, PlanIcon, ProgramsIcon, SearchIcon, TogetherIcon } from "@/components/icons"
+import { ActivityIcon, ExploreIcon, HomeIcon, LibraryIcon, PlanIcon, ProfileIcon, ProgramsIcon, SearchIcon, TogetherIcon } from "@/components/icons"
 
 const navigation = [
   ["Home", "/app", "home"],
@@ -17,6 +17,7 @@ const navigation = [
   ["Stanford", "/app/explore", "explore"],
   ["Library", "/app/library", "library"],
   ["Programs", "/app/programs", "programs"],
+  ["Profile", "/app/profile", "profile"],
   ["Plan together", "/app/agent", "agent"]
 ] as const
 
@@ -26,6 +27,7 @@ const navIcon = (key: string) => {
   if (key === "explore") return <ExploreIcon />
   if (key === "library") return <LibraryIcon />
   if (key === "programs") return <ProgramsIcon />
+  if (key === "profile") return <ProfileIcon />
   return <TogetherIcon />
 }
 
@@ -36,6 +38,7 @@ const pageForPath = (pathname: string | null) => {
   if (pathname.startsWith("/app/library")) return "library"
   if (pathname.startsWith("/app/programs")) return "programs"
   if (pathname.startsWith("/app/agent")) return "agent"
+  if (pathname.startsWith("/app/profile")) return "profile"
   if (pathname.startsWith("/app/settings")) return "settings"
   if (pathname.startsWith("/app/activity")) return "activity"
   return "home"
@@ -84,7 +87,7 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
         {workspaceValue && <span className={`save-indicator ${workspaceValue.saveState}`} aria-live="polite"><i />{workspaceValue.saveState === "saving" ? "Saving" : workspaceValue.saveState === "error" ? "Not saved" : workspaceValue.mode === "fixture" ? "Saved locally" : "Saved"}</span>}
         <button className="quiet-button search-button" type="button" aria-label="Search workspace" onClick={() => setSearchOpen(true)}><SearchIcon width={15} height={15} /><span>Search workspace</span><kbd>⌘K</kbd></button>
         <button className="icon-label-button" type="button" onClick={() => setActivityOpen(true)} aria-label="Activity"><ActivityIcon width={15} height={15} /><span>Activity</span></button>
-        <Link className="avatar-button" href="/app/settings" aria-label="Account">{initials}</Link>
+        <Link className="avatar-button" href="/app/profile" aria-label="Account">{initials}</Link>
       </div>
     </header>
     <aside className="sidebar">

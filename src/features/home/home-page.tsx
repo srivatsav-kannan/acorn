@@ -28,10 +28,10 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
 
     {(goal?.summary || workspace.profile.summary) ? <section className="goal-strip">
       <div><span>Current goal</span><h2>{goal?.summary || workspace.profile.summary}</h2></div>
-      <Link href="/app/settings">Edit</Link>
+      <Link href="/app/profile">Edit</Link>
     </section> : <section className="goal-strip setup">
       <div><span>Make it yours</span><h2>Add your name and what you want help figuring out.</h2></div>
-      <Link href="/app/settings">Open Settings</Link>
+      <Link href="/app/profile">Open Profile</Link>
     </section>}
 
     <div className="home-workspace-grid">
@@ -63,7 +63,7 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
           <div><dt>Notes and research</dt><dd>{personalItems.length || "None yet"}</dd></div>
           <div><dt>Planning priorities</dt><dd>{workspace.profile.preferences.length || "None yet"}</dd></div>
         </dl>
-        <Link className="text-button" href="/app/settings">Settings</Link>
+        <Link className="text-button" href="/app/profile">Profile</Link>
       </section>
 
     </div>

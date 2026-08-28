@@ -25,6 +25,8 @@ export const ProgramsIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(pr
 
 export const TogetherIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)}><circle cx="9" cy="12" r="5.5" /><circle cx="15" cy="12" r="5.5" /></svg>
 
+export const ProfileIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)}><circle cx="12" cy="8.5" r="3.8" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></svg>
+
 export const SearchIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)}><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
 
 export const ActivityIcon = (props: SVGProps<SVGSVGElement>) => <svg {...base(props)}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2.5" /></svg>

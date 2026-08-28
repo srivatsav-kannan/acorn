@@ -127,12 +127,12 @@ describe("server demo reset", () => {
 describe("application shell", () => {
   it("renders all primary navigation and account controls", () => {
     render(<AppShell activePage="home" quarter="Autumn 2026"><div>Content</div></AppShell>)
-    for (const name of ["Home", "Plan", "Stanford", "Library", "Programs"]) {
+    for (const name of ["Home", "Plan", "Stanford", "Library", "Programs", "Profile"]) {
       expect(screen.getByRole("link", { name })).toBeVisible()
     }
     expect(screen.getByRole("button", { name: /search workspace/i })).toBeVisible()
     expect(screen.getByRole("button", { name: /activity/i })).toBeVisible()
-    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/app/settings")
+    expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/app/profile")
   })
 })
 

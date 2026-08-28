@@ -143,6 +143,7 @@ test("demo reset discards saved and in-progress edits and survives reload", asyn
 
   await page.getByRole("button", { name: "Edit profile" }).click()
   await page.getByLabel("Name").fill("Unsaved Stale Name")
+  await page.getByRole("link", { name: "Account settings" }).click()
   await page.getByRole("button", { name: "Reset demo" }).click()
 
   await expect(page).toHaveURL(/\/app$/)
