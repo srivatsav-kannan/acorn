@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { addDays, addMonths, format, startOfMonth, subDays } from "date-fns"
 import { useWorkspace } from "@/components/workspace-provider"
 import { calendarEventsForRange, isoDate, type CalendarEvent } from "@/domain/calendar"
 import { mergedOpportunities } from "@/domain/reference"
@@ -8,26 +9,24 @@ import { institutionForWorkspace } from "@/data/institutions/registry"
 import { standingForTerm, termForDate, timelineFor } from "@/domain/timeline"
 import { CAMPUS_TIMEZONE, convertZonedTime, timezoneChoices, timezoneOffsetLabel } from "@/domain/timezone"
 
-// One continuous calendar from New Student Orientation to commencement.
-// Everything timed carries a home timezone (campus Pacific unless an event
-// says otherwise), and the whole view re-expresses itself in whichever zone
-// the viewer selects, shifting dates when a conversion crosses midnight.
+// One continuous calendar from New Student Orientation to commencement. The
+// grid is a fixed lattice: cells never grow, and clicking a day or any single
+// entry pins its summary in the inspector beside the grid instead of
+// stretching rows. Everything timed carries a home timezone and the whole
+// view re-expresses itself in whichever zone the viewer selects.
 
 const yearHeadline: Record<string, string> = { "Frosh": "Freshman year", "Sophomore": "Sophomore year", "Junior": "Junior year", "Senior": "Senior year", "Fifth year": "Fifth year" }
-const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 const seasonNames: Record<string, string> = { AUTUMN: "Autumn quarter", WINTER: "Winter quarter", SPRING: "Spring quarter", SUMMER: "Summer" }
 const kindLabel: Record<string, string> = { academic: "Stanford", course: "Class", club: "Club", activity: "Activity", todo: "Todo", event: "Event" }
 const timezoneStorageKey = "acorn-display-timezone"
 
+type Inspection = { kind: "day", date: string } | { kind: "entry", entry: CalendarEvent, fromDate?: string } | null
+
 export const CalendarPage = () => {
   const value = useWorkspace()
   const timeline = timelineFor(value.workspace.profile, new Date())
-  const [monthStart, setMonthStart] = useState(() => {
-    const today = new Date()
-    return new Date(today.getFullYear(), today.getMonth(), 1)
-  })
-  const [selectedDate, setSelectedDate] = useState("")
-  const [selectedEventId, setSelectedEventId] = useState("")
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()))
+  const [inspection, setInspection] = useState<Inspection>(null)
   const [displayTimezone, setDisplayTimezone] = useState(CAMPUS_TIMEZONE)
   const [todoTitle, setTodoTitle] = useState("")
   const [todoDue, setTodoDue] = useState("")
@@ -53,25 +52,16 @@ export const CalendarPage = () => {
   const opportunities = useMemo(() => mergedOpportunities(institutionForWorkspace(value.workspace).buildOpportunities(), value.workspace.referenceOverlay?.opportunities), [value.workspace])
 
   const gridStart = useMemo(() => {
-    const start = new Date(monthStart)
-    start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
-    return start
+    const start = startOfMonth(monthStart)
+    return subDays(start, (start.getDay() + 6) % 7)
   }, [monthStart])
-  const gridDays = useMemo(() => Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(gridStart)
-    day.setDate(day.getDate() + index)
-    return day
-  }), [gridStart])
+  const gridDays = useMemo(() => Array.from({ length: 42 }, (_, index) => addDays(gridStart, index)), [gridStart])
 
   // Derive in home zones over a padded range, then re-express every timed
-  // entry in the display zone. The padding keeps events that cross midnight
+  // entry in the display zone; the padding keeps entries that cross midnight
   // during conversion from falling off the grid's edges.
   const events = useMemo(() => {
-    const paddedFrom = new Date(gridStart)
-    paddedFrom.setDate(paddedFrom.getDate() - 1)
-    const paddedTo = new Date(gridStart)
-    paddedTo.setDate(paddedTo.getDate() + 42)
-    const raw = calendarEventsForRange(value.workspace, value.catalog, opportunities, isoDate(paddedFrom), isoDate(paddedTo))
+    const raw = calendarEventsForRange(value.workspace, value.catalog, opportunities, isoDate(subDays(gridStart, 1)), isoDate(addDays(gridStart, 42)))
     return raw.map((event) => {
       if (!event.start) return event
       const homeZone = event.timezone ?? CAMPUS_TIMEZONE
@@ -92,12 +82,10 @@ export const CalendarPage = () => {
     return map
   }, [events])
 
-  const midMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 15)
-  const currentTermRef = termForDate(midMonth)
+  const currentTermRef = termForDate(addDays(monthStart, 14))
   const standing = standingForTerm(timeline, currentTermRef.id)
   const headline = yearHeadline[standing] ?? (standing === "Before entry" ? "Before Stanford" : standing || "Your calendar")
   const todayIso = isoDate(new Date())
-  const shiftMonth = (delta: number) => setMonthStart((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
 
   const openTodos = (value.workspace.todos ?? []).filter((todo) => !todo.done)
   const doneTodos = (value.workspace.todos ?? []).filter((todo) => todo.done)
@@ -117,27 +105,62 @@ export const CalendarPage = () => {
     setAddingEvent(false)
     setEventForm({ title: "", date: "", start: "", end: "", timezone: CAMPUS_TIMEZONE, description: "" })
   }
-  const removeEvent = (eventId: string) => value.onCommand({ type: "manage_event", action: "remove", eventId })
+  const removeEvent = async (eventId: string) => {
+    await value.onCommand({ type: "manage_event", action: "remove", eventId })
+    setInspection(null)
+  }
 
-  const selectedEvents = selectedDate ? eventsByDay.get(selectedDate) ?? [] : []
-  const toggleEventDetail = (id: string) => setSelectedEventId((current) => current === id ? "" : id)
+  const inspectDay = (date: string) => setInspection((current) => current?.kind === "day" && current.date === date ? null : { kind: "day", date })
+  const inspectEntry = (entry: CalendarEvent, fromDate?: string) => setInspection({ kind: "entry", entry, fromDate })
+  const inspectStoredEvent = (id: string) => {
+    const converted = events.find((event) => event.sourceId === id && event.kind === "event")
+    if (converted) { inspectEntry(converted); return }
+    const raw = (value.workspace.events ?? []).find((event) => event.id === id)
+    if (!raw) return
+    const homeZone = raw.timezone ?? CAMPUS_TIMEZONE
+    const start = raw.start ? convertZonedTime(raw.date, raw.start, homeZone, displayTimezone) : undefined
+    const end = raw.start && raw.end ? convertZonedTime(raw.date, raw.end, homeZone, displayTimezone) : undefined
+    inspectEntry({ id: `EVENT-${raw.id}`, date: start?.date ?? raw.date, start: start?.time, end: end?.time, title: raw.title, detail: raw.description, kind: "event", timezone: raw.timezone, sourceId: raw.id })
+  }
 
-  const eventDetail = (event: CalendarEvent) => <div className="event-detail" role="region" aria-label={`${event.title} details`}>
-    <p className="event-detail-when"><b>{event.start ? `${event.start}${event.end ? ` to ${event.end}` : ""}` : "All day"}</b> on {event.date}, shown in {timezoneChoices.find((choice) => choice.id === displayTimezone)?.label ?? displayTimezone}{event.timezone && event.timezone !== displayTimezone ? `; recorded in ${event.timezone}` : ""}</p>
-    {event.detail ? <p className="event-detail-description">{event.detail}</p> : <p className="event-detail-description muted">No description recorded.</p>}
-    <div className="event-detail-actions">
-      <span className={`legend-item ${event.kind}`}>{kindLabel[event.kind] ?? event.kind}</span>
-      {event.projected && <span className="muted">Projected date</span>}
-      {event.kind === "event" && event.sourceId && <button className="text-button" type="button" onClick={() => void removeEvent(event.sourceId!)}>Remove event</button>}
-      {event.kind === "todo" && event.sourceId && <button className="text-button" type="button" onClick={() => void value.onCommand({ type: "manage_todo", action: "toggle", todoId: event.sourceId })}>Mark done</button>}
-    </div>
-  </div>
+  const displayLabel = timezoneChoices.find((choice) => choice.id === displayTimezone)?.label ?? displayTimezone
+
+  const inspector = () => {
+    if (!inspection) return <p className="muted inspector-empty">Click a day, or any single entry, and its summary lands here.</p>
+    if (inspection.kind === "day") {
+      const dayEvents = eventsByDay.get(inspection.date) ?? []
+      return <>
+        <h3>{format(new Date(`${inspection.date}T12:00:00`), "EEEE, MMMM d")}</h3>
+        {dayEvents.length === 0 ? <p className="muted">Nothing scheduled.</p> : <ul className="inspector-day-list">
+          {dayEvents.map((event) => <li key={event.id}>
+            <button type="button" className="event-open" onClick={() => inspectEntry(event, inspection.date)}>
+              <b>{event.start ? `${event.start}${event.end ? ` to ${event.end}` : ""}` : "All day"}</b>
+              <span>{event.title}</span>
+            </button>
+          </li>)}
+        </ul>}
+      </>
+    }
+    const entry = inspection.entry
+    return <>
+      {inspection.fromDate && <button className="text-button inspector-back" type="button" onClick={() => setInspection({ kind: "day", date: inspection.fromDate! })}>← {inspection.fromDate}</button>}
+      <h3>{entry.title}</h3>
+      <p className="event-detail-when"><b>{entry.start ? `${entry.start}${entry.end ? ` to ${entry.end}` : ""}` : "All day"}</b> on {entry.date}, shown in {displayLabel}{entry.timezone && entry.timezone !== displayTimezone ? `; recorded in ${entry.timezone}` : ""}</p>
+      {entry.detail ? <p className="event-detail-description">{entry.detail}</p> : <p className="event-detail-description muted">No description recorded.</p>}
+      <div className="event-detail-actions">
+        <span className={`legend-item ${entry.kind}`}>{kindLabel[entry.kind] ?? entry.kind}</span>
+        {entry.projected && <span className="muted">Projected date</span>}
+        {entry.kind === "event" && entry.sourceId && <button className="text-button" type="button" onClick={() => void removeEvent(entry.sourceId!)}>Remove event</button>}
+        {entry.kind === "todo" && entry.sourceId && <button className="text-button" type="button" onClick={() => { void value.onCommand({ type: "manage_todo", action: "toggle", todoId: entry.sourceId! }); setInspection(null) }}>Mark done</button>}
+      </div>
+    </>
+  }
 
   return <div className="page calendar-page">
     <header className="page-heading calendar-heading">
       <div>
         <h1>{headline}</h1>
-        <p>{seasonNames[currentTermRef.season]} · {monthNames[monthStart.getMonth()]} {monthStart.getFullYear()}</p>
+        <p>{seasonNames[currentTermRef.season]} · {format(monthStart, "MMMM yyyy")}</p>
       </div>
       <div className="calendar-controls">
         <label className="timezone-control">
@@ -146,9 +169,9 @@ export const CalendarPage = () => {
             {timezoneChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label} ({timezoneOffsetLabel(choice.id)})</option>)}
           </select>
         </label>
-        <button className="secondary-button small" type="button" onClick={() => shiftMonth(-1)} aria-label="Previous month">← Previous</button>
-        <button className="secondary-button small" type="button" onClick={() => setMonthStart(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Today</button>
-        <button className="secondary-button small" type="button" onClick={() => shiftMonth(1)} aria-label="Next month">Next →</button>
+        <button className="secondary-button small" type="button" onClick={() => setMonthStart((current) => addMonths(current, -1))} aria-label="Previous month">← Previous</button>
+        <button className="secondary-button small" type="button" onClick={() => setMonthStart(startOfMonth(new Date()))}>Today</button>
+        <button className="secondary-button small" type="button" onClick={() => setMonthStart((current) => addMonths(current, 1))} aria-label="Next month">Next →</button>
       </div>
     </header>
 
@@ -160,14 +183,13 @@ export const CalendarPage = () => {
             const iso = isoDate(day)
             const dayEvents = eventsByDay.get(iso) ?? []
             const outside = day.getMonth() !== monthStart.getMonth()
-            const shown = dayEvents.slice(0, 3)
-            return <button key={iso} type="button" className={`calendar-cell${outside ? " outside" : ""}${iso === todayIso ? " today" : ""}${iso === selectedDate ? " selected" : ""}`} onClick={() => { setSelectedDate(iso === selectedDate ? "" : iso); setSelectedEventId("") }} aria-label={`${iso}, ${dayEvents.length} items`}>
-              <span className="calendar-cell-date">{day.getDate()}</span>
-              <span className="calendar-cell-events">
-                {shown.map((event) => <span key={event.id} className={`calendar-event-line ${event.kind}${event.projected ? " projected" : ""}`}>{event.start ? `${event.start} ` : ""}{event.title}</span>)}
-                {dayEvents.length > 3 && <span className="calendar-more">+{dayEvents.length - 3} more</span>}
-              </span>
-            </button>
+            const selected = (inspection?.kind === "day" && inspection.date === iso) || (inspection?.kind === "entry" && inspection.entry.date === iso)
+            const shown = dayEvents.slice(0, 2)
+            return <div key={iso} className={`calendar-cell${outside ? " outside" : ""}${iso === todayIso ? " today" : ""}${selected ? " selected" : ""}`}>
+              <button type="button" className="calendar-cell-date" onClick={() => inspectDay(iso)} aria-label={`Open ${iso}, ${dayEvents.length} items`}>{day.getDate()}</button>
+              {shown.map((event) => <button key={event.id} type="button" className={`calendar-chip ${event.kind}${event.projected ? " projected" : ""}`} onClick={() => inspectEntry(event, iso)} title={event.title}>{event.start ? `${event.start} ` : ""}{event.title}</button>)}
+              {dayEvents.length > 2 && <button type="button" className="calendar-more" onClick={() => inspectDay(iso)}>+{dayEvents.length - 2} more</button>}
+            </div>
           })}
         </div>
         <div className="calendar-legend">
@@ -179,21 +201,14 @@ export const CalendarPage = () => {
           <span className="legend-item todo">Todos</span>
           <span className="legend-note">Dotted entries are projected until the registrar publishes that year.</span>
         </div>
-        {selectedDate && <div className="calendar-day-detail" role="region" aria-label={`Details for ${selectedDate}`}>
-          <h2>{selectedDate}</h2>
-          {selectedEvents.length === 0 ? <p className="muted">Nothing scheduled.</p> : <ul>
-            {selectedEvents.map((event) => <li key={event.id} className={event.kind}>
-              <button type="button" className="event-open" onClick={() => toggleEventDetail(event.id)} aria-expanded={selectedEventId === event.id}>
-                <b>{event.start ? `${event.start}${event.end ? ` to ${event.end}` : ""}` : "All day"}</b>
-                <span>{event.title}{event.projected ? " (projected)" : ""}</span>
-              </button>
-              {selectedEventId === event.id && eventDetail(event)}
-            </li>)}
-          </ul>}
-        </div>}
       </section>
 
       <div className="calendar-side">
+        <aside className="todo-panel inspector-panel" aria-label="Selection details">
+          <div className="section-heading"><h2>Details</h2>{inspection && <button className="text-button" type="button" onClick={() => setInspection(null)}>Clear</button>}</div>
+          {inspector()}
+        </aside>
+
         <aside className="todo-panel events-panel" aria-label="Events">
           <div className="section-heading"><h2>Events</h2><button className="secondary-button small" type="button" onClick={() => setAddingEvent((current) => !current)}>{addingEvent ? "Cancel" : "Add event"}</button></div>
           {addingEvent && <form className="event-add" onSubmit={(event) => { event.preventDefault(); void addEvent() }}>
@@ -211,16 +226,11 @@ export const CalendarPage = () => {
           </form>}
           {upcomingEvents.length === 0 && !addingEvent ? <p className="muted side-empty">Interviews, flights, review sessions: anything with its own date and time lives here.</p> : <ul className="side-event-list">
             {upcomingEvents.map((item) => <li key={item.id}>
-              <button type="button" className="event-open" onClick={() => toggleEventDetail(`EVENT-${item.id}`)} aria-expanded={selectedEventId === `EVENT-${item.id}`}>
+              <button type="button" className="event-open" onClick={() => inspectStoredEvent(item.id)}>
                 <b>{item.date}{item.start ? ` · ${item.start}` : ""}</b>
                 <span>{item.title}</span>
                 {item.addedBy === "agent" && <em className="agent-chip">Agent</em>}
               </button>
-              {selectedEventId === `EVENT-${item.id}` && <div className="event-detail" role="region" aria-label={`${item.title} details`}>
-                <p className="event-detail-when"><b>{item.start ? `${item.start}${item.end ? ` to ${item.end}` : ""}` : "All day"}</b> on {item.date}{item.timezone ? `, recorded in ${item.timezone}` : ", campus time"}</p>
-                {item.description ? <p className="event-detail-description">{item.description}</p> : <p className="event-detail-description muted">No description recorded.</p>}
-                <div className="event-detail-actions"><button className="text-button" type="button" onClick={() => void removeEvent(item.id)}>Remove event</button></div>
-              </div>}
             </li>)}
           </ul>}
         </aside>
