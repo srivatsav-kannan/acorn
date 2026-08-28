@@ -77,7 +77,9 @@ export async function POST(request: Request) {
   }
   // A reset account re-onboards in place: the new payload replaces the old
   // snapshot under the same workspace and clears the pending flag with it.
-  if (existing && !existing.isDemo) {
+  // This covers every payload-flag reset, the shared demo account included;
+  // only a database-side demo reset goes through the demo completion function.
+  if (existing && !(existing.isDemo && existing.columnOnboardingRequired)) {
     workspace.id = existing.workspace.id
     workspace.version = existing.workspace.version + 1
     const commit = await client.rpc("commit_workspace_snapshot", {

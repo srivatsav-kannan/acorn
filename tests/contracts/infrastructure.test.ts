@@ -154,6 +154,16 @@ describe("Supabase migration contract", () => {
     expect(onboardingRoute).toContain("commit_workspace_snapshot")
   })
 
+  it("sends payload-flag re-onboarding through the commit path even for the demo account", () => {
+    // complete_demo_onboarding requires the database onboarding_required
+    // column, which the in-app reset never sets. Guarding on isDemo alone
+    // stranded a reset demo account at 'Demo onboarding is not available'.
+    const workspaceServer = readFileSync(resolve(process.cwd(), "src/lib/workspace-server.ts"), "utf8")
+    expect(workspaceServer).toContain("columnOnboardingRequired")
+    expect(onboardingRoute).toContain("existing.isDemo && existing.columnOnboardingRequired")
+    expect(onboardingRoute).not.toMatch(/existing && !existing\.isDemo\) \{/)
+  })
+
   it("protects account routes and confines browser fixture mode to automated tests", () => {
     expect(proxySource).toContain("course_context_demo")
     expect(proxySource).toContain('COURSE_CONTEXT_E2E_FIXTURE === "true"')

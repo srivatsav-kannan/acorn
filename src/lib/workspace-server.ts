@@ -4,6 +4,7 @@ import type { WorkspaceState } from "@/domain/types"
 export type WorkspaceRecord = {
   id: string
   isDemo: boolean
+  columnOnboardingRequired: boolean
   onboardingRequired: boolean
   workspace: WorkspaceState
 }
@@ -21,6 +22,10 @@ export const loadWorkspaceRecordForUser = async (client: SupabaseClient, userId:
   return {
     id: metadata.data.id,
     isDemo: Boolean(metadata.data.is_demo),
+    // The column is set by the database-side demo reset; the payload flag by
+    // the universal in-app reset. Either one sends the account to onboarding,
+    // but only the column route may use the demo-only completion function.
+    columnOnboardingRequired: Boolean(metadata.data.onboarding_required),
     onboardingRequired: Boolean(metadata.data.onboarding_required) || Boolean((snapshot.data.payload as { setupPending?: boolean } | null)?.setupPending),
     workspace
   }
