@@ -1,4 +1,4 @@
-import type { Catalog, Course, Evidence, Fixture, Meeting, Section, WorkspaceState } from "@/domain/types"
+import type { Catalog, Course, Evidence, Fixture, Meeting, Program, Section, WorkspaceState } from "@/domain/types"
 
 const meeting = (days: Meeting["days"], start: string, end: string, type: Meeting["type"] = "lecture", location = "Main Quad"): Meeting => ({
   days,
@@ -27,6 +27,32 @@ const courseRows: Array<[string, string, string, number, number, string, string[
   ["CS 229", "Machine Learning", "CS", 200, 4, "Statistical and computational learning.", ["ai"]],
   ["CS 231N", "Deep Learning for Computer Vision", "CS", 200, 4, "Visual recognition with neural networks.", ["ai", "vision"]],
   ["CS 238", "Decision Making under Uncertainty", "CS", 200, 4, "Sequential decisions and uncertainty.", ["ai"]],
+  ["CS 103", "Mathematical Foundations of Computing", "CS", 100, 5, "Proofs, discrete structures, computability, and complexity.", ["foundation", "theory"]],
+  ["CS 154", "Introduction to Automata and Complexity Theory", "CS", 100, 4, "Automata, computability, and computational complexity.", ["theory"]],
+  ["CS 155", "Computer and Network Security", "CS", 100, 3, "Principles and practice of building secure computer systems.", ["systems", "security"]],
+  ["CS 205L", "Continuous Mathematical Methods", "CS", 200, 3, "Mathematical tools for modeling and computation.", ["math", "ai"]],
+  ["CS 210", "Software Project Experience", "CS", 200, 4, "Team-based software product development.", ["product", "systems"]],
+  ["CS 230", "Deep Learning", "CS", 200, 3, "Foundations and applications of deep neural networks.", ["ai"]],
+  ["CS 246", "Mining Massive Data Sets", "CS", 200, 3, "Algorithms for large-scale data analysis.", ["ai", "data"]],
+  ["DATASCI 112", "Principles of Data Science", "DATASCI", 100, 4, "Core ideas in computational and inferential data analysis.", ["data", "foundation"]],
+  ["STATS 200", "Introduction to Statistical Inference", "STATS", 200, 4, "Probability models, estimation, and hypothesis testing.", ["data", "math"]],
+  ["STATS 202", "Data Mining and Analysis", "STATS", 200, 3, "Applied methods for finding structure in complex data.", ["data", "ai"]],
+  ["SYMSYS 1", "Minds and Machines", "SYMSYS", 1, 4, "An interdisciplinary introduction to minds, symbols, and computation.", ["cognition", "ai"]],
+  ["PSYCH 50", "Introduction to Cognitive Neuroscience", "PSYCH", 50, 4, "Neural systems underlying cognition and behavior.", ["cognition", "health"]],
+  ["PHIL 80", "Mind, Matter, and Meaning", "PHIL", 80, 4, "Philosophical questions about mind, language, and representation.", ["cognition", "humanities"]],
+  ["BIOE 101", "Systems Biology", "BIOE", 100, 3, "Quantitative approaches to biological systems.", ["health", "biology"]],
+  ["BIOE 141A", "Senior Capstone Design", "BIOE", 100, 4, "Team-based bioengineering design and capstone work.", ["health", "design"]],
+  ["BIOMEDIN 215", "Data-Driven Medicine", "BIOMEDIN", 200, 3, "Methods for working with biomedical and clinical data.", ["health", "data", "ai"]],
+  ["HUMBIO 2A", "Genetics, Evolution, and Ecology", "HUMBIO", 1, 5, "Biological foundations within the Human Biology core.", ["health", "biology"]],
+  ["HUMBIO 2B", "Culture, Evolution, and Society", "HUMBIO", 1, 5, "Behavioral and social perspectives within the Human Biology core.", ["health", "society"]],
+  ["DESIGN 1", "Designing Your Stanford", "DESIGN", 1, 2, "Design methods applied to choices and experiences at Stanford.", ["design", "planning"]],
+  ["DESIGN 161", "Designing Social Impact", "DESIGN", 100, 4, "Human-centered design for social and public challenges.", ["design", "society"]],
+  ["MS&E 120", "Probabilistic Analysis", "MS&E", 100, 4, "Probability models for engineering and management decisions.", ["math", "decision"]],
+  ["MS&E 140", "Accounting for Managers and Entrepreneurs", "MS&E", 100, 4, "Financial information for management and entrepreneurship.", ["business", "product"]],
+  ["ECON 50", "Economic Analysis I", "ECON", 50, 5, "Core microeconomic analysis.", ["economics", "theory"]],
+  ["ECON 102A", "Introduction to Statistical Methods", "ECON", 100, 5, "Statistical tools for economic analysis.", ["economics", "data"]],
+  ["COMM 166", "Virtual People", "COMM", 100, 4, "How people respond to mediated and virtual social experiences.", ["hci", "society"]],
+  ["ARTSTUDI 160", "Intro to Digital Art", "ARTSTUDI", 100, 4, "Digital tools, visual experimentation, and critical making.", ["art", "design"]],
   ["MATH 51", "Linear Algebra and Multivariable Calculus", "MATH", 50, 4, "Linear algebra and multivariable calculus.", ["math"]],
   ["MATH 104", "Applied Matrix Theory", "MATH", 100, 3, "Matrix methods and applications.", ["math"]],
   ["STATS 116", "Theory of Probability", "STATS", 100, 4, "Foundations of probability.", ["math"]],
@@ -54,6 +80,8 @@ const courses = (): Course[] => courseRows.map(([code, title, subject, level, un
   minUnits: units,
   maxUnits: units,
   tags,
+  sourceUrl: "https://explorecourses.stanford.edu/",
+  catalogYear: "2026-27",
   prerequisites: code === "CS 106B" ? ["COURSE-CS-106A"] : code === "CS 221" ? ["COURSE-CS-106B"] : undefined,
   prerequisiteUncertain: code === "CS 147B"
 }))
@@ -96,7 +124,7 @@ const sections = (): Section[] => [
   section("SECTION-STALE", "COURSE-COMM-1", 3, [meeting(["tue", "thu"], "09:00", "10:20")], ["EVIDENCE-STALE-OFFERING"])
 ]
 
-const evidence = (): Evidence[] => [
+export const buildStanfordEvidence = (): Evidence[] => [
   {
     id: "EVIDENCE-TERM-SCHEDULE",
     classification: "official",
@@ -121,6 +149,145 @@ const evidence = (): Evidence[] => [
     retrievedAt: "2026-08-20T12:00:00Z",
     expiresAt: "2027-07-01T00:00:00Z",
     confidence: 0.9,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-SYMBO-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Symbolic Systems BS program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/SYMBO-BS",
+    sourceTitle: "Stanford Bulletin: Symbolic Systems BS",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-DATSC-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Data Science BS program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/DATSC-BS",
+    sourceTitle: "Stanford Bulletin: Data Science BS",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-BMC-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Biomedical Computation BS program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/16kZ1nSLynUYAQA95BOf",
+    sourceTitle: "Stanford Bulletin: Biomedical Computation BS",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-DESIGN-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Design BS program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/DESIGN-BS",
+    sourceTitle: "Stanford Bulletin: Design BS",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-ECON-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Economics BA program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/ECON-BA",
+    sourceTitle: "Stanford Bulletin: Economics BA",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-HUMBI-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Human Biology BA program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/HUMBI-BA",
+    sourceTitle: "Stanford Bulletin: Human Biology BA",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-MGTSC-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Management Science and Engineering BS program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/MGTSC-BS",
+    sourceTitle: "Stanford Bulletin: Management Science and Engineering BS",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-BIOE-PROGRAM",
+    classification: "official",
+    authority: "program_requirements",
+    claim: "Official 2026-27 Bioengineering BS program reference.",
+    sourceUrl: "https://bulletin.stanford.edu/programs/BIOE-BS",
+    sourceTitle: "Stanford Bulletin: Bioengineering BS",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-07-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-ACADEMIC-CALENDAR",
+    classification: "official",
+    authority: "catalog",
+    claim: "Official Stanford 2026-27 academic calendar reference.",
+    sourceUrl: "https://studentservices.stanford.edu/calendar-events/academic-calendars/stanford-academic-calendar-2026-2027",
+    sourceTitle: "Stanford Academic Calendar 2026-27",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    expiresAt: "2027-08-01T00:00:00Z",
+    confidence: 1,
+    status: "current",
+    addedBy: "system",
+    untrustedExternalContent: true
+  },
+  {
+    id: "EVIDENCE-DECLARING-MAJOR",
+    classification: "official",
+    authority: "catalog",
+    claim: "Official Stanford Academic Advising guide to exploring and declaring a major.",
+    sourceUrl: "https://advising.stanford.edu/current-students/advising-student-handbook/declaring-major",
+    sourceTitle: "Stanford Academic Advising: Declaring Your Major",
+    retrievedAt: "2026-08-28T12:00:00Z",
+    confidence: 1,
     status: "current",
     addedBy: "system",
     untrustedExternalContent: true
@@ -154,8 +321,89 @@ const evidence = (): Evidence[] => [
   }
 ]
 
+export const buildStanfordCatalog = (): Catalog => ({ courses: courses(), sections: sections() })
+
+export const buildStanfordPrograms = (): Program[] => [{
+  id: "PROGRAM-CS-BS",
+  name: "Computer Science",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/CS-BS",
+  summary: "A broad computing program with foundations, systems, theory, applications, and a chosen depth area.",
+  requirements: [
+    { id: "REQUIREMENT-INTRO", title: "Programming foundation", rule: { id: "RULE-INTRO", type: "course", courseId: "COURSE-CS-106A" }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] },
+    { id: "REQUIREMENT-ABSTRACTIONS", title: "Programming abstractions", rule: { id: "RULE-ABSTRACTIONS", type: "course", courseId: "COURSE-CS-106B" }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] },
+    { id: "REQUIREMENT-ALGORITHMS", title: "Algorithms", rule: { id: "RULE-ALGORITHMS", type: "course", courseId: "COURSE-CS-161" }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] },
+    { id: "REQUIREMENT-ADVISOR", title: "Selected depth", rule: { id: "RULE-ADVISOR", type: "manual_review", reason: "Depth requirements depend on the selected CS track." }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] }
+  ]
+}, {
+  id: "PROGRAM-SYMBO-BS",
+  name: "Symbolic Systems",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/SYMBO-BS",
+  summary: "An interdisciplinary study of computation, language, cognition, logic, and intelligence.",
+  requirements: [{ id: "REQUIREMENT-SYMBO-REVIEW", title: "Core and concentration", rule: { id: "RULE-SYMBO-REVIEW", type: "manual_review", reason: "The selected concentration determines the full requirement map." }, evidenceIds: ["EVIDENCE-SYMBO-PROGRAM"] }]
+}, {
+  id: "PROGRAM-DATSC-BS",
+  name: "Data Science",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/DATSC-BS",
+  summary: "An interdisciplinary quantitative program combining computation, statistics, mathematics, and applications.",
+  requirements: [{ id: "REQUIREMENT-DATSC-REVIEW", title: "Core and subplan", rule: { id: "RULE-DATSC-REVIEW", type: "manual_review", reason: "Data Science requirements depend on the selected subplan." }, evidenceIds: ["EVIDENCE-DATSC-PROGRAM"] }]
+}, {
+  id: "PROGRAM-BMC-BS",
+  name: "Biomedical Computation",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/16kZ1nSLynUYAQA95BOf",
+  summary: "An Engineering path connecting computer science, biology, medicine, and substantial research.",
+  requirements: [{ id: "REQUIREMENT-BMC-REVIEW", title: "Foundations, depth, and research", rule: { id: "RULE-BMC-REVIEW", type: "manual_review", reason: "The official Engineering program page defines the current Biomedical Computation requirements." }, evidenceIds: ["EVIDENCE-BMC-PROGRAM"] }]
+}, {
+  id: "PROGRAM-DESIGN-BS",
+  name: "Design",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/DESIGN-BS",
+  summary: "A studio-centered program in human-centered design, technology, and creative practice.",
+  requirements: [{ id: "REQUIREMENT-DESIGN-REVIEW", title: "Core and concentration", rule: { id: "RULE-DESIGN-REVIEW", type: "manual_review", reason: "The official Design program page defines the current concentration requirements." }, evidenceIds: ["EVIDENCE-DESIGN-PROGRAM"] }]
+}, {
+  id: "PROGRAM-ECON-BA",
+  name: "Economics",
+  credential: "BA",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/ECON-BA",
+  summary: "Economic theory and empirical tools for analyzing markets, institutions, and public policy.",
+  requirements: [{ id: "REQUIREMENT-ECON-REVIEW", title: "Core, field courses, and capstone", rule: { id: "RULE-ECON-REVIEW", type: "manual_review", reason: "Use the official Economics program page for current course and grade rules." }, evidenceIds: ["EVIDENCE-ECON-PROGRAM"] }]
+}, {
+  id: "PROGRAM-HUMBI-BA",
+  name: "Human Biology",
+  credential: "BA",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/HUMBI-BA",
+  summary: "An individualized interdisciplinary program spanning biological, behavioral, social, and cultural perspectives.",
+  requirements: [{ id: "REQUIREMENT-HUMBI-REVIEW", title: "Core and area of concentration", rule: { id: "RULE-HUMBI-REVIEW", type: "manual_review", reason: "Human Biology uses an individualized area of concentration reviewed with program advisors." }, evidenceIds: ["EVIDENCE-HUMBI-PROGRAM"] }]
+}, {
+  id: "PROGRAM-MGTSC-BS",
+  name: "Management Science and Engineering",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/MGTSC-BS",
+  summary: "Mathematical modeling, systems analysis, organizations, operations, finance, and technology policy.",
+  requirements: [{ id: "REQUIREMENT-MGTSC-REVIEW", title: "Core and application areas", rule: { id: "RULE-MGTSC-REVIEW", type: "manual_review", reason: "The official program page defines the current core and three application areas." }, evidenceIds: ["EVIDENCE-MGTSC-PROGRAM"] }]
+}, {
+  id: "PROGRAM-BIOE-BS",
+  name: "Bioengineering",
+  credential: "BS",
+  catalogYear: "2026-27",
+  sourceUrl: "https://bulletin.stanford.edu/programs/BIOE-BS",
+  summary: "Engineering foundations and design applied to living systems, health, medicine, and biological research.",
+  requirements: [{ id: "REQUIREMENT-BIOE-REVIEW", title: "Engineering core, depth, and capstone", rule: { id: "RULE-BIOE-REVIEW", type: "manual_review", reason: "Use the official Bioengineering program page and School of Engineering handbook for current rules." }, evidenceIds: ["EVIDENCE-BIOE-PROGRAM"] }]
+}]
+
 export const buildFixture = (): Fixture => {
-  const catalog: Catalog = { courses: courses(), sections: sections() }
+  const catalog = buildStanfordCatalog()
   const workspace: WorkspaceState = {
     id: "WORKSPACE-DEMO",
     ownerUserId: "USER-DEMO",
@@ -214,19 +462,7 @@ export const buildFixture = (): Fixture => {
         commitments: [{ id: "COMMITMENT-LIGHT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "13:00", "15:00", "commitment", "Research lab")] }]
       }]
     }],
-    programs: [{
-      id: "PROGRAM-CS-BS",
-      name: "Computer Science",
-      credential: "BS",
-      catalogYear: "2026-27",
-      sourceUrl: "https://bulletin.stanford.edu/programs/CS-BS",
-      requirements: [
-        { id: "REQUIREMENT-INTRO", title: "Programming foundation", rule: { id: "RULE-INTRO", type: "course", courseId: "COURSE-CS-106A" }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] },
-        { id: "REQUIREMENT-ABSTRACTIONS", title: "Programming abstractions", rule: { id: "RULE-ABSTRACTIONS", type: "course", courseId: "COURSE-CS-106B" }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] },
-        { id: "REQUIREMENT-ALGORITHMS", title: "Algorithms", rule: { id: "RULE-ALGORITHMS", type: "course", courseId: "COURSE-CS-161" }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] },
-        { id: "REQUIREMENT-ADVISOR", title: "Advisor-approved depth", rule: { id: "RULE-ADVISOR", type: "manual_review", reason: "Advisor approval depends on the selected depth path." }, evidenceIds: ["EVIDENCE-PROGRAM-REQUIREMENTS"] }
-      ]
-    }],
+    programs: buildStanfordPrograms(),
     collections: [
       ["COLLECTION-INBOX", "Inbox"], ["COLLECTION-COURSES", "Courses"], ["COLLECTION-PROGRAMS", "Programs"],
       ["COLLECTION-PEOPLE", "People"], ["COLLECTION-CLUBS", "Clubs"], ["COLLECTION-RESEARCH", "Research"], ["COLLECTION-DECISIONS", "Decisions"]
@@ -256,7 +492,7 @@ export const buildFixture = (): Fixture => {
         updatedAt: "2026-08-24T12:00:00Z"
       }
     ],
-    evidence: evidence(),
+    evidence: buildStanfordEvidence(),
     uncertainties: [{
       id: "UNCERTAINTY-LIVE-OFFERING",
       title: "Verify a live course offering",

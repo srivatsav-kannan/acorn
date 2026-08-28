@@ -92,12 +92,48 @@ describe("complete command matrix", () => {
     await expect(executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_units", planCourseId: "PLANCOURSE-MATH-51", units: 0 }] }, 2, "BAD-UNITS"))).rejects.toMatchObject({ code: "COMMAND_INVALID" })
   })
 
+  it("updates the unit limit and adds and removes a real-world commitment", async () => {
+    const repository = setup()
+    await executeCommand(repository, envelope({
+      type: "edit_plan",
+      planId: "PLAN-AUT26",
+      scenarioId: "SCENARIO-PRIMARY",
+      operations: [
+        { type: "set_unit_limit", unitLimit: 17 },
+        { type: "add_commitment", commitment: { id: "COMMITMENT-TEAM", title: "Robotics team", meetings: [{ days: ["wed"], start: "18:00", end: "20:00", kind: "commitment", label: "Robotics team" }] } }
+      ]
+    }))
+    let scenario = (await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).plans[0].scenarios.find((item) => item.id === "SCENARIO-PRIMARY")!
+    expect(scenario.unitLimit).toBe(17)
+    expect(scenario.commitments).toContainEqual(expect.objectContaining({ id: "COMMITMENT-TEAM", title: "Robotics team" }))
+
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "remove_commitment", commitmentId: "COMMITMENT-TEAM" }] }, 2, "REMOVE-COMMITMENT"))
+    scenario = (await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).plans[0].scenarios.find((item) => item.id === "SCENARIO-PRIMARY")!
+    expect(scenario.commitments.some((item) => item.id === "COMMITMENT-TEAM")).toBe(false)
+  })
+
+  it("lets only the student confirm completed-course history", async () => {
+    const repository = setup()
+    await executeCommand(repository, envelope({ type: "set_completed_courses", courseIds: ["COURSE-CS-106A", "COURSE-MATH-51", "COURSE-CS-106A"] }))
+    const profile = (await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")).profile
+    expect(profile.completedCourseIds).toEqual(["COURSE-CS-106A", "COURSE-MATH-51"])
+
+    await expect(executeCommand(setup(), {
+      ...envelope({ type: "set_completed_courses", courseIds: ["COURSE-CS-106A"] }),
+      actor: { type: "agent" as const, id: "AGENT-TEST" },
+      ownerUserId: "USER-DEMO"
+    })).rejects.toMatchObject({ code: "COMMAND_INVALID", message: expect.stringContaining("student confirmation") })
+  })
+
   it.each([
     [{ type: "edit_plan", planId: "PLAN-MISSING", scenarioId: "SCENARIO-PRIMARY", operations: [] }, "Plan or scenario"],
     [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-CS-106B" } }] }, "unique"],
     [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "remove_course", planCourseId: "PLANCOURSE-MISSING" }] }, "not found"],
     [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "select_section", planCourseId: "PLANCOURSE-COMM-1", sectionId: "" }] }, "Section"],
     [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_status", planCourseId: "PLANCOURSE-MATH-51", status: "invented" }] }, "status"],
+    [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_unit_limit", unitLimit: 0 }] }, "unit limit"],
+    [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "add_commitment", commitment: { id: "COMMITMENT-INCOMPLETE", title: "Missing time", meetings: [] } }] }, "commitment"],
+    [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "remove_commitment", commitmentId: "COMMITMENT-MISSING" }] }, "not found"],
     [{ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "invented_operation" }] }, "Unsupported"],
     [{ type: "invented_command" }, "Unsupported"]
   ])("rejects invalid semantic mutations %#", async (command, message) => {

@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server"
-import { buildFixture } from "@/data/fixture"
+import { buildPersonalWorkspace } from "@/data/personal-workspace"
 import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceForUser } from "@/lib/workspace-server"
 
 type OnboardingInput = {
   name?: string
-  program?: string
-  completedCourseIds?: string[]
-  goals?: string
-  keepFridayOpen?: boolean
-  earliestStart?: string
-  unitLimit?: number
+  goal?: string
 }
 
 export async function POST(request: Request) {
@@ -21,44 +16,12 @@ export async function POST(request: Request) {
   if (await loadWorkspaceForUser(client, data.user.id)) return NextResponse.json({ ok: true, existing: true })
 
   const input = await request.json() as OnboardingInput
-  const name = input.name?.trim()
-  if (!name || name.length > 80) return NextResponse.json({ ok: false, message: "Enter your name." }, { status: 400 })
-  const unitLimit = Math.min(20, Math.max(8, Number(input.unitLimit) || 15))
-  const fixture = buildFixture()
-  const workspace = fixture.workspace
-  workspace.ownerUserId = data.user.id
-  workspace.profile.id = `PROFILE-${crypto.randomUUID()}`
-  workspace.profile.name = name
-  workspace.profile.email = data.user.email ?? ""
-  workspace.profile.isFictional = false
-  workspace.profile.declaredProgramId = input.program === "PROGRAM-CS-BS" ? "PROGRAM-CS-BS" : null
-  workspace.profile.completedCourseIds = (input.completedCourseIds ?? []).filter((id) => fixture.catalog.courses.some((course) => course.id === id))
-  workspace.profile.residentCourseIds = [...workspace.profile.completedCourseIds]
-  workspace.profile.courseGrades = {}
-  workspace.profile.earliestStart = /^\d{2}:\d{2}$/.test(input.earliestStart ?? "") ? input.earliestStart! : "08:30"
-  workspace.profile.excludedDays = input.keepFridayOpen ? ["fri"] : []
-  workspace.profile.preferences = [
-    { id: "PREFERENCE-UNIT-LIMIT", label: `Keep the quarter at or below ${unitLimit} units`, strength: "hard", value: unitLimit },
-    ...(input.keepFridayOpen ? [{ id: "PREFERENCE-NO-FRIDAY", label: "Keep Fridays open", strength: "hard" as const, value: true }] : []),
-    ...(input.goals?.trim() ? [{ id: "PREFERENCE-GOALS", label: "Current academic goals", strength: "soft" as const, value: input.goals.trim() }] : [])
-  ]
-  workspace.profile.summary = input.goals?.trim() || `${name} is building a source-backed Autumn plan.`
-  workspace.plans[0].scenarios.forEach((scenario) => { scenario.unitLimit = unitLimit })
-  workspace.activity = []
-  workspace.receipts = []
-  workspace.undoSnapshots = {}
-  workspace.contextItems = input.goals?.trim() ? [{
-    id: `GOAL-${crypto.randomUUID().toUpperCase()}`,
-    type: "goal",
-    title: "Planning goals",
-    summary: input.goals.trim(),
-    content: { text: input.goals.trim() },
-    collectionId: "COLLECTION-INBOX",
-    addedBy: { type: "human", id: data.user.id },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }] : []
+  const name = input.name?.trim() ?? ""
+  const goal = input.goal?.trim() ?? ""
+  if (!name || name.length > 80) return NextResponse.json({ ok: false, message: "Enter the name you want to use here." }, { status: 400 })
+  if (!goal || goal.length > 1200) return NextResponse.json({ ok: false, message: "Tell us what you want help figuring out." }, { status: 400 })
 
+  const workspace = buildPersonalWorkspace({ userId: data.user.id, email: data.user.email ?? "", name, goal })
   const result = await client.rpc("create_personal_workspace", { workspace_title: `${name}'s workspace`, initial_payload: workspace })
   if (result.error) return NextResponse.json({ ok: false, message: result.error.message }, { status: 400 })
   return NextResponse.json({ ok: true, workspaceId: result.data })

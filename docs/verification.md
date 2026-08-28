@@ -16,11 +16,11 @@ Full green.
 
 - ESLint passed.
 - Strict TypeScript passed.
-- 207 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
-- Statement coverage: 95.03%.
-- Branch coverage: 86.59%.
-- Function coverage: 96.42%.
-- Line coverage: 99.42%.
+- 221 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
+- Statement coverage: 95.15%.
+- Branch coverage: 88.03%.
+- Function coverage: 96.20%.
+- Line coverage: 99.47%.
 - The optimized Next.js build passed for 16 public, authentication, API, and workspace routes plus the not-found route.
 - 26 browser journeys passed across desktop and mobile Chromium profiles.
 - Two profile-specific assertions were skipped by design.
@@ -34,7 +34,7 @@ Full green.
 3. Capture a club in Library and see it immediately.
 4. Remove Design Foundations from the plan and observe the unit change.
 5. Open Activity and undo the plan mutation.
-6. Search for CS 148 in Explore and add it through the shared command path.
+6. Search for CS 148 in Stanford and add it through the shared command path.
 7. See the selected course in Plan.
 8. Inspect completed, planned, missing, and manual-review program requirements.
 9. Open the cited official program link.
@@ -53,10 +53,16 @@ Full green.
 22. Verify that unconfigured account entry fails clearly instead of simulating success.
 23. Save health-AI research through the actual WebMCP tool and require its exact returned ID to appear in workspace search and the Research Library collection.
 24. Add a healthcare planning priority through WebMCP and verify that the student can see it in Settings on desktop and mobile.
+25. Create a clean account model from only a name and open-ended goal, with no fictional student plan, history, preferences, commitments, notes, or research.
+26. Start from an empty plan and make the first real plan edit successfully.
+27. Keep the visible goal and editable profile summary synchronized.
+28. Edit a scenario unit limit and add and remove an external commitment through the semantic command journal.
+29. Require student confirmation before completed-course history can change.
+30. Browse nine Stanford program references without treating any program as the student's choice until they explicitly track it.
 
 ## Honest boundaries
 
-- Demo catalog and section data are illustrative and deterministic.
+- The Stanford reference layer includes a broader course and program index with official source links. Meeting and section examples remain illustrative planning samples and must be verified before registration.
 - The application does not enroll in courses or send messages.
-- Google and magic-link login flows, callback exchange, account onboarding, workspace creation, protected routes, server persistence, sign-out, and conflict recovery are implemented. Hosted authentication still requires a Supabase project, both migrations, environment variables, and provider configuration before the real-account journey can be executed.
+- Google and magic-link login flows, callback exchange, clean account onboarding, workspace creation, protected routes, server persistence, sign-out, and conflict recovery are implemented. The local app is connected to the hosted Supabase project and both migrations are applied. A complete fresh-account login still requires a user-controlled email link and has not been claimed as browser-verified.
 - Public deployment, video recording, and Devpost submission remain release operations outside the local test suite.

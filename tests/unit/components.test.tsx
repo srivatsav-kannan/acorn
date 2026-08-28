@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { buildFixture } from "@/data/fixture"
+import { buildPersonalWorkspace } from "@/data/personal-workspace"
 import { AppShell } from "@/components/app-shell"
 import { StatusState } from "@/components/status-state"
 import { LandingPage } from "@/features/landing/landing-page"
@@ -9,8 +10,21 @@ import { LoginPage } from "@/features/auth/login-page"
 import { PlanPage } from "@/features/plan/plan-page"
 import { LibraryPage } from "@/features/library/library-page"
 import { ProgramsPage } from "@/features/programs/programs-page"
+import { HomePage } from "@/features/home/home-page"
+import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
 
 describe("public product surfaces", () => {
+  it("asks a new account for only a name and open-ended goal", () => {
+    render(<OnboardingPage />)
+    expect(screen.getByLabelText("What should we call you?")).toBeVisible()
+    expect(screen.getByLabelText(/What would you like help with\?/)).toBeVisible()
+    expect(screen.queryByText(/completed courses/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/unit limit/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/No sample student data/i)).toBeVisible()
+  })
+
   it("explains the product and exposes both entry paths", () => {
     render(<LandingPage />)
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/academic workspace/i)
@@ -38,7 +52,7 @@ describe("public product surfaces", () => {
 describe("application shell", () => {
   it("renders all primary navigation and account controls", () => {
     render(<AppShell activePage="home" quarter="Autumn 2026"><div>Content</div></AppShell>)
-    for (const name of ["Home", "Plan", "Explore", "Library", "Programs"]) {
+    for (const name of ["Home", "Plan", "Stanford", "Library", "Programs"]) {
       expect(screen.getByRole("link", { name })).toBeVisible()
     }
     expect(screen.getByRole("button", { name: /search workspace/i })).toBeVisible()
@@ -64,6 +78,19 @@ describe("required product states", () => {
 })
 
 describe("planning workspace", () => {
+  it("renders a genuinely empty new account with useful first actions", () => {
+    const workspace = buildPersonalWorkspace({ userId: "USER-NEW", email: "new@example.com", name: "Maya", goal: "Explore several fields before choosing a major.", id: () => "ACCOUNT-ONE" })
+    const catalog = buildFixture().catalog
+    const { rerender } = render(<HomePage workspace={workspace} catalog={catalog} />)
+    expect(screen.getByRole("heading", { name: /Good to see you, Maya/i })).toBeVisible()
+    expect(screen.getByText(/Your schedule is empty/i)).toBeVisible()
+    expect(screen.getByText("Not chosen")).toBeVisible()
+    expect(screen.queryByText(/Alex/i)).not.toBeInTheDocument()
+    rerender(<PlanPage workspace={workspace} catalog={catalog} onCommand={vi.fn()} />)
+    expect(screen.getByText("No courses yet")).toBeVisible()
+    expect(screen.getByText("Ready when you are")).toBeVisible()
+  })
+
   it("shows scenarios, units, calendar, checks, backups, commitments, and inspector", () => {
     const fixture = buildFixture()
     render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
@@ -100,7 +127,7 @@ describe("planning workspace", () => {
     const fixture = buildFixture()
     render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
     await userEvent.click(screen.getByRole("button", { name: /ask agent to refine/i }))
-    expect(screen.getByRole("dialog", { name: /refine with your agent/i })).toHaveTextContent(/11.*semantic tools/i)
+    expect(screen.getByRole("dialog", { name: /refine with your agent/i })).toHaveTextContent(/changes stay visible/i)
     await userEvent.click(screen.getByRole("button", { name: /close agent handoff/i }))
     await userEvent.click(screen.getByRole("button", { name: /complete check report/i }))
     expect(screen.getByRole("dialog", { name: /complete check report/i })).toHaveTextContent(/deterministic/i)
@@ -144,10 +171,10 @@ describe("Programs", () => {
   it("shows completed, planned, missing, and uncertain requirement states", () => {
     const fixture = buildFixture()
     render(<ProgramsPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    for (const state of ["Completed", "Planned", "Missing", "Needs review"]) {
+    for (const state of ["Completed", "Planned", "Open", "Read official details"]) {
       expect(screen.getByText(state)).toBeVisible()
     }
     expect(screen.getByText(/Catalog year/i)).toBeVisible()
-    expect(screen.getByText(/Source/i)).toBeVisible()
+    expect(screen.getAllByText(/Source/i).length).toBeGreaterThan(0)
   })
 })

@@ -6,30 +6,32 @@ test("public landing enters an isolated demo and exposes every primary surface",
   await expect(page.getByRole("heading", { level: 1 })).toContainText("academic workspace")
   await page.getByRole("link", { name: "Try the demo" }).click()
   await expect(page).toHaveURL(/\/app/)
-  await expect(page.getByText("Autumn 2026")).toBeVisible()
-  for (const name of ["Home", "Plan", "Explore", "Library", "Programs"]) {
-    await expect(page.getByRole("link", { name })).toBeVisible()
+  await expect(page.getByRole("banner").getByText("Autumn 2026")).toBeVisible()
+  for (const name of ["Home", "Plan", "Stanford", "Library", "Programs"]) {
+    await expect(page.getByRole("link", { name, exact: true })).toBeVisible()
   }
 })
 
-test("account entry fails clearly when hosted authentication is not configured", async ({ page }) => {
+test("account entry reflects the active authentication configuration", async ({ page }) => {
   await page.goto("/app")
-  await expect(page).toHaveURL(/\/login\?reason=account_setup_required/)
+  await expect(page).toHaveURL(/\/login/)
   await expect(page.getByRole("heading", { name: "Sign in or create an account" })).toBeVisible()
-  await expect(page.getByText("Account storage needs setup")).toBeVisible()
+  const setupNotice = page.getByText("Account storage needs setup")
+  if (await setupNotice.isVisible()) await expect(page.getByRole("button", { name: "Continue with email" })).toBeDisabled()
+  else await expect(page.getByRole("button", { name: "Continue with email" })).toBeEnabled()
   await expect(page.getByRole("link", { name: "Use the resettable demo" })).toBeVisible()
 })
 
 test("student captures context, changes a plan, sees checks, and undoes the action", async ({ page }) => {
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Library" }).click()
+  await page.getByRole("link", { name: "Library", exact: true }).click()
   await page.getByRole("button", { name: "Add to workspace" }).click()
   await page.getByLabel("Type").selectOption("club")
   await page.getByLabel("Title").fill("Stanford Healthcare Club")
   await page.getByRole("button", { name: "Save" }).click()
   await expect(page.getByText("Stanford Healthcare Club")).toBeVisible()
 
-  await page.getByRole("link", { name: "Plan" }).click()
+  await page.getByRole("link", { name: "Plan", exact: true }).click()
   await page.getByRole("button", { name: /remove design foundations/i }).click()
   await expect(page.getByText(/12 units/i)).toBeVisible()
   await page.getByRole("button", { name: "Activity" }).click()
@@ -37,27 +39,27 @@ test("student captures context, changes a plan, sees checks, and undoes the acti
   await expect(page.getByText(/14 units/i)).toBeVisible()
 })
 
-test("Explore filters the catalog and adds a course through the shared command path", async ({ page }) => {
+test("Stanford browsing filters the catalog and adds a course through the shared command path", async ({ page }) => {
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Explore" }).click()
+  await page.getByRole("link", { name: "Stanford", exact: true }).click()
   await page.getByLabel("Search courses").fill("CS 148")
   await expect(page.getByRole("heading", { name: /CS 148/ })).toBeVisible()
   await page.getByRole("button", { name: /add CS 148 to plan/i }).click()
-  await page.getByRole("link", { name: "Plan" }).click()
+  await page.getByRole("link", { name: "Plan", exact: true }).click()
   await expect(page.getByText("CS 148")).toBeVisible()
 })
 
 test("Programs reflects planned coursework and exposes sources", async ({ page }) => {
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Programs" }).click()
+  await page.getByRole("link", { name: "Programs", exact: true }).click()
   await expect(page.getByRole("heading", { name: /Computer Science/ })).toBeVisible()
-  await expect(page.getByText("Completed")).toBeVisible()
-  await expect(page.getByText("Planned")).toBeVisible()
-  await expect(page.getByText("Needs review")).toBeVisible()
-  await expect(page.getByRole("link", { name: /official source/i })).toHaveAttribute("href", /^https:/)
-  await page.getByLabel("Program tracking status").selectOption("exploring")
+  await expect(page.getByText("Completed", { exact: true })).toBeVisible()
+  await expect(page.getByText("Planned", { exact: true })).toBeVisible()
+  await expect(page.getByText("Read official details", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: /open official page/i })).toHaveAttribute("href", /^https:/)
+  await page.getByRole("button", { name: "Stop tracking" }).click()
   await page.reload()
-  await expect(page.getByLabel("Program tracking status")).toHaveValue("exploring")
+  await expect(page.getByRole("button", { name: "Track this program" })).toBeVisible()
 })
 
 test("search, scenario comparison, and saved views are real shared workspace controls", async ({ page }, testInfo) => {
@@ -68,33 +70,27 @@ test("search, scenario comparison, and saved views are real shared workspace con
   await expect(page.getByRole("link", { name: /Professor conversation/ })).toBeVisible()
   await page.getByRole("button", { name: "Close search" }).click()
 
-  await page.getByRole("link", { name: "Plan" }).click()
+  await page.getByRole("link", { name: "Plan", exact: true }).click()
   await page.getByRole("button", { name: "Compare scenarios" }).click()
   await expect(page.getByRole("dialog", { name: "Compare scenarios" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Lighter option" })).toBeVisible()
   await page.getByRole("button", { name: "Open scenario" }).last().click()
   await expect(page.getByText("12 units")).toBeVisible()
 
-  await page.getByRole("link", { name: "Settings" }).click()
+  await page.getByRole("link", { name: "Settings", exact: true }).click()
   await page.getByRole("button", { name: "Create planning view" }).click()
   await expect(page.getByText("My planning view")).toBeVisible()
   await page.getByRole("button", { name: "Activity" }).click()
   await expect(page.getByText("configure view")).toBeVisible()
 })
 
-test("a new student can complete the full onboarding questionnaire", async ({ page }) => {
+test("a new student sees minimal goal-first onboarding", async ({ page }) => {
   await page.goto("/demo")
   await page.goto("/onboarding")
-  await page.getByLabel("Preferred name").fill("Maya")
-  await page.getByRole("button", { name: "Continue" }).click()
-  await page.getByRole("button", { name: /CS 106A/ }).click()
-  await page.getByRole("button", { name: "Continue" }).click()
-  await page.getByLabel("Goals and considerations").fill("Explore health-focused HCI while preserving research time.")
-  await page.getByRole("button", { name: "Continue" }).click()
-  await expect(page.getByRole("heading", { name: /clear starting point/i })).toBeVisible()
-  await expect(page.getByText("Maya")).toBeVisible()
-  await expect(page.getByText("1 selected")).toBeVisible()
+  await page.getByLabel("What should we call you?").fill("Maya")
+  await page.getByLabel("What would you like help with?").fill("Explore health-focused HCI while preserving research time.")
   await expect(page.getByRole("button", { name: "Create my workspace" })).toBeVisible()
+  await expect(page.getByText(/No sample student data/i)).toBeVisible()
 })
 
 test("profile, Library edits, and archives persist through reloads", async ({ page }) => {
@@ -107,7 +103,7 @@ test("profile, Library edits, and archives persist through reloads", async ({ pa
   await page.reload()
   await expect(page.getByRole("heading", { name: "Maya Patel" })).toBeVisible()
 
-  await page.getByRole("link", { name: "Library" }).click()
+  await page.getByRole("link", { name: "Library", exact: true }).click()
   await page.getByRole("button", { name: "Add to workspace" }).click()
   await page.getByLabel("Type").selectOption("person")
   await page.getByLabel("Collection", { exact: true }).selectOption("COLLECTION-PEOPLE")
@@ -133,7 +129,7 @@ test("profile, Library edits, and archives persist through reloads", async ({ pa
 
 test("course and scenario controls perform persisted semantic edits", async ({ page }) => {
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Plan" }).click()
+  await page.getByRole("link", { name: "Plan", exact: true }).click()
   await page.getByRole("button", { name: "Edit Design Foundations" }).click()
   await page.getByLabel("Plan role").selectOption("backup")
   await page.getByRole("button", { name: "Save course" }).click()
@@ -141,7 +137,7 @@ test("course and scenario controls perform persisted semantic edits", async ({ p
   await page.getByRole("tab", { name: /Lighter option/ }).click()
   await page.getByRole("button", { name: "Scenario settings" }).click()
   await page.getByLabel("Scenario name").fill("Research first")
-  await page.getByRole("button", { name: "Save name" }).click()
+  await page.getByRole("button", { name: "Save settings" }).click()
   await page.reload()
   await expect(page.getByRole("tab", { name: /Research first/ })).toBeVisible()
 })
@@ -151,10 +147,10 @@ test("agent onboarding reports connection and exposes the safe starter workflow"
     Object.defineProperty(document, "modelContext", { configurable: true, value: { registerTool() { return { unregister() {} } } } })
   })
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Agent", exact: true }).click()
-  await expect(page.getByText("WebMCP detected")).toBeVisible()
-  await expect(page.getByRole("heading", { name: "11 semantic tools" })).toBeVisible()
-  await expect(page.getByText(/search my workspace.*smallest useful atomic changes/i)).toBeVisible()
+  await page.getByRole("link", { name: "Plan together", exact: true }).click()
+  await expect(page.getByText("Agent connection available")).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Keep CourseContext open/i })).toBeVisible()
+  await expect(page.getByText(/Read what I have already saved.*smallest useful changes/i)).toBeVisible()
 })
 
 test("registers semantic WebMCP tools in a capable browser", async ({ page }) => {
@@ -221,8 +217,8 @@ test("mobile navigation, quick capture, and calendar alternative are usable", as
   test.skip(testInfo.project.name !== "mobile")
   await page.goto("/demo")
   await expect(page.getByRole("navigation", { name: "Mobile" })).toBeVisible()
-  await page.getByRole("link", { name: "Plan" }).click()
+  await page.getByRole("link", { name: "Plan", exact: true }).click()
   await expect(page.getByRole("list", { name: "Schedule list" })).toBeVisible()
-  await page.getByRole("link", { name: "Library" }).click()
+  await page.getByRole("link", { name: "Library", exact: true }).click()
   await expect(page.getByRole("button", { name: "Add to workspace" })).toBeVisible()
 })

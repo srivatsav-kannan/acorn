@@ -7,8 +7,8 @@ import { searchWorkspace } from "@/domain/search"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
 
 const navigation = [
-  ["Home", "/app", "home"], ["Plan", "/app/plan", "plan"], ["Explore", "/app/explore", "explore"],
-  ["Library", "/app/library", "library"], ["Programs", "/app/programs", "programs"], ["Agent", "/app/agent", "agent"]
+  ["Home", "/app", "home"], ["Plan", "/app/plan", "plan"], ["Stanford", "/app/explore", "explore"],
+  ["Library", "/app/library", "library"], ["Programs", "/app/programs", "programs"], ["Plan together", "/app/agent", "agent"]
 ]
 
 export const AppShell = ({ activePage, quarter, children, activity = [], onUndo }: { activePage: string, quarter: string, children: ReactNode, activity?: ActivityEntry[], onUndo?: (receiptId: string) => void }) => {
@@ -54,18 +54,18 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     <aside className="sidebar">
       <nav aria-label="Primary">
         <p className="nav-label">Workspace</p>
-        {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{({ home: "⌂", plan: "▦", explore: "⌕", library: "▤", programs: "◎", agent: "✦" } as Record<string, string>)[key]}</span>{name}</Link>)}
+        {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{({ home: "⌂", plan: "▦", explore: "S", library: "▤", programs: "◎", agent: "C" } as Record<string, string>)[key]}</span>{name}</Link>)}
       </nav>
       <div className="sidebar-context">
         <p className="nav-label">Current focus</p>
         <strong>{workspaceValue?.workspace.plans[0]?.title ?? "Autumn planning"}</strong>
-        <span>{workspaceValue?.workspace.profile.preferences[0]?.label ?? "Build a coherent quarter"}</span>
+        <span>{workspaceValue?.workspace.profile.summary || "Add a planning goal"}</span>
       </div>
       <Link className="settings-link" href="/app/settings">Settings</Link>
     </aside>
     <main id="workspace-content" className="workspace-main">{children}</main>
     {mobile && <nav className="mobile-nav" aria-label="Mobile">
-      {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "active" : ""} href={href}><span aria-hidden="true">{({ home: "⌂", plan: "▦", explore: "⌕", library: "▤", programs: "◎", agent: "✦" } as Record<string, string>)[key]}</span>{name}</Link>)}
+      {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "active" : ""} href={href}><span aria-hidden="true">{({ home: "⌂", plan: "▦", explore: "S", library: "▤", programs: "◎", agent: "C" } as Record<string, string>)[key]}</span>{name}</Link>)}
     </nav>}
     {activityOpen && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setActivityOpen(false)}>
       <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>

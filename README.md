@@ -102,18 +102,19 @@ The repository now contains a complete local challenge demo:
 
 - a polished landing page, login surface, desktop workspace, and mobile navigation.
 - Home, Plan, Explore, Library, Programs, Activity, and Settings routes.
-- a deterministic Stanford-themed fixture with fictional student data, 30 catalog courses, current-term sections, sources, requirements, constraints, backups, and a deliberate research gap.
+- an isolated fictional judge demo plus a separate Stanford reference pack with 50+ catalog courses, nine programs, official planning resources, sourced requirements, and clearly labeled sample meeting data.
 - atomic domain commands with version checks, idempotency keys, visible receipts, activity attribution, rollback, and undo.
 - deterministic checks for units, duplicates, meetings, commitments, offerings, sections, prerequisites, finals, day and time constraints, transition buffers, and stale evidence.
 - recursive requirement evaluation for completed, planned, missing, and manual-review states.
 - all 11 approved semantic WebMCP tools registered in the actual page.
 - portable JSON, Markdown, source, and activity exports.
 - resettable browser-persisted demo workspaces plus Supabase authentication, row-level security, optimistic snapshot commits, and immutable workspace history.
-- four-step account onboarding, protected workspace routes, sign-out, reload-safe persistence, version-conflict recovery, visible save state, loading and failure surfaces.
+- goal-first account onboarding that asks only for a preferred name and planning question, protected workspace routes, sign-out, reload-safe persistence, version-conflict recovery, visible save state, loading and failure surfaces.
+- clean personal workspaces that never clone the fictional demo profile or prefill a major, course history, schedule, commitment, research item, or inferred preference.
 - working profile, Library, course, scenario, program-tracking, saved-view, search, filter, archive, restore, reset, and undo controls.
 - a visible agent connection guide and official abort-signal WebMCP registration lifecycle.
 
-The catalog and schedule values in the demo fixture are illustrative. They are not a live Stanford enrollment source or official degree audit.
+Course and program references link to official Stanford sources. Meeting and section values in the challenge fixture are illustrative planning samples. CourseContext is not a live enrollment source or official degree audit.
 
 ## Run locally
 
@@ -144,7 +145,7 @@ npm run test:all
 
 The current finalization run passes:
 
-- 207 unit, property, integration, contract, security, infrastructure, and agent-sequence tests.
+- unit, property, integration, contract, security, infrastructure, and agent-sequence tests, including fresh-account contamination regressions.
 - coverage above the enforced 90% statement, 85% branch, 90% function, and 90% line gates.
 - 26 executed browser journeys across desktop and mobile, with two intentional profile-specific skips.
 - serious and critical accessibility checks on both browser profiles.

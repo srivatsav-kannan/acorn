@@ -1,6 +1,19 @@
 # CourseContext system architecture
 
-Status: implemented Stanford vertical slice with hosted release operations still pending
+Status: rebuilding the Stanford vertical slice around real accounts and progressive setup
+
+## Rebuild contract
+
+The authenticated product is no longer allowed to derive a new workspace from the fictional demo fixture. A new account contains only the preferred name and planning goal the student explicitly entered. It begins with an empty quarter scenario, no selected program, no completed courses, no commitments, no research, and no inferred constraints.
+
+CourseContext has two visibly different data layers:
+
+1. **Stanford reference** contains read-only courses, programs, official planning resources, source URLs, retrieval dates, and honest coverage notes. It is shared across accounts and versioned with the application.
+2. **My workspace** contains the student's goals, course history, program interests, plans, notes, tasks, decisions, and agent-added research. It is private, persisted in Supabase, editable, attributed, and undoable.
+
+Onboarding asks for a preferred name and one open-ended planning goal. The product asks for a major, completed courses, unit limit, schedule constraints, or commitments only when the student starts a task that needs that information. The ordinary interface never requires a student to understand WebMCP, schemas, tool names, IDs, or context injection.
+
+The fictional Alex Chen workspace remains an isolated judge demo only. Demo objects must never enter an authenticated workspace.
 
 This document is the product and technical source of truth for CourseContext. It describes the complete intended system, then identifies the smaller challenge release that proves the central interaction.
 
@@ -401,14 +414,12 @@ The page should demonstrate the product within the first viewport. It should not
 
 ### 8.2 Onboarding
 
-Onboarding is four short steps:
+Onboarding is one focused screen with two fields:
 
-1. Choose the planning quarter
-2. Add completed or current courses, or use the seeded demo profile
-3. Select declared and prospective programs
-4. Add constraints, commitments, interests, and workload preferences
+1. Preferred name
+2. An open-ended description of what the student wants help figuring out
 
-Every step can be skipped and completed later. The product shows why a field matters before asking for it. The agent can help fill missing context after onboarding.
+The account starts with an empty Autumn scenario and one visible goal item created from the student's own words. Program selection, completed courses, unit limits, time constraints, commitments, interests, and workload preferences are added later through the relevant working surface. The product explains why each field matters at the moment it asks.
 
 ### 8.3 Home
 
@@ -521,7 +532,7 @@ Stanford credentials are never collected. Stanford SSO is outside the challenge 
 2. The user chooses Google or email.
 3. The identity provider completes authentication.
 4. The server establishes a secure session in an HttpOnly cookie.
-5. The user completes the four-step onboarding flow.
+5. The user completes the two-field goal-first onboarding flow.
 6. The server atomically creates a private workspace, owner membership, first snapshot, and first version record.
 7. The user lands on Home.
 

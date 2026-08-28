@@ -101,7 +101,7 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-017: Real end-user accounts
 
 - Priority: hard
-- Requirement: A new user can create an account, complete onboarding, receive an isolated workspace, sign out, sign back in, and recover the same persisted state. Demo identity and authenticated identity must never be conflated.
+- Requirement: A new user can create an account, complete onboarding, receive a genuinely empty personal workspace, sign out, sign back in, and recover the same persisted state. Authenticated workspaces must never be cloned from, patched from, or contaminated by the fictional demo persona.
 
 ### REQ-018: End-to-end persistence
 
@@ -116,7 +116,7 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-020: Human and agent onboarding
 
 - Priority: hard
-- Requirement: Human onboarding captures enough academic context to create a useful first workspace. Agent onboarding is machine-native through tool descriptions and planning context, with a visible connection guide and reusable starter prompt for the student.
+- Requirement: Human onboarding asks only for a preferred name and one open-ended description of what the student wants help with. Additional questions appear progressively when a real task requires them. Agent onboarding is machine-native through tool descriptions and planning context, while the student sees only plain-language guidance.
 
 ### REQ-021: Product-grade feedback and motion
 
@@ -127,6 +127,31 @@ Stanford students who currently move among class search, degree progress, advisi
 
 - Priority: hard
 - Requirement: Saving research must atomically store its provenance and create or update a normal, searchable Library source item in the Research collection. A successful tool response must return the visible item ID and must not claim a visible change unless the student can find that item through the UI and workspace search.
+
+### REQ-023: Institutional reference and personal context are separate
+
+- Priority: hard
+- Requirement: Stanford courses, programs, policies, and official sources live in a versioned read-only institutional reference layer. Student notes and agent research live in a personal workspace overlay. The interface must always identify the source, retrieval date, and whether information is official, student-provided, agent-added, experiential, or derived.
+
+### REQ-024: Progressive task setup
+
+- Priority: hard
+- Requirement: The application begins with the student's goal and reveals scheduling, program, workload, time, and course-history questions only when they affect the current task. No user is forced through a demo-shaped questionnaire.
+
+### REQ-025: Nontechnical collaboration
+
+- Priority: hard
+- Requirement: A student can collaborate with an agent using ordinary requests without understanding WebMCP, schemas, IDs, context injection, or tool setup. The interface explains what the agent can see and change, shows every change in normal product language, and provides direct edit and undo controls.
+
+### REQ-026: Honest empty states
+
+- Priority: hard
+- Requirement: A new account begins with no selected major, completed courses, schedule, commitments, research, decisions, or inferred preferences. Empty states explain the next useful action and never fabricate progress or prepopulate personal choices.
+
+### REQ-027: Useful Stanford depth
+
+- Priority: hard
+- Requirement: The product ships with a broad, source-attributed Stanford reference pack covering courses, programs, and planning resources. Institutional data may be updated by a controlled import process. Agent discoveries remain user-specific overlays until explicitly curated into a future reference release.
 
 ## Non-goals for the challenge build
 

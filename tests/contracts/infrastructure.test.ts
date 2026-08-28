@@ -6,6 +6,8 @@ import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/su
 
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/0001_identity_and_workspace.sql"), "utf8")
 const onboardingMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0002_account_onboarding.sql"), "utf8")
+const onboardingRoute = readFileSync(resolve(process.cwd(), "src/app/api/onboarding/route.ts"), "utf8")
+const personalWorkspaceBuilder = readFileSync(resolve(process.cwd(), "src/data/personal-workspace.ts"), "utf8")
 const proxySource = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8")
 const workspaceRoute = readFileSync(resolve(process.cwd(), "src/app/api/workspace/route.ts"), "utf8")
 
@@ -55,6 +57,13 @@ describe("Supabase migration contract", () => {
     expect(migration).toMatch(/versions_insert_editors[\s\S]*owner', 'editor/)
   })
 
+  it("uses explicit Data API grants when automatic table exposure is disabled", () => {
+    expect(migration).toContain("revoke all on table public.users")
+    expect(migration).toContain("grant select, update on table public.users, public.workspaces, public.workspace_snapshots to authenticated")
+    expect(migration).toContain("grant select, insert on table public.terms_acceptances, public.workspace_versions to authenticated")
+    expect(migration).toContain("revoke all on function public.commit_workspace_snapshot")
+  })
+
   it("uses optimistic versions and immutable history in one database function", () => {
     expect(migration).toContain("commit_workspace_snapshot")
     expect(migration).toContain("version = expected_version")
@@ -74,6 +83,17 @@ describe("Supabase migration contract", () => {
     expect(onboardingMigration).toContain("workspace_memberships")
     expect(onboardingMigration).toContain("workspace_snapshots")
     expect(onboardingMigration).toContain("revoke all on function public.create_personal_workspace")
+  })
+
+  it("builds authenticated accounts without importing the fictional fixture", () => {
+    expect(onboardingRoute).toContain("buildPersonalWorkspace")
+    expect(onboardingRoute).not.toContain("buildFixture")
+    expect(personalWorkspaceBuilder).not.toContain("buildFixture")
+    expect(personalWorkspaceBuilder).toContain("declaredProgramId: null")
+    expect(personalWorkspaceBuilder).toContain("completedCourseIds: []")
+    expect(personalWorkspaceBuilder).toContain("preferences: []")
+    expect(personalWorkspaceBuilder).toContain("courses: []")
+    expect(personalWorkspaceBuilder).toContain("commitments: []")
   })
 
   it("protects account routes while preserving an explicit demo session", () => {

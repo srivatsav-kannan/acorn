@@ -105,6 +105,12 @@ create policy versions_read_members on public.workspace_versions for select usin
 create policy versions_insert_editors on public.workspace_versions for insert with check (public.is_workspace_member(workspace_id, array['owner', 'editor']));
 create policy demo_sessions_read_self on public.demo_sessions for select using (user_id = auth.uid() and expires_at > now());
 
+revoke all on table public.users, public.workspaces, public.workspace_memberships, public.terms_acceptances, public.workspace_snapshots, public.workspace_versions, public.demo_sessions from anon, authenticated;
+grant select, update on table public.users, public.workspaces, public.workspace_snapshots to authenticated;
+grant select, insert, update, delete on table public.workspace_memberships to authenticated;
+grant select, insert on table public.terms_acceptances, public.workspace_versions to authenticated;
+grant select on table public.demo_sessions to authenticated;
+
 create or replace function public.commit_workspace_snapshot(
   target_workspace_id uuid,
   expected_version bigint,
@@ -179,4 +185,5 @@ end
 $$;
 
 revoke all on function public.delete_expired_demo_workspaces() from public;
+revoke all on function public.commit_workspace_snapshot(uuid, bigint, jsonb, text) from public;
 grant execute on function public.commit_workspace_snapshot(uuid, bigint, jsonb, text) to authenticated;

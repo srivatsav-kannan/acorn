@@ -2,6 +2,21 @@
 
 This plan turns the architecture into a verified Stanford vertical slice. The order protects the central product claim. Shared state, visible context, and semantic WebMCP operations must work before visual breadth or institution expansion.
 
+## Rebuild acceptance journey
+
+The current rebuild is accepted only after this exact journey works against hosted Supabase:
+
+1. Create a new account and complete a two-field onboarding form.
+2. Land in a workspace with the entered goal and no fictional or inferred personal data.
+3. Browse sourced Stanford courses, programs, and planning resources without those records becoming personal choices.
+4. Add a course to an empty quarter plan, change its role or section, and reload the page.
+5. Add and edit a Library item, then confirm that it persists after sign-out and sign-in.
+6. Let an agent search the same workspace, save sourced research, and make one plan edit.
+7. Find the agent-added item in the normal interface with attribution, source, and undo.
+8. Run the complete plan check and show every unresolved issue in plain language.
+
+Component tests and fixture tests do not satisfy this acceptance journey. The final claim requires a fresh hosted account and browser observation.
+
 ## 1. Delivery strategy
 
 Build one vertical journey from authentication through plan revision before adding secondary screens.

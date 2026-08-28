@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { buildFixture } from "@/data/fixture"
+import { buildFixture, buildStanfordCatalog } from "@/data/fixture"
 import { executeCommand } from "@/domain/commands"
 import { materializeLegacyResearch } from "@/domain/evidence"
 import type { Catalog, WorkspaceState } from "@/domain/types"
@@ -29,9 +29,8 @@ const storageKey = "course-context-demo-v1"
 export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, userId, userEmail = "", catalog }: { children: ReactNode, mode?: "demo" | "account", initialWorkspace?: WorkspaceState, userId?: string, userEmail?: string, catalog?: Catalog }) => {
   const router = useRouter()
   const [initial] = useState(() => {
-    const fixture = buildFixture()
-    if (initialWorkspace) return { workspace: materializeLegacyResearch(initialWorkspace), catalog: catalog ?? fixture.catalog }
-    return fixture
+    if (initialWorkspace) return { workspace: materializeLegacyResearch(initialWorkspace), catalog: catalog ?? buildStanfordCatalog() }
+    return buildFixture()
   })
   const [workspace, setWorkspace] = useState(initial.workspace)
   const [repository, setRepository] = useState(() => new MemoryWorkspaceRepository(initial))

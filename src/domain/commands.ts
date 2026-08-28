@@ -28,6 +28,14 @@ const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, 
       changed.push({ type: "plan_scenario", id: candidate.id })
       continue
     }
+    if (operation.type === "set_unit_limit") {
+      const target = plan.scenarios.find((item) => item.id === command.scenarioId)
+      const limit = Number(operation.unitLimit)
+      if (!target || !Number.isInteger(limit) || limit < 1 || limit > 30) throw commandError("Scenario and unit limit are required")
+      target.unitLimit = limit
+      changed.push({ type: "plan_scenario", id: target.id })
+      continue
+    }
     if (operation.type === "rename_scenario") {
       const target = plan.scenarios.find((item) => item.id === command.scenarioId)
       if (!target || !String(operation.name ?? "").trim()) throw commandError("Scenario and name are required")
@@ -79,6 +87,16 @@ const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, 
       if (!item || !Number.isInteger(units) || units < 1 || units > 20) throw commandError("Plan course or units are invalid")
       item.units = units
       changed.push({ type: "plan_course", id: item.id })
+    } else if (operation.type === "add_commitment") {
+      const commitment = operation.commitment
+      if (!commitment?.id || !String(commitment.title ?? "").trim() || !Array.isArray(commitment.meetings) || commitment.meetings.length === 0 || scenario.commitments.some((item) => item.id === commitment.id)) throw commandError("A valid unique commitment is required")
+      scenario.commitments.push(structuredClone(commitment))
+      changed.push({ type: "commitment", id: commitment.id })
+    } else if (operation.type === "remove_commitment") {
+      const index = scenario.commitments.findIndex((item) => item.id === operation.commitmentId)
+      if (index < 0) throw commandError("Commitment not found")
+      const [removed] = scenario.commitments.splice(index, 1)
+      changed.push({ type: "commitment", id: removed.id })
     } else throw commandError("Unsupported plan operation")
   }
 }
@@ -158,11 +176,28 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (envelope.actor.type !== "human") throw commandError("Profile identity changes require the student")
       const patch = command.patch as Record<string, unknown>
       if (typeof patch.name === "string" && patch.name.trim()) workspace.profile.name = patch.name.trim().slice(0, 80)
-      if (typeof patch.summary === "string") workspace.profile.summary = patch.summary.trim().slice(0, 600)
+      if (typeof patch.summary === "string") {
+        workspace.profile.summary = patch.summary.trim().slice(0, 1200)
+        const goal = workspace.contextItems.find((item) => item.type === "goal" && !item.archived)
+        if (goal) {
+          goal.summary = workspace.profile.summary
+          goal.content = { ...goal.content, text: workspace.profile.summary }
+          goal.updatedAt = new Date().toISOString()
+          changed.push({ type: "context_item", id: goal.id })
+        }
+      }
       if (typeof patch.earliestStart === "string" && /^\d{2}:\d{2}$/.test(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
       if (typeof patch.latestEnd === "string" && /^\d{2}:\d{2}$/.test(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))
       if (patch.declaredProgramId === null || (typeof patch.declaredProgramId === "string" && workspace.programs.some((program) => program.id === patch.declaredProgramId))) workspace.profile.declaredProgramId = patch.declaredProgramId as string | null
+      changed.push({ type: "student_profile", id: workspace.profile.id })
+    } else if (command.type === "set_completed_courses") {
+      if (envelope.actor.type !== "human") throw commandError("Completed courses require student confirmation")
+      const courseIds = command.courseIds as string[]
+      if (!Array.isArray(courseIds) || courseIds.some((id) => typeof id !== "string")) throw commandError("Completed courses must be a list")
+      workspace.profile.completedCourseIds = [...new Set(courseIds)]
+      workspace.profile.residentCourseIds = workspace.profile.residentCourseIds.filter((id) => workspace.profile.completedCourseIds.includes(id))
+      workspace.profile.courseGrades = Object.fromEntries(Object.entries(workspace.profile.courseGrades).filter(([id]) => workspace.profile.completedCourseIds.includes(id)))
       changed.push({ type: "student_profile", id: workspace.profile.id })
     } else if (command.type === "edit_plan") {
       applyPlanOperations(workspace, command, changed)

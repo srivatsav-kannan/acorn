@@ -23,6 +23,8 @@ export type Course = {
   prerequisites?: string[]
   prerequisiteUncertain?: boolean
   tags: string[]
+  sourceUrl?: string
+  catalogYear?: string
 }
 
 export type Section = {
@@ -137,6 +139,7 @@ export type Program = {
   credential: string
   catalogYear: string
   sourceUrl: string
+  summary?: string
   requirements: ProgramRequirement[]
 }
 
