@@ -321,7 +321,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "export_context",
       description: "Export the workspace as paged markdown for your context window. Sections: all, profile, goals, todos, scratchpad, plans, courses, clubs, activities, calendar, history. Follow nextCursor until it is absent; each page stays near five thousand characters. Pull this once at the start of a session instead of many small reads.",
-      inputSchema: schema({ section: { type: "string", enum: ["all", "profile", "goals", "todos", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"], description: "Section to export; defaults to all" }, cursor: field("number", "Page cursor returned by the previous call") }),
+      inputSchema: schema({ section: { type: "string", enum: ["all", "profile", "goals", "todos", "events", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"], description: "Section to export; defaults to all" }, cursor: field("number", "Page cursor returned by the previous call") }),
       annotations: annotations(true),
       examples: [{ section: "all" }],
       execute: async ({ section = "all", cursor = 0 }) => {
@@ -387,6 +387,14 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       annotations: annotations(false, true),
       examples: [],
       execute: async (input) => mutate(input, { type: "annotate_course", courseId: input.courseId, note: input.text ? { text: input.text } : undefined, removeNoteId: input.removeNoteId })
+    },
+    {
+      name: "manage_event",
+      description: "Add, update, or remove a standalone calendar event: an interview, a flight, a review session. Events take a date, optional HH:MM start and end, an optional IANA timezone (campus Pacific time when omitted), and a description. Actions: add or update with an event object, remove with an eventId.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), action: { type: "string", enum: ["add", "update", "remove"], description: "What to do" }, event: { type: "object", additionalProperties: false, description: "For add and update; reuse an ID to update", properties: { id: field("string", "Stable ID; omit to create"), title: field("string", "Short event title"), description: field("string", "What this is and anything worth remembering"), date: field("string", "YYYY-MM-DD"), start: field("string", "24h HH:MM"), end: field("string", "24h HH:MM"), timezone: field("string", "IANA zone such as America/New_York") }, required: ["title", "date"] }, eventId: field("string", "For remove") }, ["expectedVersion", "idempotencyKey", "action"]),
+      annotations: annotations(false),
+      examples: [],
+      execute: async (input) => mutate(input, { type: "manage_event", action: input.action, event: input.event, eventId: input.eventId })
     },
     {
       name: "manage_activity",

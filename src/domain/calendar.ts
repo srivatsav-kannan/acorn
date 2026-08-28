@@ -6,7 +6,7 @@ import type { Catalog, Day, Opportunity, WorkspaceState } from "@/domain/types"
 // reference data. Nothing is stored twice: planning a course, marking a club,
 // or adding an activity is enough for its dates to appear here.
 
-export type CalendarEventKind = "academic" | "course" | "club" | "activity" | "todo"
+export type CalendarEventKind = "academic" | "course" | "club" | "activity" | "todo" | "event"
 
 export type CalendarEvent = {
   id: string
@@ -16,6 +16,8 @@ export type CalendarEvent = {
   title: string
   detail?: string
   kind: CalendarEventKind
+  timezone?: string
+  sourceId?: string
   projected?: boolean
   noClasses?: boolean
 }
@@ -128,7 +130,13 @@ export const calendarEventsForRange = (workspace: WorkspaceState, catalog: Catal
 
   for (const todo of workspace.todos ?? []) {
     if (todo.due && !todo.done && within(todo.due, from, to)) {
-      events.push({ id: `TODO-${todo.id}`, date: todo.due, title: todo.title, detail: todo.detail, kind: "todo" })
+      events.push({ id: `TODO-${todo.id}`, date: todo.due, start: todo.dueTime, title: todo.title, detail: todo.detail, kind: "todo", sourceId: todo.id })
+    }
+  }
+
+  for (const item of workspace.events ?? []) {
+    if (within(item.date, from, to)) {
+      events.push({ id: `EVENT-${item.id}`, date: item.date, start: item.start, end: item.end, title: item.title, detail: item.description, kind: "event", timezone: item.timezone, sourceId: item.id })
     }
   }
 

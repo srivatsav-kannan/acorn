@@ -200,6 +200,26 @@ input, select, textarea { accent-color: var(--cardinal); }
 .todo-source.agent { background: var(--gold); }
 .todo-source.human { background: var(--navy-soft); }
 .todo-done summary { margin-top: 10px; color: var(--muted); font-weight: 800; cursor: pointer; }
+.calendar-side { display: grid; gap: 16px; align-content: start; }
+.calendar-event-line.event { background: #ecdfcb; color: #4a2c1a; }
+.legend-item.event::before { background: #8a6a45; }
+.timezone-control select { min-height: 34px; padding: 0 10px; font-size: 12.5px; }
+.event-add, .todo-add { display: grid; gap: 8px; margin-bottom: 12px; }
+.event-add-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px; }
+.event-add .primary-button, .todo-add .primary-button { justify-self: start; }
+.side-empty { font-size: 13px; line-height: 1.55; }
+.side-event-list { margin: 0; padding: 0; list-style: none; }
+.side-event-list li { padding: 8px 0; border-top: 1.5px solid var(--line); }
+.event-open { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; width: 100%; border: 0; padding: 2px 0; background: none; text-align: left; }
+.event-open:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.event-open b { flex: 0 0 auto; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.event-open span { font-size: 13.5px; font-weight: 700; }
+.event-open em { margin-left: auto; }
+.event-detail { margin: 8px 0 4px; padding: 10px 12px; border: 1.5px dashed var(--border); border-radius: 10px; background: var(--paper); }
+.event-detail-when { margin: 0 0 6px; font-size: 12.5px; }
+.event-detail-description { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; white-space: pre-line; }
+.event-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12px; font-weight: 700; }
+.calendar-day-detail li { flex-direction: column; align-items: stretch; gap: 2px; }
 
 /* ---------- Courses ---------- */
 .subtab-row { display: flex; gap: 8px; margin-bottom: 18px; }

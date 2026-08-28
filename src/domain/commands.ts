@@ -4,6 +4,7 @@ import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
 import { applyAcademicHistory, validateAcademicHistoryPatch } from "@/domain/history"
 import { emptyOverlay, validateOpportunity, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
 import { assertSafeExternalUrl } from "@/domain/security"
+import { isValidTimezone } from "@/domain/timezone"
 import { compareTerms, parseTermId, termLabel } from "@/domain/timeline"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
@@ -34,6 +35,7 @@ const primaryVisibleType: Record<string, string> = {
   add_reference_program: "reference_program",
   extend_reference_opportunity: "reference_opportunity",
   manage_todo: "todo",
+  manage_event: "event",
   upsert_activity: "activity",
   remove_activity: "activity",
   annotate_course: "course_note",
@@ -380,11 +382,15 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         if (!title) throw commandError("A todo needs a title")
         const due = command.todo?.due ? String(command.todo.due) : undefined
         if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw commandError("A todo due date uses YYYY-MM-DD")
+        const dueTime = command.todo?.dueTime ? String(command.todo.dueTime) : undefined
+        if (dueTime && !/^\d{2}:\d{2}$/.test(dueTime)) throw commandError("A todo due time uses 24h HH:MM")
+        if (dueTime && !due) throw commandError("A due time needs a due date")
         const todo = {
           id: String(command.todo?.id ?? `TODO-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`),
           title,
           detail: typeof command.todo?.detail === "string" && command.todo.detail.trim() ? command.todo.detail.trim().slice(0, 300) : undefined,
           due,
+          dueTime,
           done: false,
           source: envelope.actor.type === "agent" ? "agent" as const : "human" as const,
           createdAt: new Date().toISOString()
@@ -403,6 +409,43 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
           changed.push({ type: "todo", id: removed.id })
         }
       } else throw commandError("Todo action must be add, toggle, or remove")
+    } else if (command.type === "manage_event") {
+      workspace.events = Array.isArray(workspace.events) ? workspace.events : []
+      const action = String(command.action ?? "")
+      if (action === "remove") {
+        const index = workspace.events.findIndex((item) => item.id === command.eventId)
+        if (index < 0) throw commandError("Event not found")
+        const [removed] = workspace.events.splice(index, 1)
+        changed.push({ type: "event", id: removed.id })
+      } else if (action === "add" || action === "update") {
+        const input = command.event ?? {}
+        const title = String(input.title ?? "").trim().slice(0, 100)
+        if (!title) throw commandError("An event needs a title")
+        const date = String(input.date ?? "")
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw commandError("An event date uses YYYY-MM-DD")
+        const time = /^\d{2}:\d{2}$/
+        for (const bound of [input.start, input.end]) if (bound && !time.test(String(bound))) throw commandError("Event times use 24h HH:MM")
+        if (input.end && !input.start) throw commandError("An end time needs a start time")
+        const timezone = input.timezone ? String(input.timezone) : undefined
+        if (timezone && !isValidTimezone(timezone)) throw commandError("Unknown timezone; use an IANA name such as America/New_York")
+        const event = {
+          id: String(input.id ?? `EVENT-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`),
+          title,
+          description: typeof input.description === "string" && input.description.trim() ? input.description.trim().slice(0, 600) : undefined,
+          date,
+          start: input.start ? String(input.start) : undefined,
+          end: input.end ? String(input.end) : undefined,
+          timezone,
+          addedBy: envelope.actor.type === "agent" ? "agent" as const : "human" as const,
+          createdAt: new Date().toISOString()
+        }
+        const index = workspace.events.findIndex((item) => item.id === event.id)
+        if (action === "add" && index >= 0) throw commandError("Event ID already exists")
+        if (action === "update" && index < 0) throw commandError("Event not found")
+        if (index >= 0) workspace.events[index] = { ...event, createdAt: workspace.events[index].createdAt }
+        else workspace.events.push(event)
+        changed.push({ type: "event", id: event.id })
+      } else throw commandError("Event action must be add, update, or remove")
     } else if (command.type === "set_course_interest") {
       const courseId = String(command.courseId ?? "").trim()
       if (!courseId) throw commandError("A course ID is required")

@@ -86,6 +86,7 @@ export const defaultSystemTodos = () => [
 // shape so every page and tool can rely on it.
 export const normalizeWorkspaceShape = (workspace: WorkspaceState): WorkspaceState => {
   workspace.todos = Array.isArray(workspace.todos) ? workspace.todos : defaultSystemTodos()
+  workspace.events = Array.isArray(workspace.events) ? workspace.events : []
   workspace.interestedCourseIds = Array.isArray(workspace.interestedCourseIds) ? workspace.interestedCourseIds : []
   workspace.interestedOpportunityIds = Array.isArray(workspace.interestedOpportunityIds) ? workspace.interestedOpportunityIds : []
   workspace.courseNotes = workspace.courseNotes && typeof workspace.courseNotes === "object" ? workspace.courseNotes : {}

@@ -122,6 +122,27 @@ test("the calendar carries registrar dates, todos, and planned classes", async (
   await expect(page.locator(".calendar-grid").getByText("CS 106B").first()).toBeVisible()
 })
 
+test("timed events carry descriptions and re-express in other timezones", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile")
+  await page.goto("/demo")
+  await page.getByRole("link", { name: "Calendar", exact: true }).click()
+  await page.getByRole("button", { name: "Add event" }).click()
+  await page.getByLabel("Event title").fill("CURIS interview")
+  await page.getByLabel("Event date").fill(todayIso())
+  await page.getByLabel("Start time").fill("15:00")
+  await page.getByLabel("Event description").fill("Zoom link arrives by email.")
+  await page.getByRole("button", { name: "Add event", exact: true }).click()
+  const row = page.locator(".side-event-list").getByRole("button", { name: /CURIS interview/ })
+  await row.click()
+  await expect(page.getByText("Zoom link arrives by email.")).toBeVisible()
+  await expect(page.locator(".calendar-grid").getByText(/15:00 CURIS interview/).first()).toBeVisible()
+  await page.getByLabel("Times shown in").selectOption("America/New_York")
+  await expect(page.locator(".calendar-grid").getByText(/18:00 CURIS interview/).first()).toBeVisible()
+  await page.reload()
+  await expect(page.getByLabel("Times shown in").first()).toHaveValue("America/New_York")
+  await page.getByLabel("Times shown in").first().selectOption("America/Los_Angeles")
+})
+
 test("profile edits identity and treats the two dates as a guarded rebuild", async ({ page }) => {
   await page.goto("/demo")
   await page.getByRole("link", { name: "Account" }).click()
@@ -200,7 +221,7 @@ test("registers the full semantic tool surface in a capable browser", async ({ p
     Object.defineProperty(window, "__registeredTools", { get: () => [...names] })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(18)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(19)
   expect(await page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools)).toContain("export_context")
 })
 
@@ -219,7 +240,7 @@ test("agent research and tracker edits become visible workspace state", async ({
     Object.defineProperty(window, "__courseContextTools", { value: tools })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(18)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(19)
   const result = await page.evaluate(async () => {
     const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
     const context = await tools.get("get_planning_context")!.execute({}) as { version: number }

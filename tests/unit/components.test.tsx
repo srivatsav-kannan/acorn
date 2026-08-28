@@ -162,6 +162,21 @@ describe("calendar", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Add$/ }))
     expect(await screen.findByText("Email Prof. Rivera")).toBeVisible()
   })
+
+  it("keeps events separate from todos, with descriptions behind a click", async () => {
+    renderInWorkspace(<CalendarPage />)
+    expect(screen.getByRole("heading", { name: "Events" })).toBeVisible()
+    expect(screen.getByRole("heading", { name: "Todos" })).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: "Add event" }))
+    await userEvent.type(screen.getByLabelText("Event title"), "Flight home")
+    await userEvent.type(screen.getByLabelText("Event date"), "2026-12-13")
+    await userEvent.type(screen.getByLabelText("Event description"), "SFO to CDG over winter closure.")
+    await userEvent.click(screen.getByRole("button", { name: /^Add event$/ }))
+    const row = await screen.findByRole("button", { name: /Flight home/ })
+    await userEvent.click(row)
+    expect(await screen.findByText("SFO to CDG over winter closure.")).toBeVisible()
+    expect(screen.getByLabelText("Times shown in")).toBeVisible()
+  })
 })
 
 describe("courses and clubs", () => {

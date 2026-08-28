@@ -101,6 +101,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     undoSnapshots: {},
     referenceOverlay: { courses: [], sections: [] },
     todos: defaultSystemTodos(),
+    events: [],
     interestedCourseIds: [],
     interestedOpportunityIds: [],
     courseNotes: {},

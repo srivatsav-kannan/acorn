@@ -120,6 +120,7 @@ export const buildFixture = (): Fixture => {
     undoSnapshots: {},
     referenceOverlay: { courses: [], sections: [] },
     todos: defaultSystemTodos(),
+    events: [],
     interestedCourseIds: [],
     interestedOpportunityIds: [],
     courseNotes: {},

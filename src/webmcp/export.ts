@@ -7,9 +7,9 @@ import type { Catalog, Opportunity, WorkspaceState } from "@/domain/types"
 // small markdown blocks. The tool layer pages over these blocks; every entity
 // carries its stable ID in backticks so the agent can act on what it read.
 
-type Section = "profile" | "goals" | "todos" | "scratchpad" | "plans" | "courses" | "clubs" | "activities" | "calendar" | "history"
+type Section = "profile" | "goals" | "todos" | "events" | "scratchpad" | "plans" | "courses" | "clubs" | "activities" | "calendar" | "history"
 
-const order: Section[] = ["profile", "goals", "todos", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"]
+const order: Section[] = ["profile", "goals", "todos", "events", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"]
 
 export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opportunities: Opportunity[], section: string, now: Date): string[] => {
   const sections: Section[] = section === "all" ? order : order.includes(section as Section) ? [section as Section] : order
@@ -36,6 +36,10 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       const open = (workspace.todos ?? []).filter((todo) => !todo.done)
       const done = (workspace.todos ?? []).filter((todo) => todo.done)
       blocks.push([`## Todos (${open.length} open)`, ...open.map((todo) => `- [ ] ${todo.title}${todo.due ? ` (due ${todo.due})` : ""}${todo.detail ? `: ${todo.detail}` : ""} \`${todo.id}\``), ...(done.length ? [`Done: ${done.map((todo) => todo.title).join("; ")}`] : [])].join("\n"))
+    }
+    if (current === "events") {
+      const upcoming = (workspace.events ?? []).slice().sort((a, b) => a.date.localeCompare(b.date))
+      blocks.push([`## Events (${upcoming.length})`, ...(upcoming.length ? upcoming.map((event) => `- ${event.date}${event.start ? ` ${event.start}${event.end ? ` to ${event.end}` : ""}` : ""}${event.timezone ? ` ${event.timezone}` : ""}: ${event.title}${event.description ? `. ${event.description}` : ""} \`${event.id}\``) : ["None recorded."])].join("\n"))
     }
     if (current === "scratchpad") {
       const items = workspace.contextItems.filter((item) => !item.archived)

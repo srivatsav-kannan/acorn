@@ -254,8 +254,24 @@ export type TodoItem = {
   title: string
   detail?: string
   due?: string
+  dueTime?: string
   done: boolean
   source: "human" | "agent" | "system"
+  createdAt: string
+}
+
+// A standalone calendar entry the student or agent placed directly: an
+// interview, a flight, a review session. It records its own timezone so the
+// calendar can re-express it wherever the viewer happens to be.
+export type WorkspaceEvent = {
+  id: string
+  title: string
+  description?: string
+  date: string
+  start?: string
+  end?: string
+  timezone?: string
+  addedBy: "human" | "agent"
   createdAt: string
 }
 
@@ -313,6 +329,7 @@ export type WorkspaceState = {
   referenceOverlay?: ReferenceOverlay
   setupPending?: boolean
   todos: TodoItem[]
+  events: WorkspaceEvent[]
   interestedCourseIds: string[]
   interestedOpportunityIds: string[]
   courseNotes: Record<string, CourseNote[]>

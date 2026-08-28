@@ -22,6 +22,7 @@ const expectedNames = [
   "manage_todo",
   "set_interest",
   "annotate_course",
+  "manage_event",
   "manage_activity"
 ]
 

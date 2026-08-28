@@ -18,6 +18,7 @@ const tools: Array<[string, string]> = [
   ["get_program_progress", "Requirement-by-requirement evaluation"],
   ["edit_plan", "Adds and removes planned courses"],
   ["manage_todo", "Adds and completes todos"],
+  ["manage_event", "Places dated, timed, timezone-aware events"],
   ["set_interest", "Marks courses and clubs interesting"],
   ["annotate_course", "Attaches notes to courses"],
   ["manage_activity", "Tracks recurring commitments"],
