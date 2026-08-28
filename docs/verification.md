@@ -16,20 +16,20 @@ Full green.
 
 - ESLint passed.
 - Strict TypeScript passed.
-- 224 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed.
-- Statement coverage: 94.67%.
-- Branch coverage: 88.24%.
-- Function coverage: 94.31%.
-- Line coverage: 99.11%.
-- The optimized Next.js build passed for 16 public, authentication, API, and workspace routes plus the not-found route.
-- 26 browser journeys passed across desktop and mobile Chromium profiles.
+- 235 unit, property, integration, contract, security, infrastructure, component, and agent-sequence tests passed, including the institution registry and reference overlay suite.
+- Statement coverage: 94.4%.
+- Branch coverage: 87.2%.
+- Function coverage: 93.3%.
+- Line coverage: 98.95%.
+- The optimized Next.js build passed for 18 public, authentication, API, and workspace routes plus the not-found route.
+- 28 browser journeys passed across desktop and mobile Chromium profiles.
 - Two profile-specific assertions were skipped by design.
 - Serious and critical accessibility violations: zero in both browser profiles.
-- The in-app browser discovered all 11 WebMCP tools from the rendered Plan route.
+- The in-app browser discovered all 12 WebMCP tools from the rendered Plan route.
 
 ## Verified journeys
 
-1. Enter the isolated demo from the public landing page.
+1. Enter the automated demo fixture from the public landing page.
 2. Navigate every primary workspace surface.
 3. Capture a club in Library and see it immediately.
 4. Remove Design Foundations from the plan and observe the unit change.
@@ -38,7 +38,7 @@ Full green.
 7. See the selected course in Plan.
 8. Inspect completed, planned, missing, and manual-review program requirements.
 9. Open the cited official program link.
-10. Register the six read tools and five mutation tools through `document.modelContext`.
+10. Register the six read tools and six mutation tools through `document.modelContext`.
 11. Use mobile navigation, quick capture, and the schedule list alternative.
 12. Search durable workspace context from the global command surface.
 13. Compare two genuinely different quarter scenarios and open the lighter option.
@@ -63,10 +63,13 @@ Full green.
 32. Reject an authenticated render that does not receive real account workspace data instead of falling back to the demo fixture.
 33. Return the active account plan and scenario IDs to an agent before plan editing.
 34. Edit any protected weekday or weekend day rather than assuming a Friday-only preference.
+35. Reset the automated demo fixture from saved and in-progress profile edits and confirm the canonical state survives reload.
+36. Verify the production demo contract uses server-only credentials, an explicitly marked Supabase workspace, immutable reset history, session revocation, and onboarding after reset.
 
 ## Honest boundaries
 
 - The Stanford reference layer includes a broader course and program index with official source links. Meeting and section examples remain illustrative planning samples and must be verified before registration.
 - The application does not enroll in courses or send messages.
-- Email magic-link login, callback exchange, clean account onboarding, workspace creation, protected routes, server persistence, sign-out, and conflict recovery are implemented. Google login is hidden unless its provider is explicitly enabled. The local app is connected to the hosted Supabase project and both migrations are applied. A complete fresh-account login still requires a user-controlled email link and has not been claimed as browser-verified.
+- Email magic-link login, callback exchange, clean account onboarding, workspace creation, protected routes, server persistence, sign-out, and conflict recovery are implemented. Google login is hidden unless its provider is explicitly enabled. Personal email delivery still needs custom SMTP before it can be called production-ready.
+- Automated browser journeys use an explicitly gated local fixture adapter. The production `/demo` path uses Supabase and cannot be called live-verified until migration 0003 is applied and the permanent demo Auth user is created.
 - Public deployment, video recording, and Devpost submission remain release operations outside the local test suite.

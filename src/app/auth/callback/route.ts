@@ -23,7 +23,5 @@ export async function GET(request: NextRequest) {
   })
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) return NextResponse.redirect(new URL("/login?error=auth_callback", origin))
-  const response = NextResponse.redirect(new URL(next, origin))
-  response.cookies.set("course_context_demo", "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 })
-  return response
+  return NextResponse.redirect(new URL(next, origin))
 }

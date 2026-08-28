@@ -77,7 +77,9 @@ It must pass:
 
 ### Architecture 9: authentication
 
-- Demo state is isolated by browser profile and can be reset
+- Production demo login uses a permanent Supabase identity and server-stored workspace
+- Demo reset preserves identity, membership, workspace ID, and history while requiring onboarding again
+- The browser-only fixture adapter is gated to the isolated automated-test server
 - Returning account sessions restore the server workspace
 - Sign-out removes access
 - Production adapter rejects incomplete configuration
@@ -169,6 +171,7 @@ It must pass:
 - Atomic evidence and Research card creation
 - Agent-added priorities visible through student Settings
 - Registration and unregistration lifecycle
+- Reference overlay additions validated, merged into search and checks, visible, and removable
 
 ### Architecture 19 through 23: application, data, and versioning
 
@@ -248,7 +251,8 @@ Every mutation is tested for:
 - unsupported requirement rule
 - plan version conflict
 - repository failure during a bulk command
-- expired demo session
+- unauthorized demo reset
+- demo workspace waiting for onboarding
 - unauthorized workspace ID
 - offline mutation
 - malformed external URL

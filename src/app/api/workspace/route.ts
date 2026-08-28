@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { WorkspaceState } from "@/domain/types"
 import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
-import { loadWorkspaceForUser } from "@/lib/workspace-server"
+import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
 const unauthorized = () => NextResponse.json({ ok: false, code: "UNAUTHORIZED", message: "Sign in again to continue." }, { status: 401 })
 
@@ -10,9 +10,9 @@ export async function GET() {
   const client = await createCourseContextServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return unauthorized()
-  const workspace = await loadWorkspaceForUser(client, data.user.id)
-  if (!workspace) return NextResponse.json({ ok: false, code: "WORKSPACE_NOT_FOUND" }, { status: 404 })
-  return NextResponse.json({ ok: true, workspace })
+  const record = await loadWorkspaceRecordForUser(client, data.user.id)
+  if (!record || record.onboardingRequired) return NextResponse.json({ ok: false, code: "WORKSPACE_NOT_FOUND" }, { status: 404 })
+  return NextResponse.json({ ok: true, workspace: record.workspace })
 }
 
 export async function PUT(request: Request) {
@@ -25,8 +25,9 @@ export async function PUT(request: Request) {
   if (!workspace || !Number.isInteger(body.expectedVersion) || workspace.version !== Number(body.expectedVersion) + 1 || workspace.ownerUserId !== data.user.id) {
     return NextResponse.json({ ok: false, code: "INVALID_WORKSPACE", message: "The workspace payload or version is invalid." }, { status: 400 })
   }
-  const current = await loadWorkspaceForUser(client, data.user.id)
-  if (!current || current.id !== workspace.id) return NextResponse.json({ ok: false, code: "FORBIDDEN" }, { status: 403 })
+  const currentRecord = await loadWorkspaceRecordForUser(client, data.user.id)
+  const current = currentRecord?.workspace
+  if (!currentRecord || currentRecord.onboardingRequired || !current || current.id !== workspace.id) return NextResponse.json({ ok: false, code: "FORBIDDEN" }, { status: 403 })
   const result = await client.rpc("commit_workspace_snapshot", {
     target_workspace_id: workspace.id,
     expected_version: body.expectedVersion,

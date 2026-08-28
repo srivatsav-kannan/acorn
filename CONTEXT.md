@@ -156,12 +156,12 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-028: Honest authentication choices
 
 - Priority: hard
-- Requirement: The login page shows only providers that are actually enabled for the deployment. Email magic-link login is the primary path until another provider has been configured and verified. The form must have clear spacing, one obvious next action, and no disabled provider theater.
+- Requirement: The login page shows only authentication paths that work in the deployment. Personal accounts may use email magic links. The public demo uses a fixed Supabase account through a dedicated "Sign in with demo credentials" action and never depends on the shared email sender. The page must have one clear hierarchy and no provider theater.
 
 ### REQ-029: No authenticated demo coupling
 
 - Priority: hard
-- Requirement: Authenticated code paths must fail closed when account data is missing. They must never fall back to the demo fixture, a demo owner ID, demo plan IDs, a particular major, a particular subject, or a Friday-only preference model. Static tool guidance must tell an agent to discover current workspace IDs before editing.
+- Requirement: Personal account code paths must fail closed when account data is missing. They must never fall back to a fictional profile, demo owner ID, demo plan IDs, a particular major, a particular subject, or a Friday-only preference model. The demo account is explicitly marked in server data and uses the same authenticated repository, commands, history, and WebMCP path as a personal account.
 
 ### REQ-030: General personal constraints
 
@@ -171,7 +171,18 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-031: Verifiable demo reset
 
 - Status: active
-- Requirement: Resetting the public demo must discard every persisted demo mutation, abandon any in-progress page-local edit state, restart from the canonical fixture, and take the user to a visibly fresh workspace. The browser suite must prove the reset survives a reload.
+- Priority: hard
+- Requirement: The public demo is a permanent Supabase identity with a server-stored workspace. Reset must preserve the Auth user, workspace, membership, and immutable history while replacing the active snapshot with an onboarding state, revoking the browser session, and returning to demo login. The next demo sign-in must begin at onboarding. Production must never use browser storage as the demo database.
+
+### REQ-032: Direct login copy
+
+- Priority: hard
+- Requirement: Login must focus on authentication. Remove the marketing panel, numbered claims, "workspace that remembers" language, and "resettable demo" language. The demo entry action must state that it signs in with demo credentials.
+
+### REQ-033: Dynamic institutional reference
+
+- Priority: hard
+- Requirement: The shipped institutional pack is a versioned baseline, not a ceiling. A student's agent can add a missing course, section, or program fact to a private workspace reference overlay through a dedicated WebMCP tool. Overlay additions require a classified source, merge into search, planning, and checks, appear visibly labeled in the catalog UI, and can be removed by the student. Other universities are represented honestly as planned adapters until real data ships.
 
 ## Non-goals for the challenge build
 
@@ -186,14 +197,16 @@ Stanford students who currently move among class search, degree progress, advisi
 
 - Product name: CourseContext.
 - Visual identity: editorial academic workspace using paper, ink, Stanford red, navy, and restrained elevation.
-- Demo persona: fictional student Alex Chen with a CS-first plan, design interest, protected Friday, and research goals.
+- Demo account: permanent shared Supabase identity. A reset returns it to onboarding. The scripted challenge journey may enter the fictional Alex Chen scenario during onboarding, but that profile is never hardcoded into the authenticated reset state.
 - Data posture: deterministic illustrative fixture for the judged demo. Live Stanford ingestion remains a post-challenge adapter.
-- Tool surface: six read tools and five mutation tools listed in `README.md` and implemented in `src/webmcp/tools.ts`.
+- Tool surface: six read tools and six mutation tools listed in `README.md` and implemented in `src/webmcp/tools.ts`. `extend_reference` is the pathway for agent-supplied institutional context.
 - Verification baseline: UI-only browser journeys, semantic WebMCP contract tests, deterministic domain tests, accessibility checks, and coverage gates.
 
 ## Remaining release work
 
-- Complete a fresh email-link create, sign-out, sign-in, and recovery journey against the connected hosted Supabase project.
+- Apply the server-backed demo migration and create the permanent demo Auth user.
+- Complete the demo credential login, onboarding, persistence, reset, sign-out, and second onboarding journey against the connected hosted Supabase project.
+- Configure custom SMTP before claiming personal email signup is production-ready.
 - Deploy the verified build to a public HTTPS URL.
 - Record the under-three-minute public demo video with real WebMCP use.
 - Replace illustrative schedule data with a verified public Stanford snapshot if challenge time permits.

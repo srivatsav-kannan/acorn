@@ -6,6 +6,7 @@ import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/su
 
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/0001_identity_and_workspace.sql"), "utf8")
 const onboardingMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0002_account_onboarding.sql"), "utf8")
+const demoMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0003_server_backed_demo.sql"), "utf8")
 const onboardingRoute = readFileSync(resolve(process.cwd(), "src/app/api/onboarding/route.ts"), "utf8")
 const personalWorkspaceBuilder = readFileSync(resolve(process.cwd(), "src/data/personal-workspace.ts"), "utf8")
 const proxySource = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8")
@@ -13,6 +14,9 @@ const workspaceRoute = readFileSync(resolve(process.cwd(), "src/app/api/workspac
 const workspaceProvider = readFileSync(resolve(process.cwd(), "src/components/workspace-provider.tsx"), "utf8")
 const commandEngine = readFileSync(resolve(process.cwd(), "src/domain/commands.ts"), "utf8")
 const loginPage = readFileSync(resolve(process.cwd(), "src/features/auth/login-page.tsx"), "utf8")
+const demoLoginRoute = readFileSync(resolve(process.cwd(), "src/app/api/auth/demo/route.ts"), "utf8")
+const demoResetRoute = readFileSync(resolve(process.cwd(), "src/app/api/demo/reset/route.ts"), "utf8")
+const demoAccountConfig = readFileSync(resolve(process.cwd(), "src/lib/demo-account.ts"), "utf8")
 
 describe("authentication configuration", () => {
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -88,6 +92,37 @@ describe("Supabase migration contract", () => {
     expect(onboardingMigration).toContain("revoke all on function public.create_personal_workspace")
   })
 
+  it("keeps the demo identity and workspace while resetting the active snapshot to onboarding", () => {
+    const resetFunction = demoMigration.slice(
+      demoMigration.indexOf("create or replace function public.reset_demo_workspace"),
+      demoMigration.indexOf("create or replace function public.complete_demo_onboarding")
+    )
+    expect(demoMigration).toContain("onboarding_required boolean not null default false")
+    expect(demoMigration).toContain("is_permanent_demo boolean not null default false")
+    expect(demoMigration).toContain("reset_demo_workspace")
+    expect(resetFunction).toContain("public.is_demo_identity()")
+    expect(resetFunction).toContain("workspace.is_permanent_demo = true")
+    expect(resetFunction).toContain("for update of snapshot")
+    expect(demoMigration).toContain("onboarding_required = true")
+    expect(demoMigration).toContain("insert into public.workspace_versions")
+    expect(resetFunction).not.toMatch(/delete from public\.(users|workspaces|workspace_memberships)/)
+    expect(demoMigration).toContain("workspace.is_permanent_demo = false")
+    expect(demoMigration).toContain("workspace.onboarding_required = false")
+    expect(demoResetRoute).toContain("reset_demo_workspace")
+    expect(demoResetRoute).toContain("client.auth.signOut()")
+  })
+
+  it("authenticates the demo through server-only credentials", () => {
+    expect(demoAccountConfig).toContain("COURSE_CONTEXT_DEMO_EMAIL")
+    expect(demoAccountConfig).toContain("COURSE_CONTEXT_DEMO_PASSWORD")
+    expect(demoAccountConfig).not.toContain("NEXT_PUBLIC")
+    expect(demoLoginRoute).toContain("signInWithPassword")
+    expect(loginPage).toContain("/api/auth/demo")
+    expect(loginPage).toContain("Sign in with demo credentials")
+    expect(loginPage).not.toContain("workspace that remembers")
+    expect(loginPage).not.toContain("resettable demo")
+  })
+
   it("builds authenticated accounts without importing the fictional fixture", () => {
     expect(onboardingRoute).toContain("buildPersonalWorkspace")
     expect(onboardingRoute).not.toContain("buildFixture")
@@ -110,8 +145,9 @@ describe("Supabase migration contract", () => {
     expect(loginPage).toContain("{googleEnabled &&")
   })
 
-  it("protects account routes while preserving an explicit demo session", () => {
+  it("protects account routes and confines browser fixture mode to automated tests", () => {
     expect(proxySource).toContain("course_context_demo")
+    expect(proxySource).toContain('COURSE_CONTEXT_E2E_FIXTURE === "true"')
     expect(proxySource).toContain("client.auth.getUser()")
     expect(proxySource).toContain("/onboarding")
   })

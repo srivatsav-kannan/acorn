@@ -3,9 +3,12 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { listInstitutionChoices } from "@/data/institutions/registry"
 
 export const OnboardingPage = () => {
   const router = useRouter()
+  const institutionChoices = listInstitutionChoices()
+  const [institutionId, setInstitutionId] = useState(institutionChoices.find((choice) => choice.status === "full")?.id ?? "INSTITUTION-STANFORD")
   const [name, setName] = useState("")
   const [goal, setGoal] = useState("")
   const [busy, setBusy] = useState(false)
@@ -19,7 +22,7 @@ export const OnboardingPage = () => {
     const response = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, goal })
+      body: JSON.stringify({ name, goal, institutionId })
     })
     const result = await response.json() as { ok?: boolean, message?: string }
     if (!response.ok || !result.ok) {
@@ -51,15 +54,32 @@ export const OnboardingPage = () => {
         <div>
           <p className="eyebrow">Create your workspace</p>
           <h2>Tell us just enough to begin.</h2>
-          <p>Nothing here is sent to Stanford.</p>
+          <p>Nothing here is sent to your university.</p>
         </div>
+        <fieldset className="institution-picker">
+          <legend>Where are you studying?</legend>
+          <div>
+            {institutionChoices.map((choice) => <button
+              key={choice.id}
+              type="button"
+              className={choice.id === institutionId ? "selected" : ""}
+              disabled={choice.status !== "full"}
+              aria-pressed={choice.id === institutionId}
+              onClick={() => setInstitutionId(choice.id)}
+            >
+              <strong>{choice.shortName}</strong>
+              <small>{choice.status === "full" ? "Reference pack included" : "Coming soon"}</small>
+            </button>)}
+          </div>
+          <p>Not on the list yet? Start with the closest match. Your agent can add missing courses and programs with sources once you are in.</p>
+        </fieldset>
         <label>
           <span>What should we call you?</span>
           <input autoFocus autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your preferred name" maxLength={80} />
         </label>
         <label>
           <span>What would you like help with?</span>
-          <textarea rows={7} value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="I am planning my first quarter and want to explore computer science without overloading myself." maxLength={1200} />
+          <textarea rows={6} value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="I am planning my first quarter and want to explore computer science without overloading myself." maxLength={1200} />
           <small>Write naturally. You can change this later.</small>
         </label>
         {error && <p className="form-error onboarding-error" role="alert">{error}</p>}

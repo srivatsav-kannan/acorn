@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
   const protectedRoute = protectedPrefixes.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
   if (!protectedRoute) return response
-  if (request.cookies.get("course_context_demo")?.value === "1") return response
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && request.cookies.get("course_context_demo")?.value === "1") return response
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY

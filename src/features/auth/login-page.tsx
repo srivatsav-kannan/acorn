@@ -1,17 +1,20 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
 import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
-export const LoginPage = ({ initialStatus = "" }: { initialStatus?: string }) => {
+export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoRequested = false, nextPath = "/app" }: { initialStatus?: string, demoAvailable?: boolean, demoRequested?: boolean, nextPath?: string }) => {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState(initialStatus)
+  const [linkSentTo, setLinkSentTo] = useState("")
   const [busy, setBusy] = useState(false)
   const configured = isSupabaseConfigured()
   const googleEnabled = configured && process.env.NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED === "true"
 
-  const redirectTo = () => `${window.location.origin}/auth/callback?next=/app`
+  const redirectTo = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
   const requireConfiguration = () => {
     if (configured) return true
     setStatus("Account sign-in is not configured for this deployment.")
@@ -31,38 +34,57 @@ export const LoginPage = ({ initialStatus = "" }: { initialStatus?: string }) =>
     setBusy(true)
     setStatus("")
     const { error } = await createCourseContextBrowserClient().auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo() } })
-    setStatus(error ? error.message : "Check your inbox. We sent a secure sign-in link that returns you to CourseContext.")
+    if (error) setStatus(error.message)
+    else setLinkSentTo(email)
     setBusy(false)
   }
 
-  return <main className="auth-page auth-rebuild">
+  const signInToDemo = async () => {
+    setBusy(true)
+    setStatus("")
+    const response = await fetch("/api/auth/demo", { method: "POST" })
+    const result = await response.json() as { ok?: boolean, message?: string }
+    if (!response.ok || !result.ok) {
+      setStatus(result.message ?? "Demo login is unavailable.")
+      setBusy(false)
+      return
+    }
+    router.replace("/app")
+    router.refresh()
+  }
+
+  const demoLogin = demoAvailable && <section className={demoRequested ? "demo-login-card requested" : "demo-login-card"}>
+    <div><strong>Demo account</strong><span>Sign in with the shared demo credentials. Changes are saved to the server.</span></div>
+    <button className={demoRequested ? "primary-button full" : "secondary-button full"} type="button" onClick={signInToDemo} disabled={busy}>{busy ? "Signing in…" : "Sign in with demo credentials"}</button>
+  </section>
+
+  return <main className="auth-page auth-simple">
     <Link className="wordmark auth-wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
-    <section className="auth-shell">
-      <aside className="auth-intro-panel">
-        <p className="eyebrow">A workspace that remembers</p>
-        <h1>Plan Stanford without rebuilding your context every time.</h1>
-        <p>Your courses, questions, sources, and decisions stay together. You and your agent work from the same information.</p>
-        <ul>
-          <li><span>01</span><div><strong>Begin with your goal</strong><small>No major, schedule, or preferences are assumed.</small></div></li>
-          <li><span>02</span><div><strong>Build at your pace</strong><small>Add only the details that become useful.</small></div></li>
-          <li><span>03</span><div><strong>Keep control</strong><small>Every change is visible, editable, and recoverable.</small></div></li>
-        </ul>
-      </aside>
+    <section className="auth-card">
+      <header>
+        <p className="eyebrow">CourseContext</p>
+        <h1>Sign in</h1>
+        <p>Use your email, or sign in with the shared demo account.</p>
+      </header>
+      {demoRequested && demoLogin}
+      {demoRequested && <div className="auth-divider"><span>Personal account</span></div>}
       <div className="auth-form-panel">
-        <p className="eyebrow">Sign in or create an account</p>
-        <h2>Continue with your email</h2>
-        <p className="auth-form-intro">No password is needed. We will send a one-time link to your inbox.</p>
-        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is not connected to account storage. You can still explore the resettable demo.</span></div>}
-        <form className="email-login-form" onSubmit={sendEmailLink}>
+        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is not connected to account storage.</span></div>}
+        {linkSentTo ? <div className="link-sent" role="status">
+          <span className="link-sent-mark" aria-hidden="true">✓</span>
+          <strong>Check your inbox</strong>
+          <p>We sent a one-time sign-in link to <b>{linkSentTo}</b>. Opening it returns you here, signed in.</p>
+          <button className="text-button" type="button" onClick={() => { setLinkSentTo(""); setEmail("") }}>Use a different email</button>
+        </div> : <form className="email-login-form" onSubmit={sendEmailLink}>
           <label htmlFor="email">Email address</label>
           <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" required disabled={!configured}/>
-          <small>Use an inbox you can open on this device.</small>
+          <small>We will send a one-time sign-in link. No password needed.</small>
           <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Sending link…" : "Email me a sign-in link"}</button>
-        </form>
-        {googleEnabled && <><div className="or"><span />or<span /></div><button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy}><span aria-hidden="true">G</span>Continue with Google</button></>}
-        {status && <p className="auth-status" role="status">{status}</p>}
-        <div className="auth-demo-option"><span>Want to look around first?</span><a className="demo-link" href="/demo">Open the resettable demo</a></div>
+        </form>}
+        {googleEnabled && !linkSentTo && <><div className="or"><span />or<span /></div><button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy}><span aria-hidden="true">G</span>Continue with Google</button></>}
       </div>
+      {!demoRequested && demoLogin}
+      {status && <p className="auth-status" role="status">{status}</p>}
     </section>
     <p className="auth-note">Independent planning aid. CourseContext cannot enroll or submit forms for you.</p>
   </main>

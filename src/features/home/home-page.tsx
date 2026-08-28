@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { PlanIcon } from "@/components/icons"
 import type { Catalog, WorkspaceState } from "@/domain/types"
 
 export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, catalog: Catalog }) => {
@@ -41,7 +42,7 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
       <section className="home-plan-summary">
         <div className="section-heading"><div><p className="eyebrow">Autumn 2026</p><h2>Current plan</h2></div><Link href="/app/plan">Open</Link></div>
         <div className="home-plan-numbers"><strong>{units}</strong><span>units</span><strong>{active.length}</strong><span>courses</span></div>
-        {active.length === 0 ? <div className="compact-empty"><span>▦</span><p><strong>Your schedule is empty.</strong><small>Add only the courses you choose.</small></p></div> : <ul className="home-course-list">{active.slice(0, 4).map((item) => { const course = catalog.courses.find((candidate) => candidate.id === item.courseId); return <li key={item.id}><b>{course?.code ?? item.courseId}</b><span>{course?.title ?? "Course"}</span><em>{item.units}</em></li> })}</ul>}
+        {active.length === 0 ? <div className="compact-empty"><span><PlanIcon width={19} height={19} /></span><p><strong>Your schedule is empty.</strong><small>Add only the courses you choose.</small></p></div> : <ul className="home-course-list">{active.slice(0, 4).map((item) => { const course = catalog.courses.find((candidate) => candidate.id === item.courseId); return <li key={item.id}><b>{course?.code ?? item.courseId}</b><span>{course?.title ?? "Course"}</span><em>{item.units}</em></li> })}</ul>}
       </section>
 
       <section className="home-context-summary">

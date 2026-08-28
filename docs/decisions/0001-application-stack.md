@@ -8,12 +8,12 @@ Date: 2026-08-27
 
 Use Next.js 16 with React 19 and TypeScript for the application. Keep domain logic in framework-independent modules. Use Zod for all external and command boundaries.
 
-Use a repository interface with two runtime modes:
+Use a repository interface with two execution modes:
 
-- deterministic local demo storage for development, tests, previews, and a credential-free judge path
-- Supabase Auth and Postgres adapters for configured production accounts
+- Supabase Auth and Postgres for personal accounts and the permanent public demo account
+- a deterministic local fixture adapter available only to the isolated automated-test server
 
-The local demo path is a real product mode, not a UI mock. It uses the same domain commands, validation, action receipts, WebMCP handlers, and views as the configured production path. Each demo session receives an isolated clone of the canonical fixture.
+The public demo is a real, explicitly marked Supabase account. It uses the same domain commands, persistence, action receipts, WebMCP handlers, and views as a personal account. Reset preserves the Auth user, workspace identity, membership, and immutable version history while returning the active workspace to onboarding. The local fixture adapter exists only so the full UI and WebMCP suite can run deterministically without mutating the shared production demo.
 
 Use Vitest for unit, integration, contract, component, and agent-behavior tests. Use Testing Library for component behavior. Use Playwright and axe-core for browser, responsive, and accessibility verification.
 
@@ -24,8 +24,8 @@ Use first-party CSS and small application components. Do not introduce a general
 - Next.js provides one application boundary for pages, route handlers, and deployment.
 - React supports the dense interactive planner and persistent WebMCP provider.
 - Framework-independent domain modules let UI actions and agent tools call the same operations.
-- A deterministic local path keeps the full challenge demo runnable without third-party credentials.
-- Supabase provides Google, email, anonymous sessions, Postgres, and row-level security when configured.
+- A deterministic test adapter keeps browser regression tests repeatable without mutating a shared hosted account.
+- Supabase provides email and password authentication, Postgres, and row-level security for both personal and demo accounts.
 - Vitest and Playwright cover deterministic logic and the actual browser journey.
 - First-party components make the visual language deliberate and keep the application from reading as a generic template.
 
@@ -33,7 +33,8 @@ Use first-party CSS and small application components. Do not introduce a general
 
 - Authenticated routes use dynamic rendering.
 - Tokens never enter local storage in configured production mode.
-- Demo storage never contains private student data.
+- The permanent demo account contains only fictional or evaluator-entered data.
+- Browser fixture storage is enabled only when `COURSE_CONTEXT_E2E_FIXTURE=true` on the isolated test server.
 - Production access checks occur in the server adapter and in row-level security.
 - WebMCP handlers act through the active browser session and repeat authorization.
 - Unsupported production configuration fails clearly instead of falling back to a shared workspace.
@@ -55,9 +56,9 @@ Versions are locked in `package-lock.json`. The initial compatibility baseline i
 
 This would make the demo easy but would not establish an authorization or production persistence boundary.
 
-### Supabase as the only runtime
+### Browser storage for the public demo
 
-This would make the local and judge demo depend on external project configuration. It would also prevent complete verification in a clean checkout without credentials.
+This makes reset, cross-browser persistence, and account behavior diverge from the product. Browser storage remains acceptable only inside the isolated automated-test adapter.
 
 ### A separate API service for the challenge
 
@@ -69,8 +70,8 @@ The product needs a specific academic planning interface. A broad component libr
 
 ## Consequences
 
-- Every domain operation must run against both repository modes.
-- Adapter contract tests are required.
-- Local demo behavior cannot be described as production account security.
+- Every domain operation must run against server persistence and the deterministic test adapter.
+- Adapter contract tests are required, plus one live hosted demo acceptance journey.
+- Fixture-mode browser results cannot be described as live Supabase verification.
 - Production OAuth cannot be called verified until real credentials and a deployed callback are tested.
-- The challenge can still ship through the self-contained isolated demo path if production account configuration is delayed.
+- The challenge demo requires the Supabase project, demo migration, and permanent demo Auth user to be healthy.

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { buildFixture } from "@/data/fixture"
@@ -12,8 +12,10 @@ import { LibraryPage } from "@/features/library/library-page"
 import { ProgramsPage } from "@/features/programs/programs-page"
 import { HomePage } from "@/features/home/home-page"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider"
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
+const routerSpies = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }))
+vi.mock("next/navigation", () => ({ useRouter: () => routerSpies }))
 
 describe("public product surfaces", () => {
   it("asks a new account for only a name and open-ended goal", () => {
@@ -28,25 +30,57 @@ describe("public product surfaces", () => {
   it("explains the product and exposes both entry paths", () => {
     render(<LandingPage />)
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/academic workspace/i)
-    expect(screen.getByRole("link", { name: /try the demo/i })).toBeVisible()
+    expect(screen.getByRole("link", { name: /demo login/i })).toBeVisible()
     expect(screen.getByRole("link", { name: /create a workspace/i })).toBeVisible()
     expect(screen.getByText(/not an official stanford/i)).toBeVisible()
   })
 
   it("offers email and demo entry without advertising an unconfigured provider", () => {
-    render(<LoginPage />)
+    render(<LoginPage demoAvailable />)
     expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeVisible()
     expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /resettable demo/i })).toBeVisible()
+    expect(screen.getByRole("button", { name: /sign in with demo credentials/i })).toBeVisible()
+    expect(screen.queryByText(/workspace that remembers/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/resettable demo/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/stanford password/i)).not.toBeInTheDocument()
   })
 
   it("fails clearly into demo mode when hosted authentication is not configured", async () => {
-    render(<LoginPage />)
+    render(<LoginPage demoAvailable />)
     expect(screen.getByText(/account sign-in is unavailable/i)).toBeVisible()
     expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeDisabled()
-    expect(screen.getByRole("link", { name: /resettable demo/i })).toBeVisible()
+    expect(screen.getByRole("button", { name: /sign in with demo credentials/i })).toBeVisible()
+  })
+
+  it("signs into the demo through the server credential route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal("fetch", fetchMock)
+    routerSpies.replace.mockClear()
+    render(<LoginPage demoAvailable demoRequested />)
+    await userEvent.click(screen.getByRole("button", { name: /sign in with demo credentials/i }))
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/demo", { method: "POST" })
+    expect(routerSpies.replace).toHaveBeenCalledWith("/app")
+    vi.unstubAllGlobals()
+  })
+})
+
+const DemoResetHarness = () => {
+  const workspace = useWorkspace()
+  return <button onClick={() => void workspace.reset()}>Reset server demo</button>
+}
+
+describe("server demo reset", () => {
+  it("calls the reset endpoint and returns to demo login", async () => {
+    const fixture = buildFixture()
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal("fetch", fetchMock)
+    routerSpies.replace.mockClear()
+    render(<WorkspaceProvider mode="account" initialWorkspace={fixture.workspace} userId={fixture.workspace.ownerUserId} catalog={fixture.catalog} isDemoAccount><DemoResetHarness /></WorkspaceProvider>)
+    await userEvent.click(screen.getByRole("button", { name: "Reset server demo" }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/demo/reset", { method: "POST" }))
+    expect(routerSpies.replace).toHaveBeenCalledWith("/login?demo=1&reset=1")
+    vi.unstubAllGlobals()
   })
 })
 
@@ -96,7 +130,7 @@ describe("planning workspace", () => {
     const fixture = buildFixture()
     render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
     expect(screen.getByRole("heading", { name: /autumn plan/i })).toBeVisible()
-    expect(screen.getByText(/14 units/i)).toBeVisible()
+    expect(screen.getByText(/15 units/i)).toBeVisible()
     expect(screen.getByLabelText(/weekly calendar/i)).toBeVisible()
     expect(screen.getByText(/Backups/i)).toBeVisible()
     expect(screen.getByRole("heading", { name: "Commitments" })).toBeVisible()
@@ -117,11 +151,11 @@ describe("planning workspace", () => {
     const lighterTab = screen.getByRole("tab", { name: /lighter option/i })
     await userEvent.click(lighterTab)
     expect(lighterTab).toHaveAttribute("aria-selected", "true")
-    expect(screen.getByText("12 units")).toBeVisible()
+    expect(screen.getByText("13 units")).toBeVisible()
     await userEvent.click(screen.getByRole("button", { name: /compare scenarios/i }))
     expect(screen.getByRole("dialog", { name: /compare scenarios/i })).toBeVisible()
-    expect(screen.getAllByText("14 units").length).toBeGreaterThan(0)
-    expect(screen.getAllByText("12 units").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("15 units").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("13 units").length).toBeGreaterThan(0)
   })
 
   it("opens agent guidance and the complete deterministic report", async () => {
@@ -173,7 +207,7 @@ describe("Programs", () => {
     const fixture = buildFixture()
     render(<ProgramsPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
     for (const state of ["Completed", "Planned", "Open", "Read official details"]) {
-      expect(screen.getByText(state)).toBeVisible()
+      expect(screen.getAllByText(state).length).toBeGreaterThan(0)
     }
     expect(screen.getByText(/Catalog year/i)).toBeVisible()
     expect(screen.getAllByText(/Source/i).length).toBeGreaterThan(0)

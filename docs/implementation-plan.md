@@ -23,8 +23,8 @@ Build one vertical journey from authentication through plan revision before addi
 
 The first complete journey is:
 
-1. Enter an isolated demo workspace.
-2. Read the seeded student context.
+1. Open demo login and authenticate through the fixed demo account.
+2. Complete onboarding when the demo has been reset.
 3. Search Stanford courses.
 4. Add a course and section to a plan.
 5. Run deterministic checks.
@@ -119,13 +119,12 @@ The deployed preview shows the complete empty shell and passes accessibility smo
 
 - Create the first database migration.
 - Implement users, workspaces, memberships, terms acceptance, sessions, and workspace versions.
-- Configure Google sign-in and email magic links.
+- Configure email magic links and fixed demo credentials. Keep Google hidden until verified.
 - Implement secure server session handling.
-- Implement anonymous demo sessions.
+- Implement the permanent Supabase demo account and explicit demo workspace marker.
 - Build the four-step onboarding flow.
 - Add row-level security policies.
-- Add a deterministic demo reset command.
-- Add a cleanup job for expired demo workspaces.
+- Add a deterministic demo reset command that preserves identity and history, replaces the active snapshot, requires onboarding, and signs out the browser.
 
 ### Required tables
 
@@ -138,27 +137,28 @@ workspace_versions
 demo_sessions
 ```
 
-### Demo isolation test
+### Demo reset test
 
-1. Start demo session A.
-2. Start demo session B.
-3. Modify a note in A.
-4. Confirm B and the canonical fixture remain unchanged.
-5. Reset A.
-6. Confirm A returns to the fixture state.
+1. Sign in through the demo credential action.
+2. Complete onboarding and modify server-persisted state.
+3. Confirm the change survives reload and a new browser session.
+4. Reset the demo.
+5. Confirm the Auth user, workspace ID, membership, and version history still exist.
+6. Confirm the browser is signed out and returned to demo login.
+7. Sign in again and confirm onboarding is required.
 
 ### Security tests
 
 - a user cannot read another workspace
 - a user cannot mutate another workspace by changing an ID
-- expired demo sessions fail closed
+- ordinary accounts cannot invoke the demo reset function
 - sign-out invalidates the active session
 - no authentication token appears in local storage
 - mutation endpoints reject missing session and invalid origin
 
 ### Exit condition
 
-A judge can enter an isolated demo workspace in one click. A normal user can create a private workspace through email. Google appears only after its provider is configured and explicitly enabled.
+A judge can authenticate through demo credentials without email delivery, complete onboarding, and use the same server persistence as a personal account. Reset returns the demo to login and onboarding without deleting its identity. Google appears only after its provider is configured and explicitly enabled.
 
 ## 5. Phase 3: domain kernel and action receipts
 
@@ -427,7 +427,7 @@ The student can change a prospective program and immediately see how each curren
 ### Work
 
 - Implement the final tool schemas.
-- Register tools only in an authenticated or isolated demo workspace.
+- Register tools only in an authenticated workspace, including the explicitly marked demo account.
 - Add accurate read-only and untrusted-content annotations.
 - Route each tool to the existing query or command.
 - Add output-length controls and pagination.
@@ -567,7 +567,7 @@ The product passes the visual, responsive, keyboard, and copy audits with no cri
 
 ### Final demo sequence
 
-1. Open the seeded workspace.
+1. Sign in through demo login and complete the scripted onboarding.
 2. Show the student's current context and active constraints.
 3. Ask the agent for two Autumn plans.
 4. Show `search_workspace` and catalog reads.
@@ -616,7 +616,7 @@ Target: deployed shell, approved contracts, and working demo-session foundation.
 - Phase 3
 - Phase 4
 
-Target: isolated demo state, domain commands, action receipts, and imported Stanford fixture.
+Target: server-backed demo identity, resettable onboarding state, domain commands, action receipts, and imported Stanford reference fixture.
 
 ### Day 3
 

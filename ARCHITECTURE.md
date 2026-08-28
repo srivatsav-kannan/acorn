@@ -13,7 +13,7 @@ CourseContext has two visibly different data layers:
 
 Onboarding asks for a preferred name and one open-ended planning goal. The product asks for a major, completed courses, unit limit, schedule constraints, or commitments only when the student starts a task that needs that information. The ordinary interface never requires a student to understand WebMCP, schemas, tool names, IDs, or context injection.
 
-The fictional Alex Chen workspace remains an isolated judge demo only. Demo objects must never enter an authenticated workspace.
+The public demo is a permanent, explicitly marked Supabase account. It uses the same authenticated repository, commands, version history, WebMCP tools, and interface as personal accounts. Reset preserves the Auth user and workspace identity, clears the active workspace into an onboarding state, signs out the browser, and requires onboarding after the next demo login. The scripted challenge journey may enter the fictional Alex Chen scenario during onboarding, but no personal account receives that data.
 
 This document is the product and technical source of truth for CourseContext. It describes the complete intended system, then identifies the smaller challenge release that proves the central interaction.
 
@@ -408,7 +408,7 @@ The landing page contains:
 4. A Stanford-specific example
 5. A clear WebMCP collaboration explanation
 6. A privacy statement
-7. Primary actions for "Try the demo" and "Create a workspace"
+7. Primary actions for "Demo login" and "Create a workspace"
 
 The page should demonstrate the product within the first viewport. It should not begin with a long marketing essay.
 
@@ -518,7 +518,7 @@ The activity drawer shows the ten most recent actions. The full page supports fi
 
 ### 9.1 Authentication options
 
-The production path uses email magic links as the primary account entry. Google sign-in is compiled into the application only when the deployment explicitly enables `NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED=true` after the provider has been configured and verified. An isolated demo workspace remains available without personal data.
+Personal accounts use email magic links until another verified provider is enabled. Google sign-in is compiled into the application only when the deployment explicitly enables `NEXT_PUBLIC_SUPABASE_GOOGLE_AUTH_ENABLED=true` after the provider has been configured and verified. The demo uses a fixed Supabase account whose credentials remain in server-only deployment configuration.
 
 Stanford credentials are never collected. Stanford SSO is outside the challenge scope.
 
@@ -541,9 +541,15 @@ Stanford credentials are never collected. Stanford SSO is outside the challenge 
 
 ### 9.4 Demo flow
 
-"Try the demo" sets a short-lived HttpOnly mode cookie and opens a browser-persisted clone of the seeded Stanford workspace. Each browser profile receives its own copy. Demo writes never affect the canonical fixture or an authenticated account. A reset action removes the local copy and restores the fixture.
+1. "Demo login" opens the normal login page in demo mode.
+2. "Sign in with demo credentials" calls a same-origin server route.
+3. The route authenticates with server-only demo credentials and writes the normal Supabase session cookies.
+4. If the shared demo workspace is in onboarding state, the user completes the same two-field onboarding used by a personal account.
+5. The demo then uses the normal authenticated workspace, versioning, persistence, and WebMCP paths.
+6. "Reset demo" calls a demo-only database function that preserves the Auth user, workspace row, membership, and version history while replacing the active snapshot and marking onboarding required.
+7. Reset revokes the current browser session and returns to demo login. The next demo login begins at onboarding.
 
-The judge path must work without waiting for email. The demo is deliberately separated from authenticated account code. Authenticated rendering throws when its real workspace payload is absent and never substitutes the demo fixture.
+Demo credentials are intentionally shared but remain server-side. Production never stores demo state in `localStorage`, never bypasses route authorization with a mode cookie, and never deletes the permanent demo account during reset or cleanup.
 
 ### 9.5 Session rules
 
@@ -1034,6 +1040,10 @@ Add or revise goals, preferences, constraints, and program interests. Sensitive 
 
 Apply one atomic set of plan operations such as adding a course, choosing a section, removing a course, adding a backup, adding a commitment, or creating a scenario.
 
+#### `extend_reference`
+
+Add a missing course, and optionally its current-term section, to the student's private reference overlay. Requires a classified source. The overlay merges over the shipped institutional catalog in search, planning, and checks, appears visibly labeled in the catalog UI, and the student can remove any overlay entry. This is the supported pathway for agent-supplied durable institutional context at schools or in corners the shipped pack does not cover.
+
 #### `configure_view`
 
 Create or revise a saved view using allowed layout and block schemas.
@@ -1107,8 +1117,8 @@ The challenge release uses a small first-party block editor with explicit block 
 
 - Next.js route handlers for the competition release
 - PostgreSQL hosted by Supabase
-- Supabase Auth for email magic links, with optional provider-gated Google sign-in
-- A separate local demo cookie and browser-persisted demo fixture
+- Supabase Auth for personal email magic links, fixed demo credentials, and optional provider-gated Google sign-in
+- One permanent, explicitly marked demo account with a server-persisted workspace
 - Drizzle or an equivalent typed SQL layer selected during the implementation decision
 - Zod at all network and command boundaries
 - Database migrations committed to the repository
@@ -1141,7 +1151,7 @@ The challenge release needs only bounded jobs:
 
 - catalog fixture import
 - evidence staleness refresh
-- demo workspace cleanup
+- optional catalog refresh
 - optional link metadata fetch
 
 Jobs are idempotent and record run results. No autonomous recurring agent research is required for the challenge.
@@ -1242,7 +1252,7 @@ After the challenge, users may connect an export destination such as GitHub. Exp
 - Membership is checked server-side
 - Row-level security provides a second boundary
 - Global catalog rows are read-only to ordinary users
-- Demo workspaces are isolated and expiring
+- The permanent demo workspace is explicitly marked and resettable but never deleted by expiry cleanup
 
 ### 24.2 WebMCP security
 
@@ -1482,7 +1492,7 @@ The result looks like an interchangeable generated dashboard. Prevented by the d
 
 The product is ready for submission only when:
 
-- a judge can open a public URL and enter an isolated demo workspace
+- a judge can open demo login, authenticate without email delivery, and complete onboarding into the server-backed demo workspace
 - the workspace visibly contains student context, evidence, a plan, and Library items
 - WebMCP tools register in the supported browser
 - the agent searches workspace context before editing the plan

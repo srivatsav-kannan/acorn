@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { buildFixture as buildDemoFixture, buildStanfordCatalog } from "@/data/fixture"
 import { executeCommand } from "@/domain/commands"
 import { materializeLegacyResearch } from "@/domain/evidence"
+import { mergedCatalogFor } from "@/domain/reference"
 import type { Catalog, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 import { registerWebMcpTools } from "@/webmcp/register"
@@ -13,7 +14,8 @@ import { createCourseContextTools } from "@/webmcp/tools"
 type WorkspaceContextValue = {
   workspace: WorkspaceState
   catalog: Catalog
-  mode: "demo" | "account"
+  mode: "fixture" | "account"
+  isDemoAccount: boolean
   userEmail: string
   saveState: "idle" | "saving" | "saved" | "error"
   message: { kind: "success" | "error", text: string } | null
@@ -26,7 +28,7 @@ type WorkspaceContextValue = {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 const storageKey = "course-context-demo-v1"
 
-export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, userId, userEmail = "", catalog }: { children: ReactNode, mode?: "demo" | "account", initialWorkspace?: WorkspaceState, userId?: string, userEmail?: string, catalog?: Catalog }) => {
+export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, userEmail = "", catalog, isDemoAccount = false }: { children: ReactNode, mode: "fixture" | "account", initialWorkspace?: WorkspaceState, userId?: string, userEmail?: string, catalog?: Catalog, isDemoAccount?: boolean }) => {
   const router = useRouter()
   const [initial] = useState(() => {
     if (mode === "account") {
@@ -43,7 +45,7 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   const ownerUserId = userId ?? workspace.ownerUserId
 
   useEffect(() => {
-    if (mode !== "demo") return
+    if (mode !== "fixture") return
 
     const fresh = new URLSearchParams(window.location.search).get("fresh") === "1"
     if (fresh) {
@@ -71,7 +73,7 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   const refresh = useCallback(async () => {
     const next = await repository.getWorkspace(workspace.id, ownerUserId)
     setWorkspace(next)
-    if (mode === "demo") localStorage.setItem(storageKey, JSON.stringify(next))
+    if (mode === "fixture") localStorage.setItem(storageKey, JSON.stringify(next))
     return next
   }, [mode, ownerUserId, repository, workspace.id])
 
@@ -85,7 +87,7 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   }, [initial.catalog])
 
   const persistWorkspace = useCallback(async (next: WorkspaceState, expectedVersion: number, idempotencyKey: string) => {
-    if (mode === "demo") {
+    if (mode === "fixture") {
       localStorage.setItem(storageKey, JSON.stringify(next))
       setWorkspace(next)
       return
@@ -122,9 +124,22 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   }
 
   const reset = async () => {
-    if (mode !== "demo") throw new Error("Account workspaces cannot be reset from the demo control")
-    localStorage.removeItem(storageKey)
-    window.location.replace("/demo")
+    if (mode === "fixture") {
+      localStorage.removeItem(storageKey)
+      window.location.replace("/demo")
+      return
+    }
+    if (!isDemoAccount) throw new Error("Only the demo account can use this reset")
+    setSaveState("saving")
+    const response = await fetch("/api/demo/reset", { method: "POST" })
+    const result = await response.json().catch(() => ({ message: "The demo could not be reset." })) as { ok?: boolean, message?: string }
+    if (!response.ok || !result.ok) {
+      setSaveState("error")
+      setMessage({ kind: "error", text: result.message ?? "The demo could not be reset." })
+      return
+    }
+    router.replace("/login?demo=1&reset=1")
+    router.refresh()
   }
 
   const signOut = async () => {
@@ -161,7 +176,9 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
     return registerWebMcpTools(markedDocument, tools)
   }, [ownerUserId, persistWorkspace, repository, workspace.id])
 
-  return <WorkspaceContext.Provider value={{ workspace, catalog: initial.catalog, mode, userEmail, saveState, message, onCommand, undo, reset, signOut }}>{children}{message && <div className={`workspace-toast ${message.kind}`} role="status"><span>{message.kind === "success" ? "✓" : "!"}</span>{message.text}</div>}</WorkspaceContext.Provider>
+  const mergedCatalog = useMemo(() => mergedCatalogFor(workspace, initial.catalog), [workspace, initial.catalog])
+
+  return <WorkspaceContext.Provider value={{ workspace, catalog: mergedCatalog, mode, isDemoAccount, userEmail, saveState, message, onCommand, undo, reset, signOut }}>{children}{message && <div className={`workspace-toast ${message.kind}`} role="status"><span>{message.kind === "success" ? "✓" : "!"}</span>{message.text}</div>}</WorkspaceContext.Provider>
 }
 
 export const useWorkspace = () => {

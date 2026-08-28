@@ -3,6 +3,7 @@ import type { NextConfig } from "next"
 const nextConfig: NextConfig = {
   agentRules: false,
   allowedDevOrigins: ["127.0.0.1"],
+  distDir: process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" ? ".next-e2e" : ".next",
   async headers() {
     return [
       {

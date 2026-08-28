@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3010",
     trace: "retain-on-failure",
     screenshot: "only-on-failure"
   },
@@ -17,9 +17,9 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["iPhone 13"] } }
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: true,
+    command: "COURSE_CONTEXT_E2E_FIXTURE=true npm run dev -- -p 3010",
+    url: "http://127.0.0.1:3010",
+    reuseExistingServer: false,
     timeout: 120000
   }
 })

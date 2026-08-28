@@ -44,8 +44,11 @@ save_research
 save_workspace_item
 update_student_context
 edit_plan
+extend_reference
 configure_view
 ```
+
+`extend_reference` is the door out of hardcoded institutional data. When the shipped reference pack lacks a course a student needs, their agent adds it to a private workspace overlay with an official source. The addition shows up labeled in the catalog, merges into search and plan checks, and can be removed by the student at any time.
 
 The visible interface and WebMCP tools must use the same domain logic and persistent state. Tool results must be structured, concise, provenance-aware, and sufficient to verify what changed.
 
@@ -102,13 +105,14 @@ The repository now contains a complete local challenge demo:
 
 - a polished landing page, login surface, desktop workspace, and mobile navigation.
 - Home, Plan, Explore, Library, Programs, Activity, and Settings routes.
-- an isolated fictional judge demo plus a separate Stanford reference pack with 50+ catalog courses, nine programs, official planning resources, sourced requirements, and clearly labeled sample meeting data.
+- an isolated fictional judge demo plus a separate Stanford reference pack with 100+ catalog courses, structured requirement maps for Computer Science, Symbolic Systems, Data Science, and the WAYS general education requirement, six more official program references, official planning resources, and clearly labeled sample meeting data.
+- an institution registry that ships Stanford in full, lists other universities honestly as planned adapters, and lets a student's agent fill reference gaps through `extend_reference`.
 - atomic domain commands with version checks, idempotency keys, visible receipts, activity attribution, rollback, and undo.
 - deterministic checks for units, duplicates, meetings, commitments, offerings, sections, prerequisites, finals, day and time constraints, transition buffers, and stale evidence.
 - recursive requirement evaluation for completed, planned, missing, and manual-review states.
-- all 11 approved semantic WebMCP tools registered in the actual page.
+- all 12 approved semantic WebMCP tools registered in the actual page.
 - portable JSON, Markdown, source, and activity exports.
-- resettable browser-persisted demo workspaces plus Supabase authentication, row-level security, optimistic snapshot commits, and immutable workspace history.
+- a permanent Supabase-backed demo account plus personal accounts, row-level security, optimistic snapshot commits, and immutable workspace history.
 - goal-first account onboarding that asks only for a preferred name and planning question, protected workspace routes, sign-out, reload-safe persistence, version-conflict recovery, visible save state, loading and failure surfaces.
 - clean personal workspaces that never clone the fictional demo profile or prefill a major, course history, schedule, commitment, research item, or inferred preference.
 - working profile, Library, course, scenario, program-tracking, saved-view, search, filter, archive, restore, reset, and undo controls.
@@ -128,9 +132,9 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and choose **Try the demo**.
+Open [http://localhost:3000](http://localhost:3000) and choose **Demo login**.
 
-The demo needs no external service and persists within the current browser profile. Real accounts require a Supabase project and the two migrations described in [the setup guide](supabase/README.md).
+The demo and personal accounts use the configured Supabase project. Demo credentials are stored in server-only environment variables. Apply the migrations and create the permanent demo Auth user as described in [the setup guide](supabase/README.md).
 
 To run the complete verification pipeline:
 
