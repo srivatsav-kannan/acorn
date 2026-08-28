@@ -1044,10 +1044,6 @@ Apply one atomic set of plan operations such as adding a course, choosing a sect
 
 Add missing institutional reference: a course with an optional current-term section, or a degree program with a validated requirement tree. Exactly one per call, always with a classified source. Additions merge over the shipped institutional catalog in search, planning, and checks, appear visibly labeled in the UI, and the student can remove any of them. Shipped programs are read-only and cannot be overwritten. This is the supported pathway for agent-supplied durable institutional context, and for custom schools it is how the agent constructs the entire reference.
 
-#### Onboarding tools
-
-The onboarding page registers a separate two-tool surface before a workspace exists. `get_onboarding_form` returns supported institutions, the custom-school beta path, and the exact field contract. `create_workspace` submits the same fields the visible form submits, through the same server validation. This lets an agent that already holds the student's context create the workspace, including structured academic history, without the student retyping it.
-
 #### `configure_view`
 
 Create or revise a saved view using allowed layout and block schemas.

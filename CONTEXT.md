@@ -116,7 +116,7 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-020: Human and agent onboarding
 
 - Priority: hard
-- Requirement: Human onboarding requires only an institution choice, a preferred name, and one open-ended description of what the student wants help with. Structured academic history such as class standing and AP credit is offered as clearly optional fields, never a forced questionnaire. The onboarding page also registers its own WebMCP tools so an agent that already holds the student's context can read the form contract and create the workspace through the same validated path, and the page shows a copyable instruction for that handoff. Agent behavior happens in the student's agent, never simulated inside the product.
+- Requirement: Onboarding collects exactly three durable facts through dropdowns: the university, the autumn entry year, and the spring graduation year. It has no free-text prompts, no example-filled placeholders, and no agent path. Every other fact, including the student's name, goal, academic history, and preferences, is added inside the workspace afterward by the student or their agent through the same visible, undoable commands.
 
 ### REQ-021: Product-grade feedback and motion
 

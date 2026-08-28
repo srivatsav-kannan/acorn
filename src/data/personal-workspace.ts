@@ -1,6 +1,6 @@
 import { CUSTOM_INSTITUTION_ID, customInstitution, getInstitution } from "@/data/institutions/registry"
 import { validateAcademicHistoryPatch, applyAcademicHistory } from "@/domain/history"
-import { defaultTimeline } from "@/domain/timeline"
+import { defaultTimeline, termId } from "@/domain/timeline"
 import type { Collection, WorkspaceState } from "@/domain/types"
 
 const personalCollections = (): Collection[] => [
@@ -16,21 +16,26 @@ const personalCollections = (): Collection[] => [
 type NewWorkspaceInput = {
   userId: string
   email: string
-  name: string
-  goal: string
+  name?: string
+  goal?: string
   institutionId?: string
   customInstitutionName?: string
+  entryYear?: number
+  gradYear?: number
   academicHistory?: Record<string, unknown>
   id?: () => string
   now?: () => Date
 }
 
-export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionId, customInstitutionName, id = () => crypto.randomUUID(), now = () => new Date() }: NewWorkspaceInput): WorkspaceState => {
+export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionId, customInstitutionName, entryYear, gradYear, id = () => crypto.randomUUID(), now = () => new Date() }: NewWorkspaceInput): WorkspaceState => {
   const customName = customInstitutionName?.trim()
   const institution = institutionId === CUSTOM_INSTITUTION_ID && customName ? customInstitution(customName) : getInstitution(institutionId)
-  const cleanName = name.trim()
+  const cleanName = (name ?? "").trim()
   const firstName = cleanName.split(/\s+/)[0]
-  const cleanGoal = goal.trim()
+  const cleanGoal = (goal ?? "").trim()
+  const timeline = entryYear
+    ? { entryTermId: termId(entryYear, "AUTUMN"), expectedGraduationTermId: termId(gradYear && gradYear > entryYear ? gradYear : entryYear + 4, "SPRING"), degree: gradYear && gradYear - entryYear >= 5 ? "BS-MS" : "BS" }
+    : defaultTimeline(now())
   const suffix = id().replaceAll("-", "").toUpperCase()
   const createdAt = now().toISOString()
   const goalId = `GOAL-${suffix}`
@@ -39,7 +44,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     id: `WORKSPACE-${suffix}`,
     ownerUserId: userId,
     version: 1,
-    title: `${firstName}'s ${institution.shortName} Workspace`,
+    title: firstName ? `${firstName}'s ${institution.shortName} Workspace` : `${institution.shortName} Workspace`,
     institution: institution.name,
     institutionId: institution.id,
     currentTermId: institution.currentTermId,
@@ -50,7 +55,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
       isFictional: false,
       summary: cleanGoal,
       catalogYear: institution.slug === "custom" ? "Current" : "2026-27",
-      timeline: institution.slug === "custom" ? undefined : defaultTimeline(now()),
+      timeline,
       declaredProgramId: null,
       completedCourseIds: [],
       courseGrades: {},
@@ -76,7 +81,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     }],
     programs: institution.buildPrograms(),
     collections: personalCollections(),
-    contextItems: [{
+    contextItems: cleanGoal ? [{
       id: goalId,
       type: "goal",
       title: "What I want help with",
@@ -86,7 +91,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
       addedBy: { type: "human", id: userId },
       createdAt,
       updatedAt: createdAt
-    }],
+    }] : [],
     evidence: institution.buildEvidence().filter((item) => item.addedBy === "system"),
     uncertainties: [],
     savedViews: [],

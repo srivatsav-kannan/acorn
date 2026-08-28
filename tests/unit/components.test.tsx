@@ -17,15 +17,18 @@ import { OnboardingPage } from "@/features/onboarding/onboarding-page"
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider"
 
 const routerSpies = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }))
-vi.mock("next/navigation", () => ({ useRouter: () => routerSpies }))
+vi.mock("next/navigation", () => ({ useRouter: () => routerSpies, usePathname: () => "/app" }))
 
 describe("public product surfaces", () => {
-  it("asks a new account for only a name and open-ended goal", () => {
+  it("asks a new account for only three durable facts through dropdowns", () => {
     render(<OnboardingPage />)
-    expect(screen.getByLabelText("What should we call you?")).toBeVisible()
-    expect(screen.getByLabelText(/What would you like help with\?/)).toBeVisible()
-    expect(screen.queryByText(/completed courses/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/unit limit/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText("University")).toBeVisible()
+    expect(screen.getByLabelText("Entered in autumn")).toBeVisible()
+    expect(screen.getByLabelText("Graduating in spring")).toBeVisible()
+    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/help with/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+    expect(screen.getByRole("option", { name: /Berkeley.*coming soon/i })).toBeDisabled()
     expect(screen.getByText(/No sample student data/i)).toBeVisible()
   })
 
@@ -98,16 +101,12 @@ describe("custom institution workspace", () => {
     expect(screen.getByText(/it can build your program reference/i)).toBeVisible()
   })
 
-  it("offers the WebMCP agent handoff and optional structured history at onboarding", async () => {
+  it("asks for the school's name only when Other is chosen", async () => {
     render(<OnboardingPage />)
-    expect(screen.getByText(/Already keep your context with an agent\?/i)).toBeVisible()
-    expect(screen.getByRole("button", { name: /copy agent instruction/i })).toBeVisible()
-    await userEvent.click(screen.getByRole("button", { name: /Other/i }))
-    expect(screen.getByLabelText(/university's name/i)).toBeVisible()
-    await userEvent.click(screen.getByRole("button", { name: /add academic history now/i }))
-    expect(screen.getByLabelText(/class standing/i)).toBeVisible()
-    await userEvent.click(screen.getByRole("button", { name: /add a credit/i }))
-    expect(screen.getByLabelText("Credit 1 name")).toBeVisible()
+    const university = screen.getByLabelText("University") as HTMLSelectElement
+    await userEvent.selectOptions(university, screen.getByRole("option", { name: "Another university" }))
+    expect(university.value).toBe("INSTITUTION-CUSTOM")
+    expect(screen.getByLabelText("University name")).toBeVisible()
   })
 })
 

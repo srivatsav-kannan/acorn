@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import type { ActivityEntry } from "@/domain/types"
 import { mergedOpportunities } from "@/domain/reference"
 import { searchWorkspace } from "@/domain/search"
@@ -28,15 +29,31 @@ const navIcon = (key: string) => {
   return <TogetherIcon />
 }
 
-export const AppShell = ({ activePage, quarter, children, activity = [], onUndo }: { activePage: string, quarter: string, children: ReactNode, activity?: ActivityEntry[], onUndo?: (receiptId: string) => void }) => {
+const pageForPath = (pathname: string | null) => {
+  if (!pathname) return "home"
+  if (pathname.startsWith("/app/plan")) return "plan"
+  if (pathname.startsWith("/app/explore")) return "explore"
+  if (pathname.startsWith("/app/library")) return "library"
+  if (pathname.startsWith("/app/programs")) return "programs"
+  if (pathname.startsWith("/app/agent")) return "agent"
+  if (pathname.startsWith("/app/settings")) return "settings"
+  if (pathname.startsWith("/app/activity")) return "activity"
+  return "home"
+}
+
+export const AppShell = ({ activePage, quarter = "", children, activity, onUndo }: { activePage?: string, quarter?: string, children: ReactNode, activity?: ActivityEntry[], onUndo?: (receiptId: string) => void }) => {
   const [activityOpen, setActivityOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [mobile, setMobile] = useState(false)
+  const pathname = usePathname()
   const workspaceValue = useOptionalWorkspace()
+  const activeKey = activePage ?? pageForPath(pathname)
+  const activityEntries = activity ?? workspaceValue?.workspace.activity ?? []
+  const handleUndo = onUndo ?? workspaceValue?.undo
   const exploreLabel = workspaceValue ? institutionForWorkspace(workspaceValue.workspace).shortName : "Stanford"
   const quarterLabel = workspaceValue ? (parseTermId(workspaceValue.workspace.currentTermId) ? termLabel(workspaceValue.workspace.currentTermId) : "Current term") : quarter
-  const initials = workspaceValue?.workspace.profile.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "AC"
+  const initials = workspaceValue?.workspace.profile.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || workspaceValue?.userEmail?.[0]?.toUpperCase() || "AC"
   const searchResults = workspaceValue && searchQuery.trim() ? searchWorkspace(workspaceValue.workspace, workspaceValue.catalog, searchQuery, mergedOpportunities(institutionForWorkspace(workspaceValue.workspace).buildOpportunities(), workspaceValue.workspace.referenceOverlay?.opportunities)) : null
   useEffect(() => {
     if (!window.matchMedia) return
@@ -73,7 +90,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     <aside className="sidebar">
       <nav aria-label="Primary">
         <p className="nav-label">Workspace</p>
-        {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{navIcon(key)}</span><span className="nav-text">{key === "explore" ? exploreLabel : name}</span></Link>)}
+        {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "nav-link active" : "nav-link"} href={href}><span className="nav-icon" aria-hidden="true">{navIcon(key)}</span><span className="nav-text">{key === "explore" ? exploreLabel : name}</span></Link>)}
       </nav>
       <div className="sidebar-context">
         <p className="nav-label">Current focus</p>
@@ -84,13 +101,13 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     </aside>
     <main id="workspace-content" className="workspace-main">{children}</main>
     {mobile && <nav className="mobile-nav" aria-label="Mobile">
-      {navigation.map(([name, href, key]) => <Link key={key} className={activePage === key ? "active" : ""} href={href} aria-label={key === "explore" ? exploreLabel : name}><span aria-hidden="true">{navIcon(key)}</span><span aria-hidden="true">{key === "explore" ? exploreLabel : name === "Plan together" ? "Together" : name}</span></Link>)}
+      {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "active" : ""} href={href} aria-label={key === "explore" ? exploreLabel : name}><span aria-hidden="true">{navIcon(key)}</span><span aria-hidden="true">{key === "explore" ? exploreLabel : name === "Plan together" ? "Together" : name}</span></Link>)}
     </nav>}
     {activityOpen && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setActivityOpen(false)}>
       <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>
         <div className="drawer-heading"><div><h2>Activity</h2></div><button className="icon-button" onClick={() => setActivityOpen(false)} aria-label="Close activity">×</button></div>
-        {activity.length === 0 ? <div className="empty-drawer"><strong>No changes yet</strong><p>Every edit shows up here with who made it and an undo.</p></div> : <ol className="activity-list">
-          {[...activity].reverse().map((entry) => <li key={entry.id}><span className={`actor-dot ${entry.actor.type}`} /><div><strong>{entry.summary}</strong><p>{entry.actor.type === "agent" ? "Agent" : "You"} · just now</p><span>{entry.changed.length} workspace item{entry.changed.length === 1 ? "" : "s"} changed</span></div>{entry.undoAvailable && !entry.undoneAt && onUndo && <button className="text-button" onClick={() => onUndo(entry.receiptId)}>Undo</button>}</li>)}
+        {activityEntries.length === 0 ? <div className="empty-drawer"><strong>No changes yet</strong><p>Every edit shows up here with who made it and an undo.</p></div> : <ol className="activity-list">
+          {[...activityEntries].reverse().map((entry) => <li key={entry.id}><span className={`actor-dot ${entry.actor.type}`} /><div><strong>{entry.summary}</strong><p>{entry.actor.type === "agent" ? "Agent" : "You"} · just now</p><span>{entry.changed.length} workspace item{entry.changed.length === 1 ? "" : "s"} changed</span></div>{entry.undoAvailable && !entry.undoneAt && handleUndo && <button className="text-button" onClick={() => handleUndo(entry.receiptId)}>Undo</button>}</li>)}
         </ol>}
       </aside>
     </div>}

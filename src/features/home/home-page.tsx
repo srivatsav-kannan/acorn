@@ -15,21 +15,24 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
   const scenario = plan?.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan?.scenarios[0]
   const active = scenario?.courses.filter((item) => item.status === "active") ?? []
   const units = active.reduce((sum, item) => sum + item.units, 0)
-  const firstName = workspace.profile.name.split(/\s+/)[0] || "there"
+  const firstName = workspace.profile.name.split(/\s+/).filter(Boolean)[0] ?? ""
   const goal = workspace.contextItems.find((item) => item.type === "goal" && !item.archived)
   const personalItems = workspace.contextItems.filter((item) => item.type !== "goal" && !item.archived)
   const program = workspace.programs.find((item) => item.id === workspace.profile.declaredProgramId)
 
   return <div className="page home-page home-rebuild">
     <header className="home-heading">
-      <div><h1>Good to see you, {firstName}.</h1></div>
+      <div><h1>{firstName ? `Good to see you, ${firstName}.` : "Welcome."}</h1></div>
       <Link className="primary-button" href="/app/plan">{active.length ? "Open my plan" : "Start my plan"}</Link>
     </header>
 
-    <section className="goal-strip">
-      <div><span>Current goal</span><h2>{goal?.summary || workspace.profile.summary || "Add what you want help figuring out."}</h2></div>
+    {(goal?.summary || workspace.profile.summary) ? <section className="goal-strip">
+      <div><span>Current goal</span><h2>{goal?.summary || workspace.profile.summary}</h2></div>
       <Link href="/app/settings">Edit</Link>
-    </section>
+    </section> : <section className="goal-strip setup">
+      <div><span>Make it yours</span><h2>Add your name and what you want help figuring out.</h2></div>
+      <Link href="/app/settings">Open Settings</Link>
+    </section>}
 
     <div className="home-workspace-grid">
       <section className="home-next-step">

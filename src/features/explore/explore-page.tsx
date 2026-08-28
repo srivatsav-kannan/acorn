@@ -90,10 +90,10 @@ export const ExplorePage = ({ workspace, catalog, onCommand }: { workspace: Work
           <label>Name<input required maxLength={100} value={newOpportunity.name} onChange={(event) => setNewOpportunity((current) => ({ ...current, name: event.target.value }))} /></label>
           <label>Link<input type="url" placeholder="https://" value={newOpportunity.url} onChange={(event) => setNewOpportunity((current) => ({ ...current, url: event.target.value }))} /></label>
         </div>
-        <label>What is it?<input required maxLength={300} value={newOpportunity.summary} onChange={(event) => setNewOpportunity((current) => ({ ...current, summary: event.target.value }))} placeholder="One sentence" /></label>
+        <label>What is it?<input required maxLength={300} value={newOpportunity.summary} onChange={(event) => setNewOpportunity((current) => ({ ...current, summary: event.target.value }))}  /></label>
         <div className="opportunity-form-row">
-          <label>Time commitment<input maxLength={80} value={newOpportunity.commitment} onChange={(event) => setNewOpportunity((current) => ({ ...current, commitment: event.target.value }))} placeholder="A few hours a week" /></label>
-          <label>When to apply<input maxLength={120} value={newOpportunity.timing} onChange={(event) => setNewOpportunity((current) => ({ ...current, timing: event.target.value }))} placeholder="Recruits autumn" /></label>
+          <label>Time commitment<input maxLength={80} value={newOpportunity.commitment} onChange={(event) => setNewOpportunity((current) => ({ ...current, commitment: event.target.value }))}  /></label>
+          <label>When to apply<input maxLength={120} value={newOpportunity.timing} onChange={(event) => setNewOpportunity((current) => ({ ...current, timing: event.target.value }))}  /></label>
         </div>
         <div className="modal-actions"><button className="primary-button" type="submit">Add to the directory</button></div>
       </form>}

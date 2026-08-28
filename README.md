@@ -53,7 +53,7 @@ configure_view
 The loop closes in both directions:
 
 - Structured academic history, including completed courses, AP and transfer credit with course equivalencies, and class standing, is editable by the student in Settings and writable by an agent through `update_student_context`. Equivalencies count toward prerequisites and requirements like completed courses.
-- The onboarding page registers its own WebMCP tools, `get_onboarding_form` and `create_workspace`, so an agent that already holds the student's context can create the workspace without the student retyping anything.
+- Onboarding asks for three durable facts only: university, entry year, graduation year. Everything else, including the student's name and goal, is filled inside afterward, by the student in Settings or by their agent through `update_student_context`.
 - A student at an unsupported school chooses Other, names their university, and gets a neutral beta workspace titled for that school. Their agent researches the university and constructs its catalog and program reference with sources.
 
 The visible interface and WebMCP tools must use the same domain logic and persistent state. Tool results must be structured, concise, provenance-aware, and sufficient to verify what changed.

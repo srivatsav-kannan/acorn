@@ -175,7 +175,11 @@ describe("complete command matrix", () => {
   })
 
   it("prevents an agent from changing student identity fields", async () => {
-    await expect(executeCommand(setup(), { ...envelope({ type: "update_profile", patch: { name: "Agent name" } }), actor: { type: "agent", id: "AGENT-TEST" }, ownerUserId: "USER-DEMO" })).rejects.toMatchObject({ code: "COMMAND_INVALID" })
+    const agentRepository = setup()
+    const agentReceipt = await executeCommand(agentRepository, { ...envelope({ type: "update_profile", patch: { name: "Alex C.", summary: "Recorded by the agent from the student's own words" } }), actor: { type: "agent", id: "AGENT-TEST" }, ownerUserId: "USER-DEMO" })
+    expect(agentReceipt).toMatchObject({ ok: true, undoAvailable: true, actor: { type: "agent" } })
+    const agentUpdated = await agentRepository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(agentUpdated.profile.name).toBe("Alex C.")
   })
 
   it("rejects research without an evidence ID and undo without a snapshot", async () => {

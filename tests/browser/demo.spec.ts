@@ -86,12 +86,14 @@ test("search, scenario comparison, and saved views are real shared workspace con
   await expect(page.getByText("configure view")).toBeVisible()
 })
 
-test("a new student sees minimal goal-first onboarding", async ({ page }) => {
+test("a new student sees durable-facts onboarding with dropdowns only", async ({ page }) => {
   await page.goto("/demo")
   await page.goto("/onboarding")
-  await page.getByLabel("What should we call you?").fill("Maya")
-  await page.getByLabel("What would you like help with?").fill("Explore health-focused HCI while preserving research time.")
-  await expect(page.getByRole("button", { name: "Create my workspace" })).toBeVisible()
+  await expect(page.getByLabel("University")).toBeVisible()
+  await page.getByLabel("Entered in autumn").selectOption("2026")
+  await page.getByLabel("Graduating in spring").selectOption("2030")
+  await expect(page.getByRole("button", { name: "Enter my workspace" })).toBeVisible()
+  await expect(page.getByLabel(/what should we call you/i)).toHaveCount(0)
   await expect(page.getByText(/No sample student data/i)).toBeVisible()
 })
 

@@ -76,7 +76,7 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
           <button className="text-button" type="button" onClick={() => { setLinkSentTo(""); setEmail("") }}>Use a different email</button>
         </div> : <form className="email-login-form" onSubmit={sendEmailLink}>
           <label htmlFor="email">Email address</label>
-          <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" required disabled={!configured}/>
+          <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!configured}/>
           <small>We will send a one-time sign-in link. No password needed.</small>
           <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Sending link…" : "Email me a sign-in link"}</button>
         </form>}

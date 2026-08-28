@@ -195,7 +195,6 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       const [removed] = workspace.profile.preferences.splice(index, 1)
       changed.push({ type: "preference", id: removed.id })
     } else if (command.type === "update_profile") {
-      if (envelope.actor.type !== "human") throw commandError("Profile identity changes require the student")
       const patch = command.patch as Record<string, unknown>
       if (typeof patch.name === "string" && patch.name.trim()) workspace.profile.name = patch.name.trim().slice(0, 80)
       if (typeof patch.summary === "string") {

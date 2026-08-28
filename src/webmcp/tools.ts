@@ -178,11 +178,20 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "update_student_context",
-      description: "Add or update student preferences, planning constraints, or structured academic history such as completed courses, AP and transfer credit, and class standing. Pass preferences or academicHistory, one per call. History the student shared with you belongs here, visibly, not in your transcript.",
+      description: "Add or update the student's preferred name and goal, planning preferences, or structured academic history such as completed courses, AP and transfer credit, class standing, and the degree timeline. Pass one section per call. Context the student shared with you belongs here, visibly, not in your transcript.",
       inputSchema: schema({
         expectedVersion: field("number", "Current workspace version"),
         idempotencyKey: field("string", "Unique retry-safe operation key"),
         preferences: { type: "array", minItems: 1, description: "Complete visible priorities to add or update", items: { type: "object", additionalProperties: false, properties: { id: field("string", "Stable preference ID"), label: field("string", "Student-facing priority label"), strength: { type: "string", enum: ["hard", "soft"] }, value: { description: "Boolean, number, or text value" } }, required: ["id", "label", "strength", "value"] } },
+        profile: {
+          type: "object",
+          additionalProperties: false,
+          description: "Durable identity facts the student told you",
+          properties: {
+            preferredName: field("string", "The name the student goes by"),
+            goal: field("string", "What the student wants help figuring out, in their own words")
+          }
+        },
         academicHistory: {
           type: "object",
           additionalProperties: false,
@@ -197,9 +206,11 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       annotations: annotations(false),
       examples: [],
       execute: async (input) => {
-        if (input.academicHistory && input.preferences) return { ok: false, code: "ONE_SECTION_PER_CALL", message: "Send preferences and academicHistory in separate calls so each change is separately visible and undoable." }
+        const sections = [input.profile, input.academicHistory, input.preferences].filter(Boolean).length
+        if (sections !== 1) return { ok: false, code: "ONE_SECTION_PER_CALL", message: "Send profile, preferences, or academicHistory, exactly one per call, so each change is separately visible and undoable." }
+        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal } })
         if (input.academicHistory) return mutate(input, { type: "update_academic_history", patch: input.academicHistory })
-        if (!Array.isArray(input.preferences) || input.preferences.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Provide preferences or academicHistory." }
+        if (!Array.isArray(input.preferences) || input.preferences.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Provide at least one complete preference." }
         return mutate(input, { type: "set_student_preferences", preferences: input.preferences })
       }
     },

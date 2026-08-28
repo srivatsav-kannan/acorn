@@ -7,7 +7,6 @@ import { effectiveCompletedCourseIds, validateApCredit, validateAcademicHistoryP
 import { checkPlan } from "@/domain/planner"
 import { validateRequirementRule } from "@/domain/reference"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
-import { createOnboardingTools } from "@/webmcp/onboarding-tools"
 
 const agent = { type: "agent" as const, id: "AGENT-TEST" }
 const envelope = (command: Record<string, unknown>, expectedVersion = 1, key = "HIST-001") => ({
@@ -103,6 +102,17 @@ describe("custom institutions", () => {
     expect(customInstitution("Anywhere U").coverageNote).toContain("Anywhere U")
   })
 
+  it("builds the timeline from onboarding's three durable facts", () => {
+    const coterm = buildPersonalWorkspaceWithHistory({ userId: "USER-A", email: "a@example.com", entryYear: 2026, gradYear: 2031 })
+    expect(coterm.title).toBe("Stanford Workspace")
+    expect(coterm.profile.name).toBe("")
+    expect(coterm.profile.timeline).toEqual({ entryTermId: "TERM-2026-AUTUMN", expectedGraduationTermId: "TERM-2031-SPRING", degree: "BS-MS" })
+    expect(coterm.contextItems).toEqual([])
+    const fixedGrad = buildPersonalWorkspaceWithHistory({ userId: "USER-B", email: "b@example.com", entryYear: 2026, gradYear: 2026 })
+    expect(fixedGrad.profile.timeline?.expectedGraduationTermId).toBe("TERM-2030-SPRING")
+    expect(fixedGrad.profile.timeline?.degree).toBe("BS")
+  })
+
   it("lets an agent add and remove a program with a validated requirement tree", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())
     const evidence = { id: "EVIDENCE-WHEREVER-CS", title: "CS degree page", classification: "official", claim: "Official CS requirements.", sourceUrl: "https://example.edu/cs", sourceTitle: "University catalog", retrievedAt: "2026-08-28T00:00:00Z", confidence: 0.9, status: "current" }
@@ -145,20 +155,3 @@ describe("custom institutions", () => {
   })
 })
 
-describe("onboarding WebMCP tools", () => {
-  it("describes the form contract and submits through the shared path", async () => {
-    const calls: Array<Record<string, unknown>> = []
-    const tools = createOnboardingTools({ submit: async (input) => { calls.push(input as unknown as Record<string, unknown>); return { ok: true, workspaceId: "WORKSPACE-NEW" } } })
-    expect(tools.map((tool) => tool.name)).toEqual(["get_onboarding_form", "create_workspace"])
-    const form = await tools[0].execute({}) as { institutions: Array<{ id: string }>, customPath: string }
-    expect(form.institutions.some((item) => item.id === "INSTITUTION-STANFORD")).toBe(true)
-    expect(form.institutions.some((item) => item.id === CUSTOM_INSTITUTION_ID)).toBe(true)
-    expect(form.customPath).toContain("extend_reference")
-    const result = await tools[1].execute({ name: "Dave", goal: "Plan my semester.", institutionId: CUSTOM_INSTITUTION_ID, customInstitution: "University of Wherever", academicHistory: { classYear: "Junior" } }) as { ok: boolean }
-    expect(result.ok).toBe(true)
-    expect(calls[0]).toMatchObject({ name: "Dave", customInstitution: "University of Wherever" })
-    const failing = createOnboardingTools({ submit: async () => { throw new Error("network down") } })
-    const failure = await failing[1].execute({ name: "Dave", goal: "Plan." }) as { ok: boolean, message?: string }
-    expect(failure).toMatchObject({ ok: false, message: "network down" })
-  })
-})

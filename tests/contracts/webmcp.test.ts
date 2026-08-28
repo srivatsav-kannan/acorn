@@ -147,7 +147,9 @@ describe("structured context and reference tools", () => {
     const both = await tool.execute({ expectedVersion: 2, idempotencyKey: "HISTORY-2", academicHistory: { classYear: "Junior" }, preferences: [{ id: "PREFERENCE-X", label: "X", strength: "soft", value: true }] })
     expect(both).toMatchObject({ ok: false, code: "ONE_SECTION_PER_CALL" })
     const neither = await tool.execute({ expectedVersion: 2, idempotencyKey: "HISTORY-3" })
-    expect(neither).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(neither).toMatchObject({ ok: false, code: "ONE_SECTION_PER_CALL" })
+    const named = await tool.execute({ expectedVersion: 2, idempotencyKey: "HISTORY-4", profile: { preferredName: "Alex C.", goal: "Explore health and AI." } })
+    expect(named).toMatchObject({ ok: true })
   })
 
   it("adds a program through extend_reference and rejects ambiguous payloads", async () => {
