@@ -152,10 +152,25 @@ describe("Supabase migration contract", () => {
     expect(proxySource).toContain("/onboarding")
   })
 
-  it("admits a browser workspace by cookie without any account machinery", () => {
-    expect(proxySource).toContain('course_context_local')
-    expect(onboardingRoute).toContain('course_context_local')
-    expect(onboardingRoute.indexOf("course_context_local")).toBeLessThan(onboardingRoute.indexOf("isSupabaseServerConfigured()"))
+  it("confines the cookie fixture to the test flag in every entry point", () => {
+    const startRoute = readFileSync(resolve(process.cwd(), "src/app/start/route.ts"), "utf8")
+    const appLayout = readFileSync(resolve(process.cwd(), "src/app/app/layout.tsx"), "utf8")
+    for (const source of [proxySource, onboardingRoute, appLayout]) {
+      expect(source).toContain('COURSE_CONTEXT_E2E_FIXTURE === "true"')
+    }
+    expect(proxySource).toMatch(/COURSE_CONTEXT_E2E_FIXTURE === "true"[\s\S]{0,220}course_context_local/)
+    expect(onboardingRoute).toMatch(/COURSE_CONTEXT_E2E_FIXTURE === "true"[\s\S]{0,220}course_context_local/)
+    expect(appLayout).toMatch(/COURSE_CONTEXT_E2E_FIXTURE === "true"[\s\S]{0,320}course_context_local/)
+    expect(startRoute).toMatch(/COURSE_CONTEXT_E2E_FIXTURE !== "true"/)
+  })
+
+  it("requires an authenticated account for every non-fixture workspace", () => {
+    const appLayout = readFileSync(resolve(process.cwd(), "src/app/app/layout.tsx"), "utf8")
+    expect(appLayout).toContain("isSupabaseServerConfigured()")
+    expect(appLayout).toContain('redirect("/login")')
+    expect(appLayout).toContain("loadWorkspaceRecordForUser")
+    expect(proxySource).toContain("client.auth.getUser()")
+    expect(proxySource).toContain("/login?next=")
   })
 
   it("validates ownership and optimistic versions before persisted commits", () => {

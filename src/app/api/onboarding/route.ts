@@ -30,10 +30,11 @@ export async function POST(request: Request) {
   const entryYear = Number(input.entryYear)
   const gradYear = Number(input.gradYear)
 
-  // A browser workspace is built server-side from the same builder accounts
-  // use, then handed back for this browser's storage. No account required.
+  // Playwright's fixture workspace goes through the same builder accounts
+  // use, then lives in that test browser's storage. Real onboarding is always
+  // account-backed below; this branch does not exist outside the test flag.
   const jar = await cookies()
-  if (jar.get("course_context_local")?.value === "1") {
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && jar.get("course_context_local")?.value === "1") {
     try {
       const workspace = buildPersonalWorkspace({
         userId: "USER-LOCAL",

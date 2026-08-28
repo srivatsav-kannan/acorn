@@ -63,12 +63,12 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
     <section className="auth-card">
       <header>
         <h1>Sign in</h1>
-        <p>Accounts sync a workspace to the server. If you started in this browser, your workspace is already waiting at the front page.</p>
+        <p>One field for both directions: the link signs you in, and the first one creates your account.</p>
       </header>
       {demoRequested && demoLogin}
       {demoRequested && <div className="auth-divider"><span>Personal account</span></div>}
       <div className="auth-form-panel">
-        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment has no account storage. Workspaces run in the browser instead.</span><Link className="secondary-button" href="/start">Create a workspace in this browser</Link></div>}
+        {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is missing its account storage configuration, so no one can sign in until it is restored.</span></div>}
         {linkSentTo ? <div className="link-sent" role="status">
           <strong>Check your inbox</strong>
           <p>A one-time sign-in link is on its way to <b>{linkSentTo}</b>. Opening it returns you here, signed in.</p>

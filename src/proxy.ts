@@ -8,19 +8,19 @@ const localUrl = (request: NextRequest, path: string) => {
   return new URL(path, host ? `${protocol}://${host}` : request.url)
 }
 
+// Every workspace lives behind an account and persists in Supabase. The only
+// exception is the browser fixture Playwright drives, and it exists solely
+// when the test flag is set at boot.
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
   const protectedRoute = protectedPrefixes.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
   if (!protectedRoute) return response
 
-  // A browser workspace needs no account: the cookie records the choice and
-  // the workspace itself lives in this browser's storage.
-  if (request.cookies.get("course_context_local")?.value === "1") return response
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && request.cookies.get("course_context_demo")?.value === "1") return response
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && (request.cookies.get("course_context_demo")?.value === "1" || request.cookies.get("course_context_local")?.value === "1")) return response
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  if (!url || !key) return NextResponse.redirect(localUrl(request, "/start"))
+  if (!url || !key) return NextResponse.redirect(localUrl(request, "/login?error=auth_configuration"))
 
   const client = createServerClient(url, key, {
     cookies: {
@@ -29,11 +29,7 @@ export async function proxy(request: NextRequest) {
     }
   })
   const { data } = await client.auth.getUser()
-  if (!data.user) {
-    // An anonymous visitor on /onboarding wants a workspace, not a login wall.
-    if (request.nextUrl.pathname.startsWith("/onboarding")) return NextResponse.redirect(localUrl(request, "/start"))
-    return NextResponse.redirect(localUrl(request, `/login?next=${encodeURIComponent(request.nextUrl.pathname)}`))
-  }
+  if (!data.user) return NextResponse.redirect(localUrl(request, `/login?next=${encodeURIComponent(request.nextUrl.pathname)}`))
   return response
 }
 

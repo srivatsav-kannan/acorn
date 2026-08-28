@@ -28,7 +28,7 @@ const tickerCodes = ["CS 106A", "CS 106B", "MATH 51", "CS 107", "PHYSICS 41", "E
 
 const importedOn = new Date(stanfordCatalogMeta.retrievedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 
-export const LandingPage = ({ hasWorkspace = false }: { hasWorkspace?: boolean }) => {
+export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
   const catalog = buildStanfordCatalog()
   const byCode = new Map(catalog.courses.map((course) => [course.code, course]))
   const tickerCourses = tickerCodes.map((code) => byCode.get(code)).filter((course) => course !== undefined)
@@ -36,8 +36,8 @@ export const LandingPage = ({ hasWorkspace = false }: { hasWorkspace?: boolean }
   const years = [0, 1, 2, 3].map((offset) => quarters.filter((quarter) => quarter.academicYearStart === 2026 + offset))
   const timeline = { entryTermId: "TERM-2026-AUTUMN", expectedGraduationTermId: "TERM-2030-SPRING", degree: "BS" }
   const institutionChoices = listInstitutionChoices()
-  const enterHref = hasWorkspace ? "/app" : "/start"
-  const enterLabel = hasWorkspace ? "Open your workspace" : "Start planning"
+  const enterHref = signedIn ? "/app" : "/login"
+  const enterLabel = signedIn ? "Open your workspace" : "Start planning"
 
   return <main className="public-page">
     <header className="public-header">
@@ -46,7 +46,7 @@ export const LandingPage = ({ hasWorkspace = false }: { hasWorkspace?: boolean }
         <a href="#premise">How it works</a>
         <a href="#agents">For agents</a>
         <Link href="/login">Sign in</Link>
-        <Link className="primary-button" href={enterHref}><span className="cta-long">{enterLabel}</span><span className="cta-short">{hasWorkspace ? "Open" : "Start"}</span></Link>
+        <Link className="primary-button" href={enterHref}><span className="cta-long">{enterLabel}</span><span className="cta-short">{signedIn ? "Open" : "Start"}</span></Link>
       </nav>
     </header>
 
@@ -57,7 +57,7 @@ export const LandingPage = ({ hasWorkspace = false }: { hasWorkspace?: boolean }
         <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
         <a className="secondary-button" href="#agents">How agents work here</a>
       </div>
-      <p className="hero-note">Free, and it cannot enroll you in anything. It plans; you register.</p>
+      <p className="hero-note">Free. One email link creates your account, and your workspace follows it to any device. It cannot enroll you in anything; it plans, you register.</p>
     </section>
 
     <div className="ticker-band" aria-hidden="true">

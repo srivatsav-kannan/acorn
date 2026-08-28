@@ -1,14 +1,13 @@
 import AxeBuilder from "@axe-core/playwright"
 import { expect, test } from "@playwright/test"
 
-test("public landing explains the product and starts a browser workspace", async ({ page }) => {
+test("public landing explains the product and routes into the account flow", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { level: 1 })).toContainText("twelve quarters")
   await expect(page.getByText("15,587 courses")).toBeVisible()
   await page.getByRole("link", { name: "Start planning" }).first().click()
-  await expect(page).toHaveURL(/\/onboarding$/)
-  await page.goto("/")
-  await expect(page.getByRole("link", { name: "Open your workspace" }).first()).toBeVisible()
+  await expect(page).toHaveURL(/\/login/)
+  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible()
 })
 
 test("the demo workspace exposes every primary surface", async ({ page }) => {
@@ -18,6 +17,8 @@ test("the demo workspace exposes every primary surface", async ({ page }) => {
   for (const name of ["Home", "Plan", "Stanford", "Library", "Programs"]) {
     await expect(page.getByRole("link", { name, exact: true })).toBeVisible()
   }
+  await page.goto("/")
+  await expect(page.getByRole("link", { name: "Open your workspace" }).first()).toBeVisible()
 })
 
 test("account entry reflects the active authentication configuration", async ({ page }) => {
@@ -26,7 +27,6 @@ test("account entry reflects the active authentication configuration", async ({ 
   const setupNotice = page.getByText("Account sign-in is unavailable")
   if (await setupNotice.isVisible()) {
     await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeDisabled()
-    await expect(page.getByRole("link", { name: "Create a workspace in this browser" })).toBeVisible()
   } else {
     await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeEnabled()
     await expect(page.getByRole("button", { name: "Sign in with demo credentials" })).toBeVisible()
@@ -34,10 +34,12 @@ test("account entry reflects the active authentication configuration", async ({ 
   await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0)
 })
 
-test("visiting onboarding without an account starts a browser workspace", async ({ page }) => {
+test("workspace and onboarding routes are account-gated", async ({ page }) => {
   await page.goto("/onboarding")
-  await expect(page).toHaveURL(/\/onboarding$/)
-  await expect(page.getByRole("heading", { name: "Three facts, then you are in." })).toBeVisible()
+  await expect(page).toHaveURL(/\/login/)
+  await page.goto("/app")
+  await expect(page).toHaveURL(/\/login/)
+  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible()
 })
 
 test("student captures context, changes a plan, sees checks, and undoes the action", async ({ page }) => {
@@ -248,7 +250,7 @@ test("WebMCP health research becomes visible, searchable Library context", async
   await expect(page.getByText("Build healthcare and health-AI depth")).toBeVisible()
 })
 
-test("a browser workspace onboards clean, persists edits, and plans future terms", async ({ page }) => {
+test("the fixture workspace onboards clean, persists edits, and plans future terms", async ({ page }) => {
   await page.goto("/start")
   await expect(page).toHaveURL(/\/onboarding$/)
   await page.getByLabel("Entered in autumn").selectOption("2026")

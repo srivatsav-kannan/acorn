@@ -7,10 +7,12 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  if (cookieStore.get("course_context_local")?.value === "1") return <WorkspaceProvider mode="fixture" localAccount><AppShell>{children}</AppShell></WorkspaceProvider>
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && cookieStore.get("course_context_demo")?.value === "1") return <WorkspaceProvider mode="fixture"><AppShell>{children}</AppShell></WorkspaceProvider>
-  if (!isSupabaseServerConfigured()) redirect("/start")
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true") {
+    const cookieStore = await cookies()
+    if (cookieStore.get("course_context_local")?.value === "1") return <WorkspaceProvider mode="fixture" localAccount><AppShell>{children}</AppShell></WorkspaceProvider>
+    if (cookieStore.get("course_context_demo")?.value === "1") return <WorkspaceProvider mode="fixture"><AppShell>{children}</AppShell></WorkspaceProvider>
+  }
+  if (!isSupabaseServerConfigured()) redirect("/login?error=auth_configuration")
   const client = await createCourseContextServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) redirect("/login")

@@ -32,19 +32,23 @@ describe("public product surfaces", () => {
     expect(screen.getByText(/No sample student data/i)).toBeVisible()
   })
 
-  it("explains the product with real catalog numbers and one way in", () => {
+  it("explains the product with real catalog numbers and routes into the account flow", () => {
     render(<LandingPage />)
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/twelve quarters/i)
-    expect(screen.getAllByRole("link", { name: /start planning/i }).length).toBeGreaterThan(0)
+    const starts = screen.getAllByRole("link", { name: /start planning/i })
+    expect(starts.length).toBeGreaterThan(0)
+    for (const link of starts) expect(link).toHaveAttribute("href", "/login")
     expect(screen.getByRole("link", { name: /sign in/i })).toBeVisible()
     expect(screen.getAllByText(/15,587/).length).toBeGreaterThan(0)
     expect(screen.getByText(/not affiliated with stanford/i)).toBeVisible()
     expect(screen.queryByText(/demo login/i)).not.toBeInTheDocument()
   })
 
-  it("greets a returning browser workspace with its own door", () => {
-    render(<LandingPage hasWorkspace />)
-    expect(screen.getAllByRole("link", { name: /open your workspace/i }).length).toBeGreaterThan(0)
+  it("greets a signed-in student with their own door", () => {
+    render(<LandingPage signedIn />)
+    const opens = screen.getAllByRole("link", { name: /open your workspace/i })
+    expect(opens.length).toBeGreaterThan(0)
+    for (const link of opens) expect(link).toHaveAttribute("href", "/app")
     expect(screen.queryByRole("link", { name: /start planning/i })).not.toBeInTheDocument()
   })
 
@@ -58,12 +62,12 @@ describe("public product surfaces", () => {
     expect(screen.queryByText(/stanford password/i)).not.toBeInTheDocument()
   })
 
-  it("points an unconfigured deployment at the browser workspace instead", async () => {
+  it("fails closed when account storage is not configured", async () => {
     render(<LoginPage demoAvailable />)
     expect(screen.getByText(/account sign-in is unavailable/i)).toBeVisible()
     expect(screen.queryByRole("button", { name: /continue with google/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /email me a sign-in link/i })).toBeDisabled()
-    expect(screen.getByRole("link", { name: /create a workspace in this browser/i })).toHaveAttribute("href", "/start")
+    expect(screen.queryByRole("link", { name: /workspace in this browser/i })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: /sign in with demo credentials/i })).toBeVisible()
   })
 
