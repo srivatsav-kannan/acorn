@@ -1007,9 +1007,12 @@ b, strong { letter-spacing: -.004em; }
   .app-frame { grid-template: 58px 1fr 62px / 1fr; }
   .topbar { height: 58px; }
   .topbar .wordmark { width: auto; }
+  .topbar { gap: 10px; padding: 0 12px; }
+  .term-tag { padding-left: 10px; }
+  .topbar-actions { gap: 10px; }
+  .topbar-text-button { font-size: 12px; }
   .quiet-button { min-width: 0; }
   .quiet-button > span:not(.sr-only), .quiet-button kbd { display: none; }
-  .topbar-text-button { display: none; }
   .sidebar { display: none; }
   .workspace-main { grid-row: 2; }
   .mobile-nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; display: grid; grid-template-columns: repeat(7, 1fr); height: 62px; padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid var(--line); background: var(--paper); }
