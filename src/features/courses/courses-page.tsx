@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useDeferredValue, useMemo, useState } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
-import { apExamPresets, apGrantFor, apScoreChoices, apUnitChoices } from "@/data/institutions/stanford-ap"
+import { apExamPresets, apGrantFor, apScoreChoices, ibExamPresets, ibScoreChoices } from "@/data/institutions/stanford-ap"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateDegreePlan, planForTerm } from "@/domain/degree-plan"
 import { checkPlan } from "@/domain/planner"
@@ -48,10 +48,13 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
   const [activityForm, setActivityForm] = useState({ id: "", name: "", kind: "research", organizer: "", detail: "", days: [] as string[], start: "15:00", end: "17:00", startDate: "", endDate: "", dateOne: "", dateOneLabel: "" })
   const [activityOpen, setActivityOpen] = useState(false)
   const [completedQuery, setCompletedQuery] = useState("")
+  const [creditKind, setCreditKind] = useState<"ap" | "ib" | "college">("ap")
   const [creditExam, setCreditExam] = useState(apExamPresets[0].exam)
   const [creditScore, setCreditScore] = useState("5")
   const [creditUnits, setCreditUnits] = useState(() => String(apGrantFor(apExamPresets[0].exam, 5)?.units ?? 0))
   const [creditSatisfies, setCreditSatisfies] = useState<string[]>(() => apGrantFor(apExamPresets[0].exam, 5)?.satisfiesCodes ?? [])
+  const [creditInstitution, setCreditInstitution] = useState("")
+  const [creditCourseTitle, setCreditCourseTitle] = useState("")
   const [addingCredit, setAddingCredit] = useState(false)
 
   const institution = institutionForWorkspace(workspace)
@@ -59,9 +62,14 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
   const shippedOpportunities = useMemo(() => new Map(institution.buildOpportunities().map((opportunity) => [opportunity.id, opportunity])), [institution])
   const opportunities = useMemo(() => mergedOpportunities(institution.buildOpportunities(), workspace.referenceOverlay?.opportunities), [institution, workspace.referenceOverlay?.opportunities])
   const overlayCourseIds = useMemo(() => new Set((workspace.referenceOverlay?.courses ?? []).map((course) => course.id)), [workspace.referenceOverlay?.courses])
+  const overlayAuthor = (courseId: string) => {
+    const entry = (workspace.referenceOverlay?.courses ?? []).find((item) => item.id === courseId) as { addedBy?: { type?: string } } | undefined
+    return entry?.addedBy?.type === "agent" ? "agent" : "hand"
+  }
 
   const terms = useMemo(() => termSequence(workspace.currentTermId, timeline.expectedGraduationTermId).slice(0, 15), [workspace.currentTermId, timeline.expectedGraduationTermId])
-  const results = useMemo(() => query.trim() ? searchCourses(value.catalog, { query }).slice(0, 12) : [], [value.catalog, query])
+  const deferredQuery = useDeferredValue(query)
+  const results = useMemo(() => deferredQuery.trim() ? searchCourses(value.catalog, { query: deferredQuery }).slice(0, 12) : [], [value.catalog, deferredQuery])
   const interested = new Set(workspace.interestedCourseIds ?? [])
   const interestedCourses = (workspace.interestedCourseIds ?? []).map((id) => value.catalog.courses.find((course) => course.id === id)).filter((course): course is Course => Boolean(course))
 
@@ -103,15 +111,37 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
   const chooseCredit = (exam: string, score: string) => {
     setCreditExam(exam)
     setCreditScore(score)
-    const grant = apGrantFor(exam, Number(score))
-    setCreditUnits(String(grant?.units ?? 0))
-    setCreditSatisfies(grant?.satisfiesCodes ?? [])
+    if (creditKind === "ap") {
+      const grant = apGrantFor(exam, Number(score))
+      setCreditUnits(String(grant?.units ?? 0))
+      setCreditSatisfies(grant?.satisfiesCodes ?? [])
+    }
+  }
+  const chooseCreditKind = (kind: "ap" | "ib" | "college") => {
+    setCreditKind(kind)
+    setCreditSatisfies([])
+    setCreditUnits("0")
+    if (kind === "ap") { setCreditExam(apExamPresets[0].exam); setCreditScore("5"); const grant = apGrantFor(apExamPresets[0].exam, 5); setCreditUnits(String(grant?.units ?? 0)); setCreditSatisfies(grant?.satisfiesCodes ?? []) }
+    if (kind === "ib") { setCreditExam(ibExamPresets[0]); setCreditScore("7") }
+    if (kind === "college") { setCreditExam(""); setCreditScore("") }
   }
   const apCredits = workspace.profile.apCredits ?? []
   const addCredit = async () => {
-    await value.onCommand({ type: "update_academic_history", patch: { apCredits: [...apCredits, { id: `AP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, exam: creditExam, score: Number(creditScore), unitsGranted: Number(creditUnits), satisfiesCourseIds: creditSatisfies.map((code) => value.catalog.courses.find((course) => course.code === code)?.id).filter((id): id is string => Boolean(id)) }] } })
+    const exam = creditKind === "college" ? `${creditCourseTitle.trim() || "College course"}` : creditExam
+    if (creditKind === "college" && !creditCourseTitle.trim()) return
+    await value.onCommand({ type: "update_academic_history", patch: { apCredits: [...apCredits, {
+      id: `CREDIT-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      exam,
+      kind: creditKind,
+      institution: creditKind === "college" ? creditInstitution.trim() || undefined : undefined,
+      score: creditKind === "college" ? undefined : Number(creditScore),
+      unitsGranted: Number(creditUnits) || 0,
+      satisfiesCourseIds: creditSatisfies.map((code) => value.catalog.courses.find((course) => course.code === code)?.id).filter((id): id is string => Boolean(id))
+    }] } })
     setAddingCredit(false)
-    chooseCredit(apExamPresets[0].exam, "5")
+    setCreditInstitution("")
+    setCreditCourseTitle("")
+    chooseCreditKind("ap")
   }
   const completedCourses = workspace.profile.completedCourseIds.map((id) => value.catalog.courses.find((course) => course.id === id)).filter((course): course is Course => Boolean(course))
   const completedMatches = completedQuery.trim() ? value.catalog.courses.filter((course) => `${course.code} ${course.title}`.toLowerCase().includes(completedQuery.toLowerCase()) && !workspace.profile.completedCourseIds.includes(course.id)).slice(0, 6) : []
@@ -133,7 +163,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
         <b>{course.code}</b>
         <span className="course-row-title">{course.title}</span>
         <span className="course-row-meta">{course.minUnits === course.maxUnits ? `${course.maxUnits} units` : `${course.minUnits} to ${course.maxUnits} units`}{course.ways?.length ? ` · ${course.ways.join(", ")}` : ""}{sectionsCount > 0 ? ` · ${sectionsCount} section${sectionsCount === 1 ? "" : "s"}` : ""}</span>
-        {unverified && <span className="unverified-banner">{(workspace.referenceOverlay?.courses ?? []).find((item) => item.id === course.id) && shippedCourses.has(course.id) ? "Amended" : "Added"} by {(workspace.referenceOverlay?.courses ?? []).find((item) => item.id === course.id)?.catalogYear === undefined ? "" : ""}{((workspace.referenceOverlay?.courses ?? []).find((item) => item.id === course.id) as { addedBy?: { type?: string } } | undefined)?.addedBy?.type === "agent" ? "agent" : "hand"} · unverified</span>}
+        {unverified && <span className="unverified-banner">{shippedCourses.has(course.id) ? "Amended" : "Added"} by {overlayAuthor(course.id)} · unverified</span>}
       </button>
       <div className="course-row-actions">
         <button className={interested.has(course.id) ? "chip-button active" : "chip-button"} type="button" onClick={() => void value.onCommand({ type: "set_course_interest", courseId: course.id, interested: !interested.has(course.id) })}>{interested.has(course.id) ? "Interested ✓" : "Interested"}</button>
@@ -300,19 +330,38 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
         {completedCourses.length === 0 ? <p className="muted">Courses you mark completed count toward prerequisites and units.</p> : <ul className="history-list">{completedCourses.map((course) => <li key={course.id}><span><b>{course.code}</b><small>{course.title}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "set_completed_courses", courseIds: workspace.profile.completedCourseIds.filter((id) => id !== course.id) })}>Remove</button></li>)}</ul>}
       </section>
       <section className="panel-card">
-        <div className="section-heading"><h2>AP credit</h2><button className="secondary-button small" type="button" onClick={() => setAddingCredit((current) => !current)}>{addingCredit ? "Cancel" : "Add credit"}</button></div>
-        <p className="muted">Defaults follow Stanford&apos;s AP chart; adjust units to match your credit report. Transfer credit comes in through your agent.</p>
+        <div className="section-heading"><h2>Credit before Stanford</h2><button className="secondary-button small" type="button" onClick={() => setAddingCredit((current) => !current)}>{addingCredit ? "Cancel" : "Add credit"}</button></div>
+        <p className="muted">AP and IB come from their exam lists; college co-enrollment is entered directly. The units Stanford actually granted are yours to type in from your credit report.</p>
         {addingCredit && <form className="add-form" onSubmit={(event) => { event.preventDefault(); void addCredit() }}>
-          <label>Exam<select value={creditExam} onChange={(event) => chooseCredit(event.target.value, creditScore)}>{apExamPresets.map((preset) => <option key={preset.exam} value={preset.exam}>{preset.exam}</option>)}</select></label>
-          <div className="add-form-row">
-            <label>Score<select value={creditScore} onChange={(event) => chooseCredit(creditExam, event.target.value)}>{apScoreChoices.map((score) => <option key={score} value={score}>{score}</option>)}</select></label>
-            <label>Units<select value={creditUnits} onChange={(event) => setCreditUnits(event.target.value)}>{[...new Set([Number(creditUnits), ...apUnitChoices])].sort((a, b) => a - b).map((units) => <option key={units} value={units}>{units}</option>)}</select></label>
+          <div className="kind-toggle-row" role="radiogroup" aria-label="Credit type">
+            {([["ap", "AP"], ["ib", "IB"], ["college", "College course"]] as const).map(([kind, label]) => <button key={kind} type="button" role="radio" aria-checked={creditKind === kind} className={creditKind === kind ? "day-toggle active" : "day-toggle"} onClick={() => chooseCreditKind(kind)}>{label}</button>)}
           </div>
-          {creditSatisfies.length > 0 && <p className="add-form-note">Counts as {creditSatisfies.join(" and ")}.</p>}
-          {apGrantFor(creditExam, Number(creditScore)) === null && <p className="add-form-note">Stanford grants no units for this exam and score; it is recorded for context only.</p>}
+          {creditKind === "ap" && <>
+            <label>Exam<select value={creditExam} onChange={(event) => chooseCredit(event.target.value, creditScore)}>{apExamPresets.map((preset) => <option key={preset.exam} value={preset.exam}>{preset.exam}</option>)}</select></label>
+            <div className="add-form-row">
+              <label>Score<select value={creditScore} onChange={(event) => chooseCredit(creditExam, event.target.value)}>{apScoreChoices.map((score) => <option key={score} value={score}>{score}</option>)}</select></label>
+              <label>Units Stanford granted<input type="number" min={0} max={45} value={creditUnits} onChange={(event) => setCreditUnits(event.target.value)} /></label>
+            </div>
+            {creditSatisfies.length > 0 && <p className="add-form-note">Counts as {creditSatisfies.join(" and ")} by default.</p>}
+            {apGrantFor(creditExam, Number(creditScore)) === null && <p className="add-form-note">The chart grants no units for this score; record it with the units from your own credit report.</p>}
+          </>}
+          {creditKind === "ib" && <>
+            <label>Subject<select value={creditExam} onChange={(event) => setCreditExam(event.target.value)}>{ibExamPresets.map((exam) => <option key={exam} value={exam}>{exam}</option>)}</select></label>
+            <div className="add-form-row">
+              <label>Score<select value={creditScore} onChange={(event) => setCreditScore(event.target.value)}>{ibScoreChoices.map((score) => <option key={score} value={score}>{score}</option>)}</select></label>
+              <label>Units Stanford granted<input type="number" min={0} max={45} value={creditUnits} onChange={(event) => setCreditUnits(event.target.value)} /></label>
+            </div>
+          </>}
+          {creditKind === "college" && <>
+            <div className="add-form-row">
+              <label>College or university<input value={creditInstitution} onChange={(event) => setCreditInstitution(event.target.value)} maxLength={80} placeholder="Foothill College" /></label>
+              <label>Course<input value={creditCourseTitle} onChange={(event) => setCreditCourseTitle(event.target.value)} maxLength={80} placeholder="MATH 1C Multivariable Calculus" required /></label>
+            </div>
+            <label>Units Stanford granted<input type="number" min={0} max={45} value={creditUnits} onChange={(event) => setCreditUnits(event.target.value)} /></label>
+          </>}
           <button className="primary-button" type="submit">Save credit</button>
         </form>}
-        {apCredits.length === 0 ? <p className="muted">No credits recorded.</p> : <ul className="history-list">{apCredits.map((credit) => <li key={credit.id}><span><b>{credit.exam}</b><small>{[credit.score !== undefined ? `Score ${credit.score}` : null, credit.unitsGranted !== undefined ? `${credit.unitsGranted} units` : null].filter(Boolean).join(" · ")}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "update_academic_history", patch: { apCredits: apCredits.filter((item) => item.id !== credit.id) } })}>Remove</button></li>)}</ul>}
+        {apCredits.length === 0 ? <p className="muted">No credits recorded.</p> : <ul className="history-list">{apCredits.map((credit) => <li key={credit.id}><span><b>{credit.exam}</b><small>{[credit.kind === "ib" ? "IB" : credit.kind === "college" ? (credit.institution || "College") : "AP", credit.score !== undefined ? `score ${credit.score}` : null, credit.unitsGranted !== undefined ? `${credit.unitsGranted} units granted` : null].filter(Boolean).join(" · ")}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "update_academic_history", patch: { apCredits: apCredits.filter((item) => item.id !== credit.id) } })}>Remove</button></li>)}</ul>}
       </section>
     </div>}
 

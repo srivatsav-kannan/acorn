@@ -16,6 +16,12 @@ export const ProfilePage = () => {
   const gradYear = parseTermId(timeline.expectedGraduationTermId)?.year ?? entryYear + 4
   const [name, setName] = useState(profile.name)
   const [phone, setPhone] = useState(profile.recoveryPhone ?? "")
+  const [pendingYears, setPendingYears] = useState<{ entry: number, grad: number } | null>(null)
+  const [draftEntry, setDraftEntry] = useState(entryYear)
+  const [draftGrad, setDraftGrad] = useState(gradYear)
+  const [confirmingReset, setConfirmingReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
+
   // The fixture provider hydrates stored state a beat after mount; keep the
   // identity fields in step with what actually loaded.
   useEffect(() => {
@@ -25,9 +31,6 @@ export const ProfilePage = () => {
     }, 0)
     return () => window.clearTimeout(timeout)
   }, [profile.name, profile.recoveryPhone])
-  const [pendingYears, setPendingYears] = useState<{ entry: number, grad: number } | null>(null)
-  const [draftEntry, setDraftEntry] = useState(entryYear)
-  const [draftGrad, setDraftGrad] = useState(gradYear)
 
   const saveIdentity = () => value.onCommand({ type: "update_profile", patch: { name: name.trim() || profile.name, recoveryPhone: phone } })
 
@@ -44,55 +47,66 @@ export const ProfilePage = () => {
     setPendingYears(null)
   }
 
+  const performReset = async () => {
+    setResetting(true)
+    await value.reset()
+  }
+
   return <div className="page profile-page">
-    <header className="page-heading"><div><h1>Profile</h1><p>Account facts and the two dates everything derives from.</p></div>
+    <header className="page-heading">
+      <div><h1>Profile</h1><p>Account facts and the two dates everything derives from.</p></div>
       <div className="heading-actions">
-        {value.isDemoAccount || value.mode === "fixture" ? <button className="secondary-button" onClick={value.reset}>{value.localAccount ? "Reset workspace" : "Reset demo"}</button> : null}
         {value.mode === "account" && <button className="secondary-button" onClick={value.signOut}>Log out</button>}
       </div>
     </header>
 
-    <section className="panel-card">
-      <div className="section-heading"><h2>Identity</h2></div>
-      <form className="profile-form" onSubmit={(event) => { event.preventDefault(); void saveIdentity() }}>
-        <label>Name<input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required /></label>
-        <label>Email<input value={value.mode === "account" ? value.userEmail : profile.email || "Not connected"} disabled readOnly /></label>
-        <label>Recovery phone<input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 650 555 0100" maxLength={24} /></label>
-        <button className="primary-button" type="submit">Save</button>
-      </form>
-    </section>
+    <div className="profile-grid">
+      <section className="panel-card">
+        <div className="section-heading"><h2>Identity</h2></div>
+        <form className="profile-form" onSubmit={(event) => { event.preventDefault(); void saveIdentity() }}>
+          <label>Name<input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} required /></label>
+          <label>Email<input value={value.mode === "account" ? value.userEmail : profile.email || "Not connected"} disabled readOnly /></label>
+          <label>Recovery phone<input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 650 555 0100" maxLength={24} /></label>
+          <div className="profile-form-actions"><button className="primary-button" type="submit">Save</button></div>
+        </form>
+      </section>
 
-    <section className="panel-card timeline-card">
-      <div className="section-heading"><h2>Enrollment and graduation</h2><span className="muted">{termLabel(timeline.entryTermId)} to {termLabel(timeline.expectedGraduationTermId)}</span></div>
-      <p className="danger-note">Changing these two dates rebuilds the entire schedule: every quarter on the calendar, your standing each year, unit targets, and cross-term checks all shift with them.</p>
-      <div className="add-form-row">
-        <label>Entered Stanford in autumn
-          <select className="chunky-select" value={pendingYears ? draftEntry : entryYear} onChange={(event) => requestYears(Number(event.target.value), pendingYears ? draftGrad : gradYear)}>
-            {Array.from({ length: 10 }, (_, index) => entryYear - 4 + index).map((year) => <option key={year} value={year}>{year}</option>)}
-          </select>
-        </label>
-        <label>Graduating in spring
-          <select className="chunky-select" value={pendingYears ? draftGrad : gradYear} onChange={(event) => requestYears(pendingYears ? draftEntry : entryYear, Number(event.target.value))}>
-            {Array.from({ length: 9 }, (_, index) => (pendingYears ? draftEntry : entryYear) + 1 + index).map((year) => <option key={year} value={year}>{year}</option>)}
-          </select>
-        </label>
-      </div>
-      {pendingYears && <div className="confirm-strip" role="alertdialog" aria-label="Confirm timeline change">
-        <p><b>Rebuild the map for {pendingYears.entry} to {pendingYears.grad}?</b> Quarters, standing, unit targets, and the calendar will all be recomputed. This is undoable from the activity ledger.</p>
-        <div className="form-row-actions">
-          <button className="secondary-button small" type="button" onClick={() => setPendingYears(null)}>Cancel</button>
-          <button className="primary-button small" type="button" onClick={() => void applyYears()}>Rebuild the map</button>
+      <section className="panel-card timeline-card">
+        <div className="section-heading"><h2>Enrollment and graduation</h2><span className="muted timeline-span">{termLabel(timeline.entryTermId)} to {termLabel(timeline.expectedGraduationTermId)}</span></div>
+        <p className="danger-note">Changing these two dates rebuilds the entire schedule: every quarter on the calendar, your standing each year, unit targets, and cross-term checks all shift with them.</p>
+        <div className="profile-year-row">
+          <label>Entered Stanford in autumn
+            <select className="chunky-select" value={pendingYears ? draftEntry : entryYear} onChange={(event) => requestYears(Number(event.target.value), pendingYears ? draftGrad : gradYear)}>
+              {Array.from({ length: 10 }, (_, index) => entryYear - 4 + index).map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
+          <label>Graduating in spring
+            <select className="chunky-select" value={pendingYears ? draftGrad : gradYear} onChange={(event) => requestYears(pendingYears ? draftEntry : entryYear, Number(event.target.value))}>
+              {Array.from({ length: 9 }, (_, index) => (pendingYears ? draftEntry : entryYear) + 1 + index).map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
         </div>
-      </div>}
-    </section>
+        {pendingYears && <div className="confirm-strip" role="alertdialog" aria-label="Confirm timeline change">
+          <p><b>Rebuild the map for {pendingYears.entry} to {pendingYears.grad}?</b> Quarters, standing, unit targets, and the calendar will all be recomputed. This is undoable from the activity ledger.</p>
+          <div className="form-row-actions">
+            <button className="secondary-button small" type="button" onClick={() => setPendingYears(null)}>Cancel</button>
+            <button className="primary-button small" type="button" onClick={() => void applyYears()}>Rebuild the map</button>
+          </div>
+        </div>}
+      </section>
+    </div>
 
-    <section className="panel-card">
-      <div className="section-heading"><h2>Account</h2></div>
-      <dl className="profile-facts">
-        <div><dt>Kind</dt><dd>{value.isDemoAccount ? "Shared demo account" : value.mode === "account" ? "Personal account" : "Test fixture"}</dd></div>
-        <div><dt>Storage</dt><dd>{value.mode === "account" ? "Saved to the server on every change" : "Test-run storage in this browser"}</dd></div>
-        <div><dt>Degree objective</dt><dd>{timeline.degree}, set on the scratchpad</dd></div>
-      </dl>
+    <section className="panel-card reset-card">
+      <div className="reset-row">
+        <div>
+          <h2>Start over</h2>
+          <p className="muted">Resetting clears everything in this workspace and returns to onboarding.</p>
+        </div>
+        {confirmingReset ? <div className="form-row-actions">
+          <button className="secondary-button" type="button" onClick={() => setConfirmingReset(false)} disabled={resetting}>Keep my workspace</button>
+          <button className="primary-button" type="button" onClick={() => void performReset()} disabled={resetting}>{resetting ? "Resetting…" : "Yes, reset everything"}</button>
+        </div> : <button className="secondary-button" type="button" onClick={() => setConfirmingReset(true)}>Reset workspace</button>}
+      </div>
     </section>
   </div>
 }

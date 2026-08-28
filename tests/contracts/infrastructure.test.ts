@@ -144,6 +144,16 @@ describe("Supabase migration contract", () => {
     expect(demoResetRoute).toContain("client.auth.signOut()")
   })
 
+  it("gives every account the same onboarding-returning reset", () => {
+    const accountResetRoute = readFileSync(resolve(process.cwd(), "src/app/api/account/reset/route.ts"), "utf8")
+    const workspaceServer = readFileSync(resolve(process.cwd(), "src/lib/workspace-server.ts"), "utf8")
+    expect(accountResetRoute).toContain("commit_workspace_snapshot")
+    expect(accountResetRoute).toContain("setupPending = true")
+    expect(accountResetRoute).toContain("client.auth.getUser()")
+    expect(workspaceServer).toContain("setupPending")
+    expect(onboardingRoute).toContain("commit_workspace_snapshot")
+  })
+
   it("protects account routes and confines browser fixture mode to automated tests", () => {
     expect(proxySource).toContain("course_context_demo")
     expect(proxySource).toContain('COURSE_CONTEXT_E2E_FIXTURE === "true"')

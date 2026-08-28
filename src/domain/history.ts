@@ -18,11 +18,14 @@ const requireText = (value: unknown, field: string, max = 120): string => {
 export const validateApCredit = (input: Record<string, unknown>): ApCredit => {
   const exam = requireText(input.exam, "named exam or credit source", 80)
   const id = String(input.id ?? `AP-${exam.toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`).slice(0, 80)
-  const credit: ApCredit = { id, exam }
+  const kind = ["ap", "ib", "college"].includes(String(input.kind)) ? input.kind as ApCredit["kind"] : "ap"
+  const credit: ApCredit = { id, exam, kind }
+  if (kind === "college" && typeof input.institution === "string" && input.institution.trim()) credit.institution = input.institution.trim().slice(0, 80)
   if (input.score !== undefined && input.score !== null && input.score !== "") {
     const score = Number(input.score)
-    if (!Number.isFinite(score) || score < 1 || score > 5) throw new Error("An AP score must be between 1 and 5")
-    credit.score = score
+    const top = kind === "ib" ? 7 : 5
+    if (!Number.isFinite(score) || score < 1 || score > top) throw new Error(`A score must be between 1 and ${top}`)
+    if (kind !== "college") credit.score = score
   }
   if (input.unitsGranted !== undefined && input.unitsGranted !== null && input.unitsGranted !== "") {
     const units = Number(input.unitsGranted)

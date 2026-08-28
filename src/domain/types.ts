@@ -69,6 +69,8 @@ export type Preference = {
 export type ApCredit = {
   id: string
   exam: string
+  kind?: "ap" | "ib" | "college"
+  institution?: string
   score?: number
   unitsGranted?: number
   satisfiesCourseIds?: string[]
@@ -309,6 +311,7 @@ export type WorkspaceState = {
   receipts: ActionReceipt[]
   undoSnapshots: Record<string, WorkspaceState>
   referenceOverlay?: ReferenceOverlay
+  setupPending?: boolean
   todos: TodoItem[]
   interestedCourseIds: string[]
   interestedOpportunityIds: string[]

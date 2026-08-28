@@ -95,16 +95,16 @@ const DemoResetHarness = () => {
   return <button onClick={() => void workspace.reset()}>Reset server demo</button>
 }
 
-describe("server demo reset", () => {
-  it("calls the reset endpoint and returns to login", async () => {
+describe("account reset", () => {
+  it("resets any signed-in account back to onboarding through the shared route", async () => {
     const fixture = buildFixture()
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal("fetch", fetchMock)
     routerSpies.replace.mockClear()
-    render(<WorkspaceProvider mode="account" initialWorkspace={fixture.workspace} userId={fixture.workspace.ownerUserId} catalog={fixture.catalog} isDemoAccount><DemoResetHarness /></WorkspaceProvider>)
+    render(<WorkspaceProvider mode="account" initialWorkspace={fixture.workspace} userId={fixture.workspace.ownerUserId} catalog={fixture.catalog}><DemoResetHarness /></WorkspaceProvider>)
     await userEvent.click(screen.getByRole("button", { name: "Reset server demo" }))
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/demo/reset", { method: "POST" }))
-    expect(routerSpies.replace).toHaveBeenCalledWith("/login?reset=1")
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/account/reset", { method: "POST" }))
+    expect(routerSpies.replace).toHaveBeenCalledWith("/onboarding")
     vi.unstubAllGlobals()
   })
 })
@@ -182,10 +182,19 @@ describe("courses and clubs", () => {
     expect(await within(card).findByRole("button", { name: /Interested ✓/ })).toBeVisible()
   })
 
-  it("keeps AP credit and completed courses in the history tab", async () => {
+  it("keeps completed courses and all three credit kinds in the history tab", async () => {
     renderInWorkspace(<CoursesPage initialTab="history" />)
-    expect(screen.getByRole("heading", { name: "AP credit" })).toBeVisible()
+    expect(screen.getByRole("heading", { name: "Credit before Stanford" })).toBeVisible()
     expect(screen.getByRole("heading", { name: "Completed courses" })).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: "Add credit" }))
+    for (const kind of ["AP", "IB", "College course"]) {
+      expect(screen.getByRole("radio", { name: kind })).toBeVisible()
+    }
+    await userEvent.click(screen.getByRole("radio", { name: "IB" }))
+    expect(screen.getByLabelText("Subject")).toBeVisible()
+    expect(screen.getByLabelText("Units Stanford granted")).toBeVisible()
+    await userEvent.click(screen.getByRole("radio", { name: "College course" }))
+    expect(screen.getByLabelText("College or university")).toBeVisible()
   })
 })
 
@@ -197,6 +206,8 @@ describe("collaborate", () => {
     for (const name of ["export_context", "ingest_context", "edit_plan", "manage_activity"]) {
       expect(screen.getAllByText(name).length).toBeGreaterThan(0)
     }
+    expect(screen.getByRole("heading", { name: "If your agent needs an introduction" })).toBeVisible()
+    expect(screen.getByText(/Start with get_planning_context/)).toBeVisible()
   })
 })
 
@@ -208,5 +219,15 @@ describe("profile", () => {
     expect(await screen.findByRole("alertdialog")).toHaveTextContent(/Rebuild the map/)
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
+  })
+
+  it("offers every account the guarded full reset and no account labels", async () => {
+    renderInWorkspace(<ProfilePage />)
+    expect(screen.queryByText(/demo/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/fixture/i)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole("button", { name: "Reset workspace" }))
+    expect(screen.getByRole("button", { name: "Yes, reset everything" })).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: "Keep my workspace" }))
+    expect(screen.queryByRole("button", { name: "Yes, reset everything" })).not.toBeInTheDocument()
   })
 })

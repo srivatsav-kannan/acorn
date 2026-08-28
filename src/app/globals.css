@@ -311,6 +311,31 @@ input, select, textarea { accent-color: var(--cardinal); }
 .course-note-add .primary-button { justify-self: start; }
 .drawer-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--line); }
 
+/* ---------- Layout rows added in the polish pass ---------- */
+.scratch-top-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 14px; margin-bottom: 18px; }
+.scratch-top-row .goals-card, .scratch-top-row .jot-card { margin-bottom: 0; }
+.scratch-top-row .goals-card { grid-template-columns: 1fr; align-content: start; gap: 14px; }
+.profile-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+.profile-grid .panel-card + .panel-card { margin-top: 0; }
+.profile-form { display: grid; gap: 12px; }
+.profile-form label { display: grid; gap: 5px; font-size: 13px; font-weight: 800; }
+.profile-form input { width: 100%; }
+.profile-form input:disabled { background: var(--paper); color: var(--muted); }
+.profile-form-actions { display: flex; justify-content: flex-end; }
+.profile-year-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 520px; }
+.profile-year-row label { display: grid; gap: 5px; font-size: 13px; font-weight: 800; }
+.timeline-span { font-size: 13px; font-weight: 700; }
+.reset-card { margin-top: 16px; }
+.reset-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.reset-row h2 { margin: 0 0 2px; font-size: 19px; }
+.reset-row p { margin: 0; font-size: 13.5px; }
+.reset-row .form-row-actions { margin-top: 0; }
+.kind-toggle-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.collab-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 16px; align-items: start; }
+.collab-left { display: grid; gap: 16px; }
+.collab-left .panel-card + .panel-card { margin-top: 0; }
+.prompt-card .prompt-text { margin: 0; padding: 12px 14px; border: 1.5px dashed var(--border); border-radius: 10px; background: var(--paper); font-size: 13.5px; line-height: 1.6; }
+
 /* ---------- Collaborate ---------- */
 .connection-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 2px solid var(--border); border-radius: 999px; background: var(--card); font-size: 13px; font-weight: 800; }
 .connection-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
@@ -562,6 +587,10 @@ input, select, textarea { accent-color: var(--cardinal); }
   .mobile-nav a.active { color: #f2c684; }
   .mobile-nav a svg { display: block; }
   .goals-card { grid-template-columns: 1fr; }
+  .scratch-top-row { grid-template-columns: 1fr; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .profile-grid .panel-card + .panel-card { margin-top: 0; }
+  .collab-grid { grid-template-columns: 1fr; }
   .scratch-grid, .club-grid { grid-template-columns: 1fr; }
   .calendar-cell { min-height: 68px; padding: 4px 3px; }
   .calendar-event-line { display: none; }

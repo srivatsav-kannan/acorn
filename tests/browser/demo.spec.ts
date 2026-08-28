@@ -139,13 +139,14 @@ test("profile edits identity and treats the two dates as a guarded rebuild", asy
   await expect(page.getByText("Autumn 2025 to Spring 2030")).toBeVisible()
 })
 
-test("demo reset discards edits and returns to the seeded workspace", async ({ page }) => {
+test("the guarded full reset returns the workspace to its starting point", async ({ page }) => {
   await page.goto("/demo")
   await page.getByRole("link", { name: "Account" }).click()
   await page.getByLabel("Name").fill("Reset Test Student")
   await page.getByRole("button", { name: "Save", exact: true }).click()
   await expect(page.getByLabel("Name")).toHaveValue("Reset Test Student")
-  await page.getByRole("button", { name: "Reset demo" }).click()
+  await page.getByRole("button", { name: "Reset workspace" }).click()
+  await page.getByRole("button", { name: "Yes, reset everything" }).click()
   await expect(page).toHaveURL(/\/app$/)
   await page.getByRole("link", { name: "Account" }).click()
   await expect(page.getByLabel("Name")).toHaveValue("Alex Chen")
@@ -180,6 +181,8 @@ test("the collaborate page states the agent capability without theater", async (
   await expect(page.getByText("Agent connection available")).toBeVisible()
   await expect(page.getByText("export_context").first()).toBeVisible()
   await expect(page.getByText("ingest_context").first()).toBeVisible()
+  await expect(page.getByRole("heading", { name: "If your agent needs an introduction" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Copy" })).toBeVisible()
 })
 
 test("registers the full semantic tool surface in a capable browser", async ({ page }) => {

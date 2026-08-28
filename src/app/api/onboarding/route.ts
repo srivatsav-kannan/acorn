@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   const { data } = await client.auth.getUser()
   if (!data.user) return NextResponse.json({ ok: false, message: "Sign in again to continue." }, { status: 401 })
   const existing = await loadWorkspaceRecordForUser(client, data.user.id)
-  if (existing && (!existing.isDemo || !existing.onboardingRequired)) return NextResponse.json({ ok: true, existing: true })
+  if (existing && !existing.onboardingRequired) return NextResponse.json({ ok: true, existing: true })
 
   let workspace
   try {
@@ -74,6 +74,20 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     return NextResponse.json({ ok: false, message: (error as Error).message }, { status: 400 })
+  }
+  // A reset account re-onboards in place: the new payload replaces the old
+  // snapshot under the same workspace and clears the pending flag with it.
+  if (existing && !existing.isDemo) {
+    workspace.id = existing.workspace.id
+    workspace.version = existing.workspace.version + 1
+    const commit = await client.rpc("commit_workspace_snapshot", {
+      target_workspace_id: existing.workspace.id,
+      expected_version: existing.workspace.version,
+      next_payload: workspace,
+      mutation_idempotency_key: `ONBOARD-${crypto.randomUUID()}`
+    })
+    if (commit.error) return NextResponse.json({ ok: false, message: commit.error.message }, { status: 400 })
+    return NextResponse.json({ ok: true, workspaceId: existing.workspace.id })
   }
   const result = await client.rpc(existing ? "complete_demo_onboarding" : "create_personal_workspace", { workspace_title: workspace.title, initial_payload: workspace })
   if (result.error) return NextResponse.json({ ok: false, message: result.error.message }, { status: 400 })

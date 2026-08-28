@@ -66,6 +66,7 @@ export const ScratchpadPage = () => {
   return <div className="page scratchpad-page">
     <header className="page-heading"><div><h1>Scratchpad</h1><p>Everything you and your agent should remember, before it has a proper home.</p></div></header>
 
+    <div className="scratch-top-row">
     <section className="goals-card">
       <div className="goals-degree">
         <span className="field-label">Working toward</span>
@@ -84,12 +85,13 @@ export const ScratchpadPage = () => {
     </section>
 
     <section className="jot-card">
-      <textarea aria-label="Jot something down" rows={2} placeholder="Jot something down. First line becomes the title." value={jot} onChange={(event) => setJot(event.target.value)} />
+      <textarea aria-label="Jot something down" rows={3} placeholder="Jot something down. First line becomes the title." value={jot} onChange={(event) => setJot(event.target.value)} />
       <div className="jot-row">
         <input aria-label="Tags" placeholder="tags, comma separated" value={jotTags} onChange={(event) => setJotTags(event.target.value)} />
         <button className="primary-button" type="button" onClick={() => void addJot()} disabled={!jot.trim()}>Add to scratchpad</button>
       </div>
     </section>
+    </div>
 
     <div className="scratch-filter">
       <input aria-label="Search the scratchpad" placeholder="Search notes" value={query} onChange={(event) => setQuery(event.target.value)} />

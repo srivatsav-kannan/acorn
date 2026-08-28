@@ -80,3 +80,25 @@ export const apGrantFor = (exam: string, score: number): ApGrant | null =>
 export const apScoreChoices = [5, 4, 3, 2, 1]
 
 export const apUnitChoices = [0, 2, 3, 4, 5, 8, 10]
+
+// IB Higher Level subjects Stanford's chart considers. Units are entered by
+// hand from the student's own credit evaluation, per the registrar's
+// case-by-case awards.
+export const ibExamPresets = [
+  "IB Biology HL",
+  "IB Chemistry HL",
+  "IB Physics HL",
+  "IB Mathematics: Analysis and Approaches HL",
+  "IB Computer Science HL",
+  "IB Economics HL",
+  "IB Psychology HL",
+  "IB History HL",
+  "IB English A: Literature HL",
+  "IB French B HL",
+  "IB German B HL",
+  "IB Spanish B HL",
+  "IB Chinese B HL",
+  "IB Latin HL"
+]
+
+export const ibScoreChoices = [7, 6, 5, 4, 3, 2, 1]

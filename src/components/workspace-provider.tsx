@@ -47,6 +47,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
   const [saveState, setSaveState] = useState<WorkspaceContextValue["saveState"]>("idle")
   const [message, setMessage] = useState<WorkspaceContextValue["message"]>(null)
   const counter = useRef(0)
+  const commandQueue = useRef<Promise<unknown>>(Promise.resolve())
   const ownerUserId = userId ?? workspace.ownerUserId
 
   useEffect(() => {
@@ -128,7 +129,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     setWorkspace(next)
   }, [mode, restoreRemote, storageKey])
 
-  const onCommand = async (command: Record<string, unknown>) => {
+  const runCommand = async (command: Record<string, unknown>) => {
     counter.current += 1
     const current = await repository.getWorkspace(workspace.id, ownerUserId)
     const key = `UI-${crypto.randomUUID()}-${counter.current}`
@@ -146,6 +147,15 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     }
   }
 
+  // Rapid interactions (checking three todos in a row) serialize here, so
+  // each command sees the version the previous one produced instead of
+  // racing into a conflict.
+  const onCommand = (command: Record<string, unknown>) => {
+    const task = commandQueue.current.then(() => runCommand(command))
+    commandQueue.current = task.catch(() => undefined)
+    return task
+  }
+
   const undo = async (receiptId: string) => {
     await onCommand({ type: "undo_action", receiptId })
   }
@@ -156,16 +166,15 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       window.location.replace(localAccount ? "/onboarding" : "/demo")
       return
     }
-    if (!isDemoAccount) throw new Error("Only the demo account can use this reset")
     setSaveState("saving")
-    const response = await fetch("/api/demo/reset", { method: "POST" })
-    const result = await response.json().catch(() => ({ message: "The demo could not be reset." })) as { ok?: boolean, message?: string }
+    const response = await fetch("/api/account/reset", { method: "POST" })
+    const result = await response.json().catch(() => ({ message: "The workspace could not be reset." })) as { ok?: boolean, message?: string }
     if (!response.ok || !result.ok) {
       setSaveState("error")
-      setMessage({ kind: "error", text: result.message ?? "The demo could not be reset." })
+      setMessage({ kind: "error", text: result.message ?? "The workspace could not be reset." })
       return
     }
-    router.replace("/login?reset=1")
+    router.replace("/onboarding")
     router.refresh()
   }
 
@@ -203,7 +212,10 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     return registerWebMcpTools(markedDocument, tools)
   }, [ownerUserId, persistWorkspace, repository, workspace.id])
 
-  const mergedCatalog = useMemo(() => mergedCatalogFor(workspace, initial.catalog), [workspace, initial.catalog])
+  // The merge only reads the overlay, so recomputing it on every command
+  // (against fifteen thousand imported courses) was pure waste.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mergedCatalog = useMemo(() => mergedCatalogFor(workspace, initial.catalog), [workspace.referenceOverlay, initial.catalog])
 
   return <WorkspaceContext.Provider value={{ workspace, catalog: mergedCatalog, mode, isDemoAccount, localAccount, userEmail, saveState, message, onCommand, undo, reset, signOut }}>{booted ? children : <ShellSkeleton />}{message && <div className={`workspace-toast ${message.kind}`} role="status"><span>{message.kind === "success" ? "✓" : "!"}</span>{message.text}</div>}</WorkspaceContext.Provider>
 }

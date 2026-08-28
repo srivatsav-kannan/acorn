@@ -54,7 +54,7 @@ export const CalendarPage = () => {
   const midMonth = new Date(monthStart.getFullYear(), monthStart.getMonth(), 15)
   const currentTermRef = termForDate(midMonth)
   const standing = standingForTerm(timeline, currentTermRef.id)
-  const headline = yearHeadline[standing] ?? (standing || "Your calendar")
+  const headline = yearHeadline[standing] ?? (standing === "Before entry" ? "Before Stanford" : standing || "Your calendar")
   const todayIso = isoDate(new Date())
   const shiftMonth = (delta: number) => setMonthStart((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1))
 

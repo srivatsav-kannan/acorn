@@ -194,3 +194,20 @@ describe("Stanford AP chart presets", () => {
     expect(new Set(apUnitChoices).size).toBe(apUnitChoices.length)
   })
 })
+
+
+describe("credit kinds", () => {
+  it("validates AP, IB, and college co-enrollment credit shapes", () => {
+    const ap = validateApCredit({ exam: "AP Calculus BC", kind: "ap", score: 5, unitsGranted: 10 })
+    expect(ap.kind).toBe("ap")
+    expect(() => validateApCredit({ exam: "AP Calculus BC", kind: "ap", score: 7 })).toThrow(/between 1 and 5/)
+    const ib = validateApCredit({ exam: "IB Physics HL", kind: "ib", score: 7, unitsGranted: 8 })
+    expect(ib).toMatchObject({ kind: "ib", score: 7, unitsGranted: 8 })
+    expect(() => validateApCredit({ exam: "IB Physics HL", kind: "ib", score: 8 })).toThrow(/between 1 and 7/)
+    const college = validateApCredit({ exam: "MATH 1C Multivariable Calculus", kind: "college", institution: "Foothill College", score: 4, unitsGranted: 5 })
+    expect(college).toMatchObject({ kind: "college", institution: "Foothill College", unitsGranted: 5 })
+    expect(college.score).toBeUndefined()
+    const legacy = validateApCredit({ exam: "AP Chemistry", unitsGranted: 10 })
+    expect(legacy.kind).toBe("ap")
+  })
+})

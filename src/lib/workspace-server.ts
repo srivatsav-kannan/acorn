@@ -21,7 +21,7 @@ export const loadWorkspaceRecordForUser = async (client: SupabaseClient, userId:
   return {
     id: metadata.data.id,
     isDemo: Boolean(metadata.data.is_demo),
-    onboardingRequired: Boolean(metadata.data.onboarding_required),
+    onboardingRequired: Boolean(metadata.data.onboarding_required) || Boolean((snapshot.data.payload as { setupPending?: boolean } | null)?.setupPending),
     workspace
   }
 }
