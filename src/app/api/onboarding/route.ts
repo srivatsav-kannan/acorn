@@ -6,6 +6,7 @@ import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/l
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
 type OnboardingInput = {
+  name?: string
   institutionId?: string
   customInstitution?: string
   entryYear?: number
@@ -13,9 +14,11 @@ type OnboardingInput = {
 }
 
 const validateInput = (input: OnboardingInput): string | null => {
+  const name = input.name?.trim() ?? ""
   const customInstitution = input.customInstitution?.trim() ?? ""
   const entryYear = Number(input.entryYear)
   const gradYear = Number(input.gradYear)
+  if (name.length < 1 || name.length > 80) return "Enter your name."
   if (input.institutionId === CUSTOM_INSTITUTION_ID && (customInstitution.length < 2 || customInstitution.length > 80)) return "Enter your university's name."
   if (!Number.isInteger(entryYear) || entryYear < 2015 || entryYear > 2035) return "Choose your entry year."
   if (!Number.isInteger(gradYear) || gradYear <= entryYear || gradYear > entryYear + 8) return "Choose a graduation year after your entry year."
@@ -39,6 +42,7 @@ export async function POST(request: Request) {
       const workspace = buildPersonalWorkspace({
         userId: "USER-LOCAL",
         email: "",
+        name: input.name?.trim(),
         institutionId: input.institutionId,
         customInstitutionName: customInstitution || undefined,
         entryYear,
@@ -62,6 +66,7 @@ export async function POST(request: Request) {
     workspace = buildPersonalWorkspace({
       userId: data.user.id,
       email: data.user.email ?? "",
+      name: input.name?.trim(),
       institutionId: input.institutionId,
       customInstitutionName: customInstitution || undefined,
       entryYear,

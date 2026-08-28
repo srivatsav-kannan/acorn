@@ -186,10 +186,14 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         profile: {
           type: "object",
           additionalProperties: false,
-          description: "Durable identity facts the student told you",
+          description: "Durable identity and planning-window facts the student told you",
           properties: {
             preferredName: field("string", "The name the student goes by"),
-            goal: field("string", "What the student wants help figuring out, in their own words")
+            goal: field("string", "What the student wants help figuring out, in their own words"),
+            classStanding: field("string", "Class standing such as Sophomore or Coterm; omit to keep the timeline-derived value"),
+            earliestStart: field("string", "Earliest acceptable class start, 24h HH:MM"),
+            latestEnd: field("string", "Latest acceptable class end, 24h HH:MM"),
+            excludedDays: { type: "array", description: "Days to keep meeting-free, e.g. [\"fri\"]", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] } }
           }
         },
         academicHistory: {
@@ -208,7 +212,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async (input) => {
         const sections = [input.profile, input.academicHistory, input.preferences].filter(Boolean).length
         if (sections !== 1) return { ok: false, code: "ONE_SECTION_PER_CALL", message: "Send profile, preferences, or academicHistory, exactly one per call, so each change is separately visible and undoable." }
-        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal } })
+        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal, classYear: input.profile.classStanding, earliestStart: input.profile.earliestStart, latestEnd: input.profile.latestEnd, excludedDays: input.profile.excludedDays } })
         if (input.academicHistory) return mutate(input, { type: "update_academic_history", patch: input.academicHistory })
         if (!Array.isArray(input.preferences) || input.preferences.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Provide at least one complete preference." }
         return mutate(input, { type: "set_student_preferences", preferences: input.preferences })

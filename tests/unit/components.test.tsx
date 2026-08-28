@@ -20,21 +20,21 @@ const routerSpies = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh
 vi.mock("next/navigation", () => ({ useRouter: () => routerSpies, usePathname: () => "/app" }))
 
 describe("public product surfaces", () => {
-  it("asks a new account for only three durable facts through dropdowns", () => {
+  it("asks for a name and the durable timeline facts, with dropdowns for everything durable", () => {
     render(<OnboardingPage />)
+    expect(screen.getByLabelText("Name")).toBeVisible()
     expect(screen.getByLabelText("University")).toBeVisible()
     expect(screen.getByLabelText("Entered in autumn")).toBeVisible()
     expect(screen.getByLabelText("Graduating in spring")).toBeVisible()
-    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument()
-    expect(screen.queryByText(/help with/i)).not.toBeInTheDocument()
-    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+    expect(screen.getAllByRole("textbox")).toHaveLength(1)
+    expect(screen.queryByLabelText(/goals/i)).not.toBeInTheDocument()
     expect(screen.getByRole("option", { name: /Berkeley.*coming soon/i })).toBeDisabled()
-    expect(screen.getByText(/No sample student data/i)).toBeVisible()
+    expect(screen.getByText(/no sample data is preloaded/i)).toBeVisible()
   })
 
   it("explains the product with real catalog numbers and routes into the account flow", () => {
     render(<LandingPage />)
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/twelve quarters/i)
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/every quarter to graduation/i)
     const starts = screen.getAllByRole("link", { name: /start planning/i })
     expect(starts.length).toBeGreaterThan(0)
     for (const link of starts) expect(link).toHaveAttribute("href", "/login")

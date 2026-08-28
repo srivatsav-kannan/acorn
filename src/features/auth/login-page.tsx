@@ -54,7 +54,7 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
   }
 
   const demoLogin = demoAvailable && <section className={demoRequested ? "demo-login-card requested" : "demo-login-card"}>
-    <div><strong>Shared demo account</strong><span>A filled workspace on shared credentials. Changes save to the server and reset on demand.</span></div>
+    <div><strong>Shared demo account</strong><span>A filled example workspace on shared credentials. Changes save to the server and can be reset at any time.</span></div>
     <button className={demoRequested ? "primary-button full" : "secondary-button full"} type="button" onClick={signInToDemo} disabled={busy}>{busy ? "Signing in…" : "Sign in with demo credentials"}</button>
   </section>
 
@@ -63,7 +63,7 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
     <section className="auth-card">
       <header>
         <h1>Sign in</h1>
-        <p>One field for both directions: the link signs you in, and the first one creates your account.</p>
+        <p>Enter your email and open the link we send. Your first link creates the account, and every later one signs you back in to the same workspace.</p>
       </header>
       {demoRequested && demoLogin}
       {demoRequested && <div className="auth-divider"><span>Personal account</span></div>}
@@ -76,7 +76,7 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
         </div> : <form className="email-login-form" onSubmit={sendEmailLink}>
           <label htmlFor="email">Email address</label>
           <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required disabled={!configured}/>
-          <small>One-time link, no password.</small>
+          <small>We email a one-time link instead of using a password.</small>
           <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Sending link…" : "Email me a sign-in link"}</button>
         </form>}
         {googleEnabled && !linkSentTo && <><div className="or"><span />or<span /></div><button className="google-button" type="button" onClick={continueWithGoogle} disabled={busy}><span aria-hidden="true">G</span>Continue with Google</button></>}
@@ -84,6 +84,6 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
       {!demoRequested && demoLogin}
       {status && <p className="auth-status" role="status">{status}</p>}
     </section>
-    <p className="auth-note">CourseContext is a planning aid. It cannot enroll you or submit anything to your university.</p>
+    <p className="auth-note">CourseContext helps you plan; enrollment and anything official still go through your university&apos;s own systems.</p>
   </main>
 }

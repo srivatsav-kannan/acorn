@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test"
 
 test("public landing explains the product and routes into the account flow", async ({ page }) => {
   await page.goto("/")
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("twelve quarters")
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("every quarter to graduation")
   await expect(page.getByText("15,587 courses")).toBeVisible()
   await page.getByRole("link", { name: "Start planning" }).first().click()
   await expect(page).toHaveURL(/\/login/)
@@ -105,15 +105,15 @@ test("search, scenario comparison, and saved views are real shared workspace con
   await expect(page.getByText("configure view")).toBeVisible()
 })
 
-test("a new student sees durable-facts onboarding with dropdowns only", async ({ page }) => {
+test("onboarding asks for a name and durable facts through real controls", async ({ page }) => {
   await page.goto("/demo")
   await page.goto("/onboarding")
+  await expect(page.getByLabel("Name", { exact: true })).toBeVisible()
   await expect(page.getByLabel("University")).toBeVisible()
   await page.getByLabel("Entered in autumn").selectOption("2026")
   await page.getByLabel("Graduating in spring").selectOption("2030")
   await expect(page.getByRole("button", { name: "Enter my workspace" })).toBeVisible()
-  await expect(page.getByLabel(/what should we call you/i)).toHaveCount(0)
-  await expect(page.getByText(/No sample student data/i)).toBeVisible()
+  await expect(page.getByText(/no sample data is preloaded/i)).toBeVisible()
 })
 
 test("profile, Library edits, and archives persist through reloads", async ({ page }) => {
@@ -253,11 +253,12 @@ test("WebMCP health research becomes visible, searchable Library context", async
 test("the fixture workspace onboards clean, persists edits, and plans future terms", async ({ page }) => {
   await page.goto("/start")
   await expect(page).toHaveURL(/\/onboarding$/)
+  await page.getByLabel("Name", { exact: true }).fill("Sam Rivera")
   await page.getByLabel("Entered in autumn").selectOption("2026")
   await page.getByLabel("Graduating in spring").selectOption("2030")
   await page.getByRole("button", { name: "Enter my workspace" }).click()
   await expect(page).toHaveURL(/\/app$/)
-  await expect(page.getByRole("heading", { name: "Welcome." })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Good to see you, Sam." })).toBeVisible()
   await expect(page.getByText("Alex Chen")).toHaveCount(0)
 
   await page.getByRole("link", { name: "Plan", exact: true }).click()

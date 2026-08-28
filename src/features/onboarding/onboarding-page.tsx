@@ -9,6 +9,7 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
   const router = useRouter()
   const institutionChoices = listInstitutionChoices()
   const thisYear = useMemo(() => new Date().getFullYear(), [])
+  const [name, setName] = useState("")
   const [institutionId, setInstitutionId] = useState(institutionChoices.find((choice) => choice.status === "full")?.id ?? "INSTITUTION-STANFORD")
   const [customInstitution, setCustomInstitution] = useState("")
   const [entryYear, setEntryYear] = useState(thisYear)
@@ -39,13 +40,14 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
   }
 
   const finish = async () => {
+    if (name.trim().length < 1) { setError("Enter your name."); return }
     if (isCustom && customInstitution.trim().length < 2) { setError("Enter your university's name."); return }
     setBusy(true)
     setError("")
     const response = await fetch("/api/onboarding", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ institutionId, customInstitution: isCustom ? customInstitution : undefined, entryYear, gradYear })
+      body: JSON.stringify({ name: name.trim(), institutionId, customInstitution: isCustom ? customInstitution : undefined, entryYear, gradYear })
     })
     const result = await response.json() as { ok?: boolean, message?: string, workspace?: unknown }
     if (!response.ok || !result.ok) {
@@ -71,9 +73,13 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
     </header>
     <div className="onboarding-center">
       <form className="onboarding-facts-card" onSubmit={(event) => { event.preventDefault(); void finish() }}>
-        <h1>Three facts, then you are in.</h1>
-        <p>Everything else, from your name to your course history, can be added inside at any time, by you or by your agent.</p>
+        <h1>Set up your workspace</h1>
+        <p>Your name and three timeline facts get you started. Everything else, from AP credit to course history, can be added inside at any time by you or by your agent.</p>
         {existingWorkspace && <p className="onboarding-existing" role="status">This browser already holds a workspace. <Link href="/app">Open it</Link> instead, or continue below to replace it.</p>}
+        <label>
+          <span>Name</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} autoComplete="name" autoFocus required />
+        </label>
         <label>
           <span>University</span>
           <select value={institutionId} onChange={(event) => setInstitutionId(event.target.value)}>
@@ -85,7 +91,7 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
         {isCustom && <div className="onboarding-custom-name">
           <label>
             <span>University name</span>
-            <input value={customInstitution} onChange={(event) => setCustomInstitution(event.target.value)} maxLength={80} autoFocus />
+            <input value={customInstitution} onChange={(event) => setCustomInstitution(event.target.value)} maxLength={80} />
           </label>
           <small>No reference pack ships for this school yet. Your agent can research it and build one inside.</small>
         </div>}
@@ -105,7 +111,7 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
         </div>
         {error && <p className="form-error onboarding-error" role="alert">{error}</p>}
         <button className="primary-button onboarding-submit" type="submit" disabled={busy}>{busy ? "Setting up…" : "Enter my workspace"}</button>
-        <p className="onboarding-privacy">Nothing is sent to your university. No sample student data.</p>
+        <p className="onboarding-privacy">Nothing here is sent to your university, and no sample data is preloaded.</p>
       </form>
     </div>
   </main>
