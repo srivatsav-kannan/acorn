@@ -233,6 +233,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         }
       }
       if (typeof patch.classYear === "string") workspace.profile.classYear = patch.classYear.trim().slice(0, 30) || undefined
+      if (typeof patch.recoveryPhone === "string") workspace.profile.recoveryPhone = patch.recoveryPhone.trim().slice(0, 24) || undefined
       if (typeof patch.earliestStart === "string" && /^\d{2}:\d{2}$/.test(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
       if (typeof patch.latestEnd === "string" && /^\d{2}:\d{2}$/.test(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))

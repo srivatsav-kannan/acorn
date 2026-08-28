@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { AcornMark } from "@/components/icons"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { CUSTOM_INSTITUTION_ID, listInstitutionChoices } from "@/data/institutions/registry"
@@ -68,7 +69,7 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
 
   return <main className="onboarding-page">
     <header className="onboarding-header">
-      <Link className="wordmark" href="/">CourseContext<i aria-hidden="true">.</i></Link>
+      <Link className="wordmark" href="/"><AcornMark className="wordmark-acorn" />Acorn</Link>
       <button className="text-button" type="button" onClick={leave}>{browserWorkspace ? "Back to the front page" : "Sign out"}</button>
     </header>
     <div className="onboarding-center">

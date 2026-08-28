@@ -95,6 +95,13 @@ export const validateOpportunity = (input: Record<string, unknown>): Opportunity
     tags: Array.isArray(input.tags) ? input.tags.map((tag) => String(tag).slice(0, 30)).slice(0, 8) : [],
     commitment: typeof input.commitment === "string" && input.commitment.trim() ? input.commitment.trim().slice(0, 80) : undefined,
     timing: typeof input.timing === "string" && input.timing.trim() ? input.timing.trim().slice(0, 120) : undefined,
+    dates: Array.isArray(input.dates) ? input.dates.slice(0, 30).map((item) => {
+      const record = item as Record<string, unknown>
+      const date = String(record?.date ?? "")
+      const label = String(record?.label ?? "").trim().slice(0, 80)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !label) throw new Error("Each opportunity date needs a YYYY-MM-DD date and a label")
+      return { date, label }
+    }) : undefined,
     sourceUrl: typeof input.sourceUrl === "string" && input.sourceUrl.trim() ? input.sourceUrl.trim() : url
   }
 }

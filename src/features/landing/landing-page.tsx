@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { AcornMark } from "@/components/icons"
 import { Reveal } from "@/components/reveal"
 import { buildStanfordCatalog, stanfordCatalogMeta } from "@/data/institutions/stanford"
 import { listInstitutionChoices } from "@/data/institutions/registry"
@@ -41,7 +42,7 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
 
   return <main className="public-page">
     <header className="public-header">
-      <Link className="wordmark" href="/">Acorn<i aria-hidden="true">.</i></Link>
+      <Link className="wordmark" href="/"><AcornMark className="wordmark-acorn" />Acorn</Link>
       <nav aria-label="Public">
         <a href="#premise">How it works</a>
         <a href="#agents">For agents</a>

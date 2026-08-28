@@ -132,5 +132,7 @@ export const calendarEventsForRange = (workspace: WorkspaceState, catalog: Catal
     }
   }
 
-  return events.sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "99").localeCompare(b.start ?? "99"))
+  // All-day entries (registrar dates, deadlines, todos) lead each day so a
+  // crowded cell shows the milestone before the 9 a.m. lecture.
+  return events.sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "00:00").localeCompare(b.start ?? "00:00"))
 }

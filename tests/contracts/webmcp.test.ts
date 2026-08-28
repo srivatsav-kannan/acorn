@@ -326,3 +326,27 @@ describe("WebMCP registration", () => {
     report.mockRestore()
   })
 })
+
+describe("tracker tool edges", () => {
+  it("guards ingest, activity, interest, and export edge inputs", async () => {
+    const { tools } = setup()
+    const call = (name: string) => tools.find((candidate) => candidate.name === name)!
+    expect(await call("ingest_context").execute({ expectedVersion: 1, idempotencyKey: "IN-0", text: "   " })).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    const many = Array.from({ length: 22 }, (_, index) => `Note ${index + 1}`).join("\n\n")
+    const overflow = await call("ingest_context").execute({ expectedVersion: 1, idempotencyKey: "IN-1", text: many }) as { ok: boolean, note?: string }
+    expect(overflow.ok).toBe(true)
+    expect(overflow.note).toContain("Filed 20 of 22")
+    expect(await call("manage_activity").execute({ expectedVersion: 2, idempotencyKey: "MA-0" })).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    const madeActivity = await call("manage_activity").execute({ expectedVersion: 2, idempotencyKey: "MA-1", activity: { name: "Shift", kind: "job" } }) as { ok: boolean, primaryVisibleId?: string }
+    expect(madeActivity.ok).toBe(true)
+    expect(await call("manage_activity").execute({ expectedVersion: 3, idempotencyKey: "MA-2", removeActivityId: madeActivity.primaryVisibleId })).toMatchObject({ ok: true })
+    expect(await call("set_interest").execute({ expectedVersion: 4, idempotencyKey: "SI-1", kind: "club", id: "OPPORTUNITY-TREEHACKS", interested: true })).toMatchObject({ ok: true, primaryVisibleId: "OPPORTUNITY-TREEHACKS" })
+    const note = await call("annotate_course").execute({ expectedVersion: 5, idempotencyKey: "AN-1", courseId: "COURSE-CS-106B", text: "Check pacing." }) as { ok: boolean, primaryVisibleId?: string }
+    expect(note.ok).toBe(true)
+    expect(await call("annotate_course").execute({ expectedVersion: 6, idempotencyKey: "AN-2", courseId: "COURSE-CS-106B", removeNoteId: note.primaryVisibleId })).toMatchObject({ ok: true })
+    const tail = await call("export_context").execute({ section: "todos", cursor: 9999 }) as { markdown: string, nextCursor?: number }
+    expect(tail.nextCursor).toBeUndefined()
+    const clubWithBadDates = await call("extend_reference").execute({ expectedVersion: 7, idempotencyKey: "OP-1", opportunity: { name: "Bad Dates Club", kind: "club", summary: "Testing.", dates: [{ date: "soon", label: "Apply" }] }, evidence: { id: "EVIDENCE-BAD-DATES", title: "T", claim: "C", sourceUrl: "https://example.edu", sourceTitle: "S", retrievedAt: "2026-08-28T00:00:00Z", classification: "student", confidence: 0.5, status: "current" } })
+    expect(clubWithBadDates).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+  })
+})

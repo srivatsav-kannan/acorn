@@ -1,24 +1,27 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { buildFixture } from "@/data/fixture"
-import { buildPersonalWorkspace, buildPersonalWorkspaceWithHistory } from "@/data/personal-workspace"
-import { CUSTOM_INSTITUTION_ID } from "@/data/institutions/registry"
-import { ExplorePage } from "@/features/explore/explore-page"
 import { AppShell } from "@/components/app-shell"
 import { StatusState } from "@/components/status-state"
 import { LandingPage } from "@/features/landing/landing-page"
 import { LoginPage } from "@/features/auth/login-page"
 import { SignupPage } from "@/features/auth/signup-page"
-import { PlanPage } from "@/features/plan/plan-page"
-import { LibraryPage } from "@/features/library/library-page"
-import { ProgramsPage } from "@/features/programs/programs-page"
-import { HomePage } from "@/features/home/home-page"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import { ScratchpadPage } from "@/features/scratchpad/scratchpad-page"
+import { CalendarPage } from "@/features/calendar/calendar-page"
+import { CoursesPage } from "@/features/courses/courses-page"
+import { CollaboratePage } from "@/features/collaborate/collaborate-page"
+import { ProfilePage } from "@/features/profile/profile-page"
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider"
 
 const routerSpies = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }))
 vi.mock("next/navigation", () => ({ useRouter: () => routerSpies, usePathname: () => "/app" }))
+
+const renderInWorkspace = (children: React.ReactNode) => {
+  localStorage.clear()
+  return render(<WorkspaceProvider mode="fixture">{children}</WorkspaceProvider>)
+}
 
 describe("public product surfaces", () => {
   it("asks for a name and the durable timeline facts, with dropdowns for everything durable", () => {
@@ -28,9 +31,15 @@ describe("public product surfaces", () => {
     expect(screen.getByLabelText("Entered in autumn")).toBeVisible()
     expect(screen.getByLabelText("Graduating in spring")).toBeVisible()
     expect(screen.getAllByRole("textbox")).toHaveLength(1)
-    expect(screen.queryByLabelText(/goals/i)).not.toBeInTheDocument()
-    expect(screen.getByRole("option", { name: /Berkeley.*coming soon/i })).toBeDisabled()
     expect(screen.getByText(/no sample data is preloaded/i)).toBeVisible()
+  })
+
+  it("asks for the school's name only when Other is chosen", async () => {
+    render(<OnboardingPage />)
+    const university = screen.getByLabelText("University") as HTMLSelectElement
+    await userEvent.selectOptions(university, screen.getByRole("option", { name: "Another university" }))
+    expect(university.value).toBe("INSTITUTION-CUSTOM")
+    expect(screen.getByLabelText("University name")).toBeVisible()
   })
 
   it("explains the product with real catalog numbers and routes into the account flow", () => {
@@ -42,7 +51,6 @@ describe("public product surfaces", () => {
     expect(screen.getByRole("link", { name: /log in/i })).toBeVisible()
     expect(screen.getAllByText(/15,587/).length).toBeGreaterThan(0)
     expect(screen.getByText(/not affiliated with stanford/i)).toBeVisible()
-    expect(screen.queryByText(/demo login/i)).not.toBeInTheDocument()
   })
 
   it("greets a signed-in student with their own door", () => {
@@ -87,43 +95,8 @@ const DemoResetHarness = () => {
   return <button onClick={() => void workspace.reset()}>Reset server demo</button>
 }
 
-describe("custom institution workspace", () => {
-  const customWorkspace = () => buildPersonalWorkspaceWithHistory({
-    userId: "USER-DAVE",
-    email: "dave@example.com",
-    name: "Dave Smith",
-    goal: "Plan my semester without missing requirements.",
-    institutionId: CUSTOM_INSTITUTION_ID,
-    customInstitutionName: "University of Wherever"
-  })
-
-  it("shows the agent-built beta state in the empty catalog", () => {
-    const workspace = customWorkspace()
-    render(<ExplorePage workspace={workspace} catalog={{ courses: [], sections: [] }} onCommand={vi.fn()} />)
-    expect(screen.getByText(/University of Wherever · Beta/i)).toBeVisible()
-    expect(screen.getByText(/The catalog starts empty. Your agent fills it./i)).toBeVisible()
-    expect(screen.getByText(/extend_reference/)).toBeVisible()
-    expect(screen.queryByText(/Stanford Bulletin/i)).not.toBeInTheDocument()
-  })
-
-  it("shows the agent-built beta state when no programs exist", () => {
-    const workspace = customWorkspace()
-    render(<ProgramsPage workspace={workspace} catalog={{ courses: [], sections: [] }} onCommand={vi.fn()} />)
-    expect(screen.getByRole("heading", { name: /No programs here yet/i })).toBeVisible()
-    expect(screen.getByText(/it can build your program reference/i)).toBeVisible()
-  })
-
-  it("asks for the school's name only when Other is chosen", async () => {
-    render(<OnboardingPage />)
-    const university = screen.getByLabelText("University") as HTMLSelectElement
-    await userEvent.selectOptions(university, screen.getByRole("option", { name: "Another university" }))
-    expect(university.value).toBe("INSTITUTION-CUSTOM")
-    expect(screen.getByLabelText("University name")).toBeVisible()
-  })
-})
-
 describe("server demo reset", () => {
-  it("calls the reset endpoint and returns to demo login", async () => {
+  it("calls the reset endpoint and returns to login", async () => {
     const fixture = buildFixture()
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal("fetch", fetchMock)
@@ -137,11 +110,13 @@ describe("server demo reset", () => {
 })
 
 describe("application shell", () => {
-  it("renders all primary navigation and account controls", () => {
-    render(<AppShell activePage="home" quarter="Autumn 2026"><div>Content</div></AppShell>)
-    for (const name of ["Home", "Plan", "Stanford", "Library", "Programs", "Profile"]) {
+  it("renders the four tabs plus account controls with the active tab lit", () => {
+    render(<AppShell quarter="Autumn 2026"><div>Content</div></AppShell>)
+    for (const name of ["Scratchpad", "Calendar", "Courses", "Collaborate"]) {
       expect(screen.getByRole("link", { name })).toBeVisible()
     }
+    expect(screen.getByRole("link", { name: "Scratchpad" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "Calendar" })).not.toHaveAttribute("aria-current")
     expect(screen.getByRole("button", { name: /search workspace/i })).toBeVisible()
     expect(screen.getByRole("button", { name: /activity/i })).toBeVisible()
     expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/app/profile")
@@ -164,122 +139,74 @@ describe("required product states", () => {
   })
 })
 
-describe("planning workspace", () => {
-  it("renders a genuinely empty new account with useful first actions", () => {
-    const workspace = buildPersonalWorkspace({ userId: "USER-NEW", email: "new@example.com", name: "Maya", goal: "Explore several fields before choosing a major.", id: () => "ACCOUNT-ONE" })
-    const catalog = buildFixture().catalog
-    const { rerender } = render(<HomePage workspace={workspace} catalog={catalog} />)
-    expect(screen.getByRole("heading", { name: /Good to see you, Maya/i })).toBeVisible()
-    expect(screen.getByText(/Nothing scheduled yet/i)).toBeVisible()
-    expect(screen.getByText("Not chosen")).toBeVisible()
-    expect(screen.queryByText(/Alex/i)).not.toBeInTheDocument()
-    rerender(<PlanPage workspace={workspace} catalog={catalog} onCommand={vi.fn()} />)
-    expect(screen.getByText("No courses yet")).toBeVisible()
-    expect(screen.getByText("Ready when you are")).toBeVisible()
-  })
-
-  it("shows scenarios, units, calendar, checks, backups, commitments, and inspector", () => {
-    const fixture = buildFixture()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    expect(screen.getByRole("heading", { name: /autumn plan/i })).toBeVisible()
-    expect(screen.getAllByText(/15 units/i).length).toBeGreaterThan(0)
-    expect(screen.getByLabelText(/weekly calendar/i)).toBeVisible()
-    expect(screen.getByText(/Backups/i)).toBeVisible()
-    expect(screen.getByRole("heading", { name: "Commitments" })).toBeVisible()
-    expect(screen.getByText(/Plan checks/i)).toBeVisible()
-  })
-
-  it("routes a human plan edit through the semantic command callback", async () => {
-    const fixture = buildFixture()
-    const onCommand = vi.fn()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={onCommand} />)
-    await userEvent.click(screen.getByRole("button", { name: /remove design foundations/i }))
-    expect(onCommand).toHaveBeenCalledWith(expect.objectContaining({ type: "edit_plan" }))
-  })
-
-  it("switches to a real lighter scenario and compares alternatives", async () => {
-    const fixture = buildFixture()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    const lighterTab = screen.getByRole("tab", { name: /lighter option/i })
-    await userEvent.click(lighterTab)
-    expect(lighterTab).toHaveAttribute("aria-selected", "true")
-    expect(screen.getByText("13 units")).toBeVisible()
-    await userEvent.click(screen.getByRole("button", { name: /compare scenarios/i }))
-    expect(screen.getByRole("dialog", { name: /compare scenarios/i })).toBeVisible()
-    expect(screen.getAllByText("15 units").length).toBeGreaterThan(0)
-    expect(screen.getAllByText("13 units").length).toBeGreaterThan(0)
-  })
-
-  it("opens the complete deterministic report", async () => {
-    const fixture = buildFixture()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    await userEvent.click(screen.getByRole("button", { name: /complete check report/i }))
-    expect(screen.getByRole("dialog", { name: /complete check report/i })).toHaveTextContent(/deterministic/i)
-  })
-
-  it("shows the degree map with sequencing totals and per term planning", async () => {
-    const fixture = buildFixture()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    await userEvent.click(screen.getByRole("tab", { name: /degree map/i }))
-    expect(screen.getByText(/of 180 units planned or complete/i)).toBeVisible()
-    expect(screen.getByText("Timeline checks")).toBeVisible()
-    await userEvent.click(screen.getByRole("tab", { name: /this term/i }))
-    const winter = screen.getByRole("tab", { name: /Win 2027/i })
-    await userEvent.click(winter)
-    expect(screen.getByRole("button", { name: /^Plan Winter 2027$/i })).toBeVisible()
-  })
-
-  it("creates a future term plan through the shared command path", async () => {
-    const fixture = buildFixture()
-    const onCommand = vi.fn()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={onCommand} />)
-    await userEvent.click(screen.getByRole("tab", { name: /Spr 2027/i }))
-    await userEvent.click(screen.getByRole("button", { name: /^Plan Spring 2027$/i }))
-    expect(onCommand).toHaveBeenCalledWith({ type: "edit_plan", termId: "TERM-2027-SPRING", operations: [] })
-  })
-
-  it("supports the accessible list calendar and routes new scenarios through commands", async () => {
-    const fixture = buildFixture()
-    const onCommand = vi.fn()
-    render(<PlanPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={onCommand} />)
-    await userEvent.click(screen.getByRole("button", { name: "List" }))
-    expect(screen.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true")
-    await userEvent.click(screen.getByRole("button", { name: /add scenario/i }))
-    expect(onCommand).toHaveBeenCalledWith(expect.objectContaining({ type: "edit_plan", operations: [expect.objectContaining({ type: "create_scenario" })] }))
+describe("scratchpad", () => {
+  it("holds goals, takes a jot with tags, and shows it immediately", async () => {
+    renderInWorkspace(<ScratchpadPage />)
+    expect(screen.getByRole("heading", { name: "Scratchpad" })).toBeVisible()
+    expect(screen.getByLabelText("Degree objective")).toBeVisible()
+    await userEvent.type(screen.getByLabelText("Jot something down"), "SLE sounds intense but tempting")
+    await userEvent.type(screen.getByLabelText("Tags"), "residences, humanities")
+    await userEvent.click(screen.getByRole("button", { name: "Add to scratchpad" }))
+    expect(await screen.findByText("SLE sounds intense but tempting")).toBeVisible()
+    expect(screen.getAllByText("residences").length).toBeGreaterThan(0)
   })
 })
 
-describe("Library", () => {
-  it("shows collections, attribution, sources, and quick capture", () => {
-    const fixture = buildFixture()
-    render(<LibraryPage workspace={fixture.workspace} onCommand={vi.fn()} />)
-    for (const name of ["Inbox", "Courses", "Programs", "People", "Clubs", "Research", "Decisions"]) {
-      expect(screen.getByText(name)).toBeVisible()
-    }
-    expect(screen.getByRole("button", { name: /add to workspace/i })).toBeVisible()
-    expect(screen.getByText(/Added by agent/i)).toBeVisible()
-  })
-
-  it.each(["note", "task", "link", "person", "club", "idea", "question", "decision", "commitment", "scratch document"])("captures a %s", async (type) => {
-    const fixture = buildFixture()
-    const onCommand = vi.fn()
-    render(<LibraryPage workspace={fixture.workspace} onCommand={onCommand} />)
-    await userEvent.click(screen.getByRole("button", { name: /add to workspace/i }))
-    await userEvent.selectOptions(screen.getByLabelText(/type/i), type)
-    await userEvent.type(screen.getByLabelText(/title/i), `A ${type}`)
-    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
-    expect(onCommand).toHaveBeenCalledWith(expect.objectContaining({ type: "create_context_item" }))
+describe("calendar", () => {
+  it("shows the standing headline, seeded Stanford todos, and adds one", async () => {
+    renderInWorkspace(<CalendarPage />)
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/year|calendar/i)
+    expect(screen.getByText("Plan the language requirement")).toBeVisible()
+    expect(screen.getByText("Schedule PWR 1 during the first year")).toBeVisible()
+    await userEvent.type(screen.getByLabelText("New todo"), "Email Prof. Rivera")
+    await userEvent.click(screen.getByRole("button", { name: /^Add$/ }))
+    expect(await screen.findByText("Email Prof. Rivera")).toBeVisible()
   })
 })
 
-describe("Programs", () => {
-  it("shows completed, planned, missing, and uncertain requirement states", () => {
-    const fixture = buildFixture()
-    render(<ProgramsPage workspace={fixture.workspace} catalog={fixture.catalog} onCommand={vi.fn()} />)
-    for (const state of ["Completed", "Planned", "Open", "Read official details"]) {
-      expect(screen.getAllByText(state).length).toBeGreaterThan(0)
+describe("courses and clubs", () => {
+  it("searches the catalog and marks interest", async () => {
+    renderInWorkspace(<CoursesPage />)
+    expect(screen.getByRole("tab", { name: "Courses" })).toHaveAttribute("aria-selected", "true")
+    await userEvent.type(screen.getByLabelText("Search courses"), "CS 106B")
+    expect((await screen.findAllByText(/Programming Abstractions/)).length).toBeGreaterThan(0)
+    await userEvent.click(screen.getAllByRole("button", { name: "Interested" })[0])
+    expect((await screen.findAllByRole("button", { name: /Interested ✓/ })).length).toBeGreaterThan(0)
+  })
+
+  it("lists shipped clubs with an interest toggle that feeds the calendar", async () => {
+    renderInWorkspace(<CoursesPage initialTab="clubs" />)
+    expect(await screen.findByText("TreeHacks")).toBeVisible()
+    const card = screen.getByText("TreeHacks").closest("article") as HTMLElement
+    await userEvent.click(within(card).getByRole("button", { name: "Interested" }))
+    expect(await within(card).findByRole("button", { name: /Interested ✓/ })).toBeVisible()
+  })
+
+  it("keeps AP credit and completed courses in the history tab", async () => {
+    renderInWorkspace(<CoursesPage initialTab="history" />)
+    expect(screen.getByRole("heading", { name: "AP credit" })).toBeVisible()
+    expect(screen.getByRole("heading", { name: "Completed courses" })).toBeVisible()
+  })
+})
+
+describe("collaborate", () => {
+  it("states the capability plainly and lists every registered tool", () => {
+    renderInWorkspace(<CollaboratePage />)
+    expect(screen.getByRole("heading", { name: "Work with your agent" })).toBeVisible()
+    expect(screen.getByText("No agent bridge detected in this browser")).toBeVisible()
+    for (const name of ["export_context", "ingest_context", "edit_plan", "manage_activity"]) {
+      expect(screen.getAllByText(name).length).toBeGreaterThan(0)
     }
-    expect(screen.getByText(/Catalog year/i)).toBeVisible()
-    expect(screen.getAllByText(/Source/i).length).toBeGreaterThan(0)
+  })
+})
+
+describe("profile", () => {
+  it("treats the enrollment dates as high-risk and asks before rebuilding", async () => {
+    renderInWorkspace(<ProfilePage />)
+    expect(screen.getByLabelText("Name")).toHaveValue("Alex Chen")
+    await userEvent.selectOptions(screen.getByLabelText("Graduating in spring"), "2030")
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(/Rebuild the map/)
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument()
   })
 })
