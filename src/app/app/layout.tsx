@@ -8,7 +8,7 @@ import { redirect } from "next/navigation"
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && cookieStore.get("course_context_demo")?.value === "1") return <WorkspaceProvider mode="fixture"><AppShell>{children}</AppShell></WorkspaceProvider>
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && cookieStore.get("course_context_demo")?.value === "1") return <WorkspaceProvider mode="fixture" localAccount={cookieStore.get("course_context_local")?.value === "1"}><AppShell>{children}</AppShell></WorkspaceProvider>
   if (!isSupabaseServerConfigured()) redirect("/login?reason=account_setup_required")
   const client = await createCourseContextServerClient()
   const { data } = await client.auth.getUser()

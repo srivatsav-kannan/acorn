@@ -1,3 +1,4 @@
+import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { CUSTOM_INSTITUTION_ID } from "@/data/institutions/registry"
 import { buildPersonalWorkspace } from "@/data/personal-workspace"
@@ -11,27 +12,45 @@ type OnboardingInput = {
   gradYear?: number
 }
 
+const validateInput = (input: OnboardingInput): string | null => {
+  const customInstitution = input.customInstitution?.trim() ?? ""
+  const entryYear = Number(input.entryYear)
+  const gradYear = Number(input.gradYear)
+  if (input.institutionId === CUSTOM_INSTITUTION_ID && (customInstitution.length < 2 || customInstitution.length > 80)) return "Enter your university's name."
+  if (!Number.isInteger(entryYear) || entryYear < 2015 || entryYear > 2035) return "Choose your entry year."
+  if (!Number.isInteger(gradYear) || gradYear <= entryYear || gradYear > entryYear + 8) return "Choose a graduation year after your entry year."
+  return null
+}
+
 export async function POST(request: Request) {
+  const input = await request.json() as OnboardingInput
+  const invalid = validateInput(input)
+  if (invalid) return NextResponse.json({ ok: false, message: invalid }, { status: 400 })
+  const customInstitution = input.customInstitution?.trim() ?? ""
+  const entryYear = Number(input.entryYear)
+  const gradYear = Number(input.gradYear)
+
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true") {
+    const jar = await cookies()
+    if (jar.get("course_context_local")?.value === "1") {
+      const workspace = buildPersonalWorkspace({
+        userId: "USER-LOCAL",
+        email: "",
+        institutionId: input.institutionId,
+        customInstitutionName: customInstitution || undefined,
+        entryYear,
+        gradYear
+      })
+      return NextResponse.json({ ok: true, workspace })
+    }
+  }
+
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, message: "Account storage is not configured." }, { status: 503 })
   const client = await createCourseContextServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return NextResponse.json({ ok: false, message: "Sign in again to continue." }, { status: 401 })
   const existing = await loadWorkspaceRecordForUser(client, data.user.id)
   if (existing && (!existing.isDemo || !existing.onboardingRequired)) return NextResponse.json({ ok: true, existing: true })
-
-  const input = await request.json() as OnboardingInput
-  const customInstitution = input.customInstitution?.trim() ?? ""
-  const entryYear = Number(input.entryYear)
-  const gradYear = Number(input.gradYear)
-  if (input.institutionId === CUSTOM_INSTITUTION_ID && (customInstitution.length < 2 || customInstitution.length > 80)) {
-    return NextResponse.json({ ok: false, message: "Enter your university's name." }, { status: 400 })
-  }
-  if (!Number.isInteger(entryYear) || entryYear < 2015 || entryYear > 2035) {
-    return NextResponse.json({ ok: false, message: "Choose your entry year." }, { status: 400 })
-  }
-  if (!Number.isInteger(gradYear) || gradYear <= entryYear || gradYear > entryYear + 8) {
-    return NextResponse.json({ ok: false, message: "Choose a graduation year after your entry year." }, { status: 400 })
-  }
 
   let workspace
   try {

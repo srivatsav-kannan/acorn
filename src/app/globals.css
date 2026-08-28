@@ -1217,3 +1217,15 @@ b, strong { letter-spacing: -.005em; }
 .onboarding-custom-name label { margin-bottom: 0; }
 .onboarding-fact-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 600px) { .onboarding-fact-row { grid-template-columns: 1fr; } }
+
+.add-course-modal { width: min(560px, 100%); }
+.add-course-search { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; font-size: 12.5px; font-weight: 620; }
+.add-course-search input { width: 100%; min-height: 46px; border: 1px solid var(--line-strong); border-radius: 6px; padding: 0 13px; background: white; font-size: 14px; font-weight: 450; }
+.add-course-search input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(35, 68, 86, .09); outline: 0; }
+.add-course-hint { margin: 4px 0 8px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.add-course-results { margin: 0; padding: 0; max-height: 340px; overflow-y: auto; list-style: none; }
+.add-course-results li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 2px; border-top: 1px solid var(--line); }
+.add-course-results li > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.add-course-results b { font-size: 13px; }
+.add-course-results small { overflow: hidden; color: #55504a; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.add-course-results span { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }

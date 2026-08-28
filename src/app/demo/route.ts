@@ -6,6 +6,9 @@ export function GET(request: NextRequest) {
   const origin = host ? `${protocol}://${host}` : request.url
   const testFixture = process.env.COURSE_CONTEXT_E2E_FIXTURE === "true"
   const response = NextResponse.redirect(new URL(testFixture ? "/app?fresh=1" : "/login?demo=1", origin))
-  if (testFixture) response.cookies.set("course_context_demo", "1", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 })
+  if (testFixture) {
+    response.cookies.set("course_context_demo", "1", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 })
+    response.cookies.set("course_context_local", "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 })
+  }
   return response
 }

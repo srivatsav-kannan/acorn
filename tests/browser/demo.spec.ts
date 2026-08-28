@@ -231,6 +231,38 @@ test("WebMCP health research becomes visible, searchable Library context", async
   await expect(page.getByText("Build healthcare and health-AI depth")).toBeVisible()
 })
 
+test("a local workspace onboards clean, persists edits, and plans future terms", async ({ page }) => {
+  await page.goto("/local")
+  await expect(page).toHaveURL(/\/onboarding$/)
+  await page.getByLabel("Entered in autumn").selectOption("2026")
+  await page.getByLabel("Graduating in spring").selectOption("2030")
+  await page.getByRole("button", { name: "Enter my workspace" }).click()
+  await expect(page).toHaveURL(/\/app$/)
+  await expect(page.getByRole("heading", { name: "Welcome." })).toBeVisible()
+  await expect(page.getByText("Alex Chen")).toHaveCount(0)
+
+  await page.getByRole("link", { name: "Plan", exact: true }).click()
+  await page.getByRole("button", { name: "+ Add course" }).click()
+  await page.getByLabel("Search the catalog").fill("CS 106A")
+  await page.getByRole("button", { name: "Add CS 106A" }).click()
+  await page.getByRole("button", { name: "Close course search" }).click()
+  await expect(page.getByText("CS 106A").first()).toBeVisible()
+
+  await page.getByRole("tab", { name: /Win 2027/ }).click()
+  await page.getByRole("button", { name: /^Plan Winter 2027$/ }).click()
+  await page.getByRole("button", { name: "+ Add course" }).click()
+  await page.getByLabel("Search the catalog").fill("CS 106B")
+  await page.getByRole("button", { name: "Add CS 106B" }).click()
+  await page.getByRole("button", { name: "Close course search" }).click()
+  await expect(page.getByText("Programming Abstractions").first()).toBeVisible()
+
+  await page.reload()
+  await page.getByRole("tab", { name: /Win 2027/ }).click()
+  await expect(page.getByText("Programming Abstractions").first()).toBeVisible()
+  await page.getByRole("link", { name: "Home", exact: true }).click()
+  await expect(page.getByText(/of 180 units planned or complete/)).toBeVisible()
+})
+
 test("has no serious accessibility violations", async ({ page }, testInfo) => {
   await page.goto("/demo")
   const results = await new AxeBuilder({ page }).analyze()

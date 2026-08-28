@@ -34,12 +34,13 @@ export const OnboardingPage = () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ institutionId, customInstitution: isCustom ? customInstitution : undefined, entryYear, gradYear })
     })
-    const result = await response.json() as { ok?: boolean, message?: string }
+    const result = await response.json() as { ok?: boolean, message?: string, workspace?: unknown }
     if (!response.ok || !result.ok) {
       setError(result.message ?? "Your workspace could not be created.")
       setBusy(false)
       return
     }
+    if (result.workspace) localStorage.setItem("course-context-local-v1", JSON.stringify(result.workspace))
     router.push("/app")
     router.refresh()
   }
