@@ -131,6 +131,24 @@ test("profile, Library edits, and archives persist through reloads", async ({ pa
   await expect(page.getByText("Professor Rivera")).toBeVisible()
 })
 
+test("demo reset discards saved and in-progress edits and survives reload", async ({ page }) => {
+  await page.goto("/demo")
+  await page.getByRole("link", { name: "Account" }).click()
+  await page.getByRole("button", { name: "Edit profile" }).click()
+  await page.getByLabel("Name").fill("Reset Test Student")
+  await page.getByRole("button", { name: "Save profile" }).click()
+  await expect(page.getByRole("heading", { name: "Reset Test Student" })).toBeVisible()
+
+  await page.getByRole("button", { name: "Edit profile" }).click()
+  await page.getByLabel("Name").fill("Unsaved Stale Name")
+  await page.getByRole("button", { name: "Reset demo" }).click()
+
+  await expect(page).toHaveURL(/\/app$/)
+  await expect(page.getByRole("heading", { name: "Good to see you, Alex." })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole("heading", { name: "Good to see you, Alex." })).toBeVisible()
+})
+
 test("course and scenario controls perform persisted semantic edits", async ({ page }) => {
   await page.goto("/demo")
   await page.getByRole("link", { name: "Plan", exact: true }).click()

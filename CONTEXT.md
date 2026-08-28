@@ -168,6 +168,11 @@ Stanford students who currently move among class search, degree progress, advisi
 - Priority: hard
 - Requirement: Personal planning controls must represent the student's actual choices rather than the demo persona. Protected days, subjects, programs, course history, commitments, and unit limits are generic and editable.
 
+### REQ-031: Verifiable demo reset
+
+- Status: active
+- Requirement: Resetting the public demo must discard every persisted demo mutation, abandon any in-progress page-local edit state, restart from the canonical fixture, and take the user to a visibly fresh workspace. The browser suite must prove the reset survives a reload.
+
 ## Non-goals for the challenge build
 
 - Replacing Stanford Academic Advising.

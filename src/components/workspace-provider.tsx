@@ -124,9 +124,7 @@ export const WorkspaceProvider = ({ children, mode = "demo", initialWorkspace, u
   const reset = async () => {
     if (mode !== "demo") throw new Error("Account workspaces cannot be reset from the demo control")
     localStorage.removeItem(storageKey)
-    const fixture = buildDemoFixture()
-    setRepository(new MemoryWorkspaceRepository(fixture))
-    setWorkspace(fixture.workspace)
+    window.location.replace("/demo")
   }
 
   const signOut = async () => {
