@@ -4,14 +4,14 @@ Status: rebuilding the Stanford vertical slice around real accounts and progress
 
 ## Rebuild contract
 
-The authenticated product is no longer allowed to derive a new workspace from the fictional demo fixture. A new account contains only the preferred name and planning goal the student explicitly entered. It begins with an empty quarter scenario, no selected program, no completed courses, no commitments, no research, and no inferred constraints.
+The authenticated product is no longer allowed to derive a new workspace from the fictional demo fixture. A new account contains only the three durable facts chosen at onboarding: the university, the entry year, and the expected graduation year. It begins with an empty current-term scenario, no name, no goal, no selected program, no completed courses, no commitments, no research, and no inferred constraints.
 
 CourseContext has two visibly different data layers:
 
 1. **Stanford reference** contains read-only courses, programs, official planning resources, source URLs, retrieval dates, and honest coverage notes. It is shared across accounts and versioned with the application.
 2. **My workspace** contains the student's goals, course history, program interests, plans, notes, tasks, decisions, and agent-added research. It is private, persisted in Supabase, editable, attributed, and undoable.
 
-Onboarding asks for a preferred name and one open-ended planning goal. The product asks for a major, completed courses, unit limit, schedule constraints, or commitments only when the student starts a task that needs that information. The ordinary interface never requires a student to understand WebMCP, schemas, tool names, IDs, or context injection.
+Onboarding asks for the university, entry year, and graduation year through dropdowns. The product asks for a name, goal, major, completed courses, unit limit, schedule constraints, or commitments only inside the workspace, where the student or their agent supplies them through the same visible commands. The ordinary interface never requires a student to understand WebMCP, schemas, tool names, IDs, or context injection.
 
 The public demo is a permanent, explicitly marked Supabase account. It uses the same authenticated repository, commands, version history, WebMCP tools, and interface as personal accounts. Reset preserves the Auth user and workspace identity, clears the active workspace into an onboarding state, signs out the browser, and requires onboarding after the next demo login. The scripted challenge journey may enter the fictional Alex Chen scenario during onboarding, but no personal account receives that data.
 
