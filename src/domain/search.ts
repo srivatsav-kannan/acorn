@@ -44,19 +44,20 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
     const text = value.toLowerCase()
     return Boolean(normalized && text.includes(normalized)) || tokens.some((token) => text.includes(token))
   }
+  const brief = (value: string) => value.length > 110 ? `${value.slice(0, 109).trimEnd()}…` : value
   const groups: Array<{ type: string, items: Array<{ id: string, title: string, summary: string }> }> = []
   const library = workspace.contextItems.filter((item) => !item.archived && matches(`${item.title} ${item.summary} ${JSON.stringify(item.content)}`))
   const people = library.filter((item) => item.type === "person")
   const otherContext = library.filter((item) => item.type !== "person")
-  if (people.length) groups.push({ type: "people", items: people.map((item) => ({ id: item.id, title: item.title, summary: item.summary })) })
-  if (otherContext.length) groups.push({ type: "library", items: otherContext.map((item) => ({ id: item.id, title: item.title, summary: item.summary })) })
+  if (people.length) groups.push({ type: "people", items: people.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary) })) })
+  if (otherContext.length) groups.push({ type: "library", items: otherContext.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary) })) })
   const referencedEvidenceIds = new Set(workspace.contextItems.flatMap((item) => item.sourceEvidenceIds ?? []))
   const orphanedEvidence = workspace.evidence.filter((item) => !referencedEvidenceIds.has(item.id) && matches(`${item.title ?? ""} ${item.claim} ${item.sourceTitle}`))
-  if (orphanedEvidence.length) groups.push({ type: "sources", items: orphanedEvidence.map((item) => ({ id: item.id, title: item.title || item.sourceTitle, summary: item.claim })) })
-  const courses = searchCourses(catalog, { query }).slice(0, 6)
-  if (courses.length) groups.push({ type: "courses", items: courses.map(({ course }) => ({ id: course.id, title: `${course.code} · ${course.title}`, summary: course.description })) })
+  if (orphanedEvidence.length) groups.push({ type: "sources", items: orphanedEvidence.slice(0, 6).map((item) => ({ id: item.id, title: item.title || item.sourceTitle, summary: brief(item.claim) })) })
+  const courses = searchCourses(catalog, { query }).slice(0, 5)
+  if (courses.length) groups.push({ type: "courses", items: courses.map(({ course }) => ({ id: course.id, title: `${course.code} · ${course.title}`, summary: brief(course.description) })) })
   const programs = workspace.programs.filter((program) => matches(`${program.name} ${program.credential}`))
-  if (programs.length) groups.push({ type: "programs", items: programs.map((program) => ({ id: program.id, title: program.name, summary: program.credential })) })
+  if (programs.length) groups.push({ type: "programs", items: programs.slice(0, 6).map((program) => ({ id: program.id, title: program.name, summary: program.credential })) })
   const total = groups.reduce((sum, group) => sum + group.items.length, 0)
   return {
     query,

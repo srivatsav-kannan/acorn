@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { validateContextItem } from "@/domain/context"
 import { upsertResearchLibraryItem, validateEvidence } from "@/domain/evidence"
+import { emptyOverlay, validateOverlayCourse, validateOverlaySection } from "@/domain/reference"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository, RepositoryError } from "@/store/memory-repository"
@@ -212,6 +213,42 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       changed.push({ type: "evidence", id: evidence.id })
       const libraryItem = upsertResearchLibraryItem(workspace, evidence, envelope.actor)
       changed.push({ type: "context_item", id: libraryItem.id })
+    } else if (command.type === "extend_reference") {
+      let evidence, course
+      try {
+        evidence = validateEvidence(command.evidence)
+        course = validateOverlayCourse(command.course ?? {})
+      } catch (error) { throw commandError((error as Error).message) }
+      if (!evidence.id) throw commandError("Reference evidence needs a stable ID")
+      const overlay = workspace.referenceOverlay ?? emptyOverlay()
+      workspace.referenceOverlay = overlay
+      const courseIndex = overlay.courses.findIndex((item) => item.id === course.id)
+      if (courseIndex >= 0) overlay.courses[courseIndex] = course
+      else overlay.courses.push(course)
+      changed.push({ type: "reference_course", id: course.id })
+      if (command.section) {
+        let sectionRecord
+        try { sectionRecord = validateOverlaySection(command.section, course.id, workspace.currentTermId, evidence.id) }
+        catch (error) { throw commandError((error as Error).message) }
+        const sectionIndex = overlay.sections.findIndex((item) => item.id === sectionRecord.id)
+        if (sectionIndex >= 0) overlay.sections[sectionIndex] = sectionRecord
+        else overlay.sections.push(sectionRecord)
+        changed.push({ type: "reference_section", id: sectionRecord.id })
+      }
+      const evidenceIndex = workspace.evidence.findIndex((item) => item.id === evidence.id)
+      if (evidenceIndex >= 0) workspace.evidence[evidenceIndex] = evidence
+      else workspace.evidence.push(evidence)
+      changed.push({ type: "evidence", id: evidence.id })
+      const libraryItem = upsertResearchLibraryItem(workspace, evidence, envelope.actor)
+      changed.push({ type: "context_item", id: libraryItem.id })
+    } else if (command.type === "remove_reference_course") {
+      const overlay = workspace.referenceOverlay ?? emptyOverlay()
+      const index = overlay.courses.findIndex((item) => item.id === command.courseId)
+      if (index < 0) throw commandError("Reference course not found in this workspace")
+      const [removed] = overlay.courses.splice(index, 1)
+      overlay.sections = overlay.sections.filter((item) => item.courseId !== removed.id)
+      workspace.referenceOverlay = overlay
+      changed.push({ type: "reference_course", id: removed.id })
     } else if (command.type === "configure_view") {
       let view
       try { view = validateSavedView(command.view, workspace.id) }
@@ -247,7 +284,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       undoAvailable,
       actor: envelope.actor,
       visibleChange: true,
-      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : undefined
+      primaryVisibleId: command.type === "save_research" ? changed.find((item) => item.type === "context_item")?.id : command.type === "extend_reference" ? changed.find((item) => item.type === "reference_course")?.id : undefined
     }
     workspace.receipts.push(receipt)
     workspace.activity.push({

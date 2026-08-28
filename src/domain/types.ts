@@ -211,12 +211,18 @@ export type ActivityEntry = {
   undoneAt?: string
 }
 
+export type ReferenceOverlay = {
+  courses: Course[]
+  sections: Section[]
+}
+
 export type WorkspaceState = {
   id: string
   ownerUserId: string
   version: number
   title: string
   institution: string
+  institutionId?: string
   currentTermId: string
   profile: StudentProfile
   plans: Plan[]
@@ -229,6 +235,7 @@ export type WorkspaceState = {
   activity: ActivityEntry[]
   receipts: ActionReceipt[]
   undoSnapshots: Record<string, WorkspaceState>
+  referenceOverlay?: ReferenceOverlay
 }
 
 export type Fixture = { workspace: WorkspaceState, catalog: Catalog }

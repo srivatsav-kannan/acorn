@@ -45,7 +45,7 @@ describe("fresh account workspace", () => {
   it("keeps shared Stanford references read-only and out of the personal Library", () => {
     const workspace = buildNewAccount()
     expect(workspace.programs.length).toBeGreaterThanOrEqual(9)
-    expect(workspace.programs.every((program) => program.sourceUrl.startsWith("https://bulletin.stanford.edu/"))).toBe(true)
+    expect(workspace.programs.every((program) => program.sourceUrl.startsWith("https://bulletin.stanford.edu/") || program.sourceUrl.startsWith("https://advising.stanford.edu/"))).toBe(true)
     expect(workspace.evidence.every((evidence) => evidence.addedBy === "system")).toBe(true)
     expect(workspace.contextItems.some((item) => item.type === "source")).toBe(false)
   })

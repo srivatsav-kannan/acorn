@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { executeCommand } from "@/domain/commands"
 import { checkPlan } from "@/domain/planner"
+import { mergedCatalogFor } from "@/domain/reference"
 import { evaluateRequirement } from "@/domain/requirements"
 import { searchCourses, searchWorkspace } from "@/domain/search"
 import type { Actor, WorkspaceState } from "@/domain/types"
@@ -48,6 +49,7 @@ const evidenceField = {
 
 export const createCourseContextTools = ({ repository, session, now, onWorkspaceChanged }: Setup): Tool[] => {
   const workspace = () => repository.getWorkspace(session.workspaceId, session.userId)
+  const catalog = async () => mergedCatalogFor(await workspace(), repository.catalog)
   const mutate = async (input: any, command: Record<string, unknown>) => {
     try {
       const result = await executeCommand(repository, {
@@ -73,7 +75,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       inputSchema: schema({ query: field("string", "Question or topic to search for") }, ["query"]),
       annotations: annotations(true),
       examples: [{ query: "professor research" }],
-      execute: async ({ query }) => searchWorkspace(await workspace(), repository.catalog, query)
+      execute: async ({ query }) => searchWorkspace(await workspace(), await catalog(), query)
     },
     {
       name: "get_planning_context",
@@ -84,7 +86,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async () => {
         const value = await workspace()
         const currentPlan = value.plans[0]
-        return { workspaceId: value.id, version: value.version, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: "The shipped catalog is a sample. Add verified missing courses with extend_reference.", currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Search the workspace before external research", "Discover current plan and scenario IDs before editing", "Explain tradeoffs before consequential edits", "Use one atomic mutation with the current version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Store useful research with provenance", "Preserve explicit hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties }
       }
     },
     {
@@ -93,7 +95,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       inputSchema: schema({ query: field("string", "Course code, title, topic, or keyword"), termId: field("string", "Stable academic term ID") }, ["query"]),
       annotations: annotations(true),
       examples: [{ query: "design", termId: "Use currentTermId from get_planning_context" }],
-      execute: async (input) => ({ results: searchCourses(repository.catalog, input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sectionIds: sections.map((item) => item.id) })) })
+      execute: async (input) => ({ results: searchCourses(await catalog(), input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sectionIds: sections.map((item) => item.id) })) })
     },
     {
       name: "get_plan",
@@ -127,7 +129,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const value = await workspace()
         const plan = value.plans.find((item) => item.id === planId) ?? value.plans[0]
         const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios[0]
-        return { workspaceVersion: value.version, checks: selected ? checkPlan({ scenario: selected, catalog: repository.catalog, profile: value.profile, evidence: value.evidence, now: now() }) : [] }
+        return { workspaceVersion: value.version, checks: selected ? checkPlan({ scenario: selected, catalog: mergedCatalogFor(value, repository.catalog), profile: value.profile, evidence: value.evidence, now: now() }) : [] }
       }
     },
     {
@@ -140,8 +142,11 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const value = await workspace()
         const program = value.programs.find((item) => item.id === programId) ?? value.programs[0]
         const planned = value.plans.flatMap((plan) => plan.scenarios[0]?.courses.filter((item) => item.status === "active").map((item) => item.courseId) ?? [])
-        const units = Object.fromEntries(repository.catalog.courses.map((course) => [course.id, course.maxUnits]))
-        return { workspaceVersion: value.version, program: program ? { id: program.id, name: program.name, requirements: program.requirements.map((requirement) => ({ id: requirement.id, title: requirement.title, ...evaluateRequirement({ rule: requirement.rule, completedCourseIds: value.profile.completedCourseIds, plannedCourseIds: planned, courseUnits: units, courseGrades: value.profile.courseGrades, residentCourseIds: value.profile.residentCourseIds, allowDoubleCount: false }) })) } : null }
+        const units = Object.fromEntries(mergedCatalogFor(value, repository.catalog).courses.map((course) => [course.id, course.maxUnits]))
+        return { workspaceVersion: value.version, program: program ? { id: program.id, name: program.name, requirements: program.requirements.map((requirement) => {
+          const evaluation = evaluateRequirement({ rule: requirement.rule, completedCourseIds: value.profile.completedCourseIds, plannedCourseIds: planned, courseUnits: units, courseGrades: value.profile.courseGrades, residentCourseIds: value.profile.residentCourseIds, allowDoubleCount: false })
+          return { id: requirement.id, title: requirement.title, status: evaluation.status, courseIds: evaluation.contributingCourseIds.length ? evaluation.contributingCourseIds : undefined, detail: evaluation.detail ? evaluation.detail.slice(0, 120) : undefined }
+        }) } : null }
       }
     },
     {
@@ -175,6 +180,52 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       annotations: annotations(false),
       examples: [],
       execute: async (input) => mutate(input, { type: "edit_plan", planId: input.planId, scenarioId: input.scenarioId, operations: input.operations })
+    },
+    {
+      name: "extend_reference",
+      description: "Add a missing course, and optionally its current section, to the student's institutional reference overlay. Use when the shipped catalog lacks a course the student needs. Requires an official or clearly classified source. The addition appears in the visible catalog, merges into search and plan checks, and can be removed by the student.",
+      inputSchema: schema({
+        expectedVersion: field("number", "Current workspace version"),
+        idempotencyKey: field("string", "Unique retry-safe operation key"),
+        course: {
+          type: "object",
+          additionalProperties: false,
+          description: "The catalog course to add or correct",
+          properties: {
+            id: field("string", "Stable uppercase ID, for example COURSE-CS-329S"),
+            code: field("string", "Official course code, for example CS 329S"),
+            title: field("string", "Official course title"),
+            description: field("string", "Short official description"),
+            subject: field("string", "Subject code, for example CS"),
+            level: field("number", "Numeric course level"),
+            units: field("number", "Units when fixed"),
+            minUnits: field("number", "Minimum units"),
+            maxUnits: field("number", "Maximum units"),
+            tags: field("array", "Short topical tags"),
+            sourceUrl: field("string", "Official catalog URL for this course"),
+            prerequisites: field("array", "Known prerequisite course IDs"),
+            prerequisiteUncertain: field("boolean", "True when the prerequisite reading needs review")
+          },
+          required: ["code", "title"]
+        },
+        section: {
+          type: "object",
+          additionalProperties: false,
+          description: "Optional current-term section with verified meeting times",
+          properties: {
+            id: field("string", "Stable section ID"),
+            sectionNumber: field("string", "Official section number"),
+            instructor: field("string", "Instructor as listed officially"),
+            units: field("number", "Section units"),
+            meetings: field("array", "Meetings as {days, start, end, type, location} with HH:MM times")
+          },
+          required: ["units", "meetings"]
+        },
+        evidence: evidenceField
+      }, ["expectedVersion", "idempotencyKey", "course", "evidence"]),
+      annotations: annotations(false, true),
+      examples: [],
+      execute: async (input) => mutate(input, { type: "extend_reference", course: input.course, section: input.section, evidence: input.evidence })
     },
     {
       name: "configure_view",

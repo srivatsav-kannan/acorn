@@ -15,6 +15,7 @@ const expectedNames = [
   "save_workspace_item",
   "update_student_context",
   "edit_plan",
+  "extend_reference",
   "configure_view"
 ]
 

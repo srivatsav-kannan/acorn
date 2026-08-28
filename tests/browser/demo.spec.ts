@@ -1,10 +1,10 @@
 import AxeBuilder from "@axe-core/playwright"
 import { expect, test } from "@playwright/test"
 
-test("public landing enters an isolated demo and exposes every primary surface", async ({ page }) => {
+test("public landing exposes the demo entry and every primary surface", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { level: 1 })).toContainText("academic workspace")
-  await page.getByRole("link", { name: "Try the demo" }).click()
+  await page.getByRole("link", { name: "Demo login" }).click()
   await expect(page).toHaveURL(/\/app/)
   await expect(page.getByRole("banner").getByText("Autumn 2026")).toBeVisible()
   for (const name of ["Home", "Plan", "Stanford", "Library", "Programs"]) {
@@ -15,12 +15,12 @@ test("public landing enters an isolated demo and exposes every primary surface",
 test("account entry reflects the active authentication configuration", async ({ page }) => {
   await page.goto("/app")
   await expect(page).toHaveURL(/\/login/)
-  await expect(page.getByRole("heading", { name: "Continue with your email" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible()
   const setupNotice = page.getByText("Account sign-in is unavailable")
   if (await setupNotice.isVisible()) await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeDisabled()
   else await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeEnabled()
   await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0)
-  await expect(page.getByRole("link", { name: "Open the resettable demo" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Sign in with demo credentials" })).toBeVisible()
 })
 
 test("student captures context, changes a plan, sees checks, and undoes the action", async ({ page }) => {
@@ -34,10 +34,10 @@ test("student captures context, changes a plan, sees checks, and undoes the acti
 
   await page.getByRole("link", { name: "Plan", exact: true }).click()
   await page.getByRole("button", { name: /remove design foundations/i }).click()
-  await expect(page.getByText(/12 units/i)).toBeVisible()
+  await expect(page.getByText(/13 units/i)).toBeVisible()
   await page.getByRole("button", { name: "Activity" }).click()
   await page.getByRole("button", { name: "Undo" }).first().click()
-  await expect(page.getByText(/14 units/i)).toBeVisible()
+  await expect(page.getByText(/15 units/i)).toBeVisible()
 })
 
 test("Stanford browsing filters the catalog and adds a course through the shared command path", async ({ page }) => {
@@ -77,7 +77,7 @@ test("search, scenario comparison, and saved views are real shared workspace con
   await expect(page.getByRole("dialog", { name: "Compare scenarios" })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Lighter option" })).toBeVisible()
   await page.getByRole("button", { name: "Open scenario" }).last().click()
-  await expect(page.getByText("12 units")).toBeVisible()
+  await expect(page.getByText("13 units")).toBeVisible()
 
   await page.getByRole("link", { name: "Settings", exact: true }).click()
   await page.getByRole("button", { name: "Create planning view" }).click()
@@ -155,7 +155,7 @@ test("course and scenario controls perform persisted semantic edits", async ({ p
   await page.getByRole("button", { name: "Edit Design Foundations" }).click()
   await page.getByLabel("Plan role").selectOption("backup")
   await page.getByRole("button", { name: "Save course" }).click()
-  await expect(page.getByText("12 units")).toBeVisible()
+  await expect(page.getByText("13 units")).toBeVisible()
   await page.getByRole("tab", { name: /Lighter option/ }).click()
   await page.getByRole("button", { name: "Scenario settings" }).click()
   await page.getByLabel("Scenario name").fill("Research first")
@@ -190,7 +190,7 @@ test("registers semantic WebMCP tools in a capable browser", async ({ page }) =>
     Object.defineProperty(window, "__registeredTools", { get: () => [...names] })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(11)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(12)
   expect(await page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools)).toContain("search_workspace")
 })
 
@@ -209,7 +209,7 @@ test("WebMCP health research becomes visible, searchable Library context", async
     Object.defineProperty(window, "__courseContextTools", { value: tools })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(11)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(12)
   const result = await page.evaluate(async () => {
     const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
     const context = await tools.get("get_planning_context")!.execute({}) as { version: number }

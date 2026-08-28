@@ -1,4 +1,4 @@
-import { buildStanfordEvidence, buildStanfordPrograms } from "@/data/fixture"
+import { getInstitution } from "@/data/institutions/registry"
 import type { Collection, WorkspaceState } from "@/domain/types"
 
 const personalCollections = (): Collection[] => [
@@ -16,11 +16,13 @@ type NewWorkspaceInput = {
   email: string
   name: string
   goal: string
+  institutionId?: string
   id?: () => string
   now?: () => Date
 }
 
-export const buildPersonalWorkspace = ({ userId, email, name, goal, id = () => crypto.randomUUID(), now = () => new Date() }: NewWorkspaceInput): WorkspaceState => {
+export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionId, id = () => crypto.randomUUID(), now = () => new Date() }: NewWorkspaceInput): WorkspaceState => {
+  const institution = getInstitution(institutionId)
   const cleanName = name.trim()
   const cleanGoal = goal.trim()
   const suffix = id().replaceAll("-", "").toUpperCase()
@@ -32,8 +34,9 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, id = () => c
     ownerUserId: userId,
     version: 1,
     title: `${cleanName}'s workspace`,
-    institution: "Stanford University",
-    currentTermId: "TERM-2026-AUTUMN",
+    institution: institution.name,
+    institutionId: institution.id,
+    currentTermId: institution.currentTermId,
     profile: {
       id: `PROFILE-${suffix}`,
       name: cleanName,
@@ -53,8 +56,8 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, id = () => c
     },
     plans: [{
       id: `PLAN-${suffix}`,
-      title: "Autumn 2026",
-      termId: "TERM-2026-AUTUMN",
+      title: institution.terms.find((term) => term.id === institution.currentTermId)?.name ?? "This term",
+      termId: institution.currentTermId,
       activeScenarioId: `SCENARIO-START-${suffix}`,
       scenarios: [{
         id: `SCENARIO-START-${suffix}`,
@@ -64,7 +67,7 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, id = () => c
         commitments: []
       }]
     }],
-    programs: buildStanfordPrograms(),
+    programs: institution.buildPrograms(),
     collections: personalCollections(),
     contextItems: [{
       id: goalId,
@@ -77,11 +80,12 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, id = () => c
       createdAt,
       updatedAt: createdAt
     }],
-    evidence: buildStanfordEvidence().filter((item) => item.addedBy === "system"),
+    evidence: institution.buildEvidence().filter((item) => item.addedBy === "system"),
     uncertainties: [],
     savedViews: [],
     activity: [],
     receipts: [],
-    undoSnapshots: {}
+    undoSnapshots: {},
+    referenceOverlay: { courses: [], sections: [] }
   }
 }
