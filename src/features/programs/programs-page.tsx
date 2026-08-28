@@ -49,15 +49,15 @@ export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: Wor
   const buildPrompt = `My school is ${workspace.institution}. Research its official degree pages. In this open CourseContext workspace, use the extend_reference tool to add my program with its requirement tree, and the courses that satisfy it, each with an official source. Mark anything uncertain for manual review instead of guessing.`
 
   if (!program) return <div className="page programs-page programs-rebuild">
-    <header className="page-heading"><div><p className="eyebrow">{institution.shortName} reference · Beta</p><h1>No programs here yet</h1><p>{workspace.institution} has no shipped reference pack. Your agent builds one for you, with sources.</p></div></header>
+    <header className="page-heading"><div><h1>Programs</h1><p className="heading-sub">{workspace.institution} · Beta</p></div></header>
     <section className="agent-build-card">
-      <div><p className="eyebrow">Agent-built reference</p><h2>Ask your agent to add your program.</h2><p>Keep this workspace open and paste this to your agent. Programs it adds appear here, labeled, checkable against your plan, and removable.</p></div>
+      <div><h2>No programs here yet.</h2><p>Hand your agent the instruction below and it can build your program reference, with sources. Everything it adds is labeled and removable.</p></div>
       <blockquote>{buildPrompt}</blockquote>
     </section>
   </div>
 
   return <div className="page programs-page programs-rebuild">
-    <header className="page-heading"><div><p className="eyebrow">{institution.shortName} reference</p><h1>Explore programs</h1><p>Compare official program pages, then track one only when you choose it.</p></div><span className="reference-badge">Read-only reference</span></header>
+    <header className="page-heading"><div><h1>Programs</h1></div><span className="reference-badge">{institution.shortName} reference</span></header>
 
     <div className="program-browser">
       <aside className="program-list" aria-label={`${institution.shortName} programs`}>
@@ -67,7 +67,7 @@ export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: Wor
       </aside>
 
       <section className="program-detail">
-        <div className="program-detail-heading"><div><p className="eyebrow">{program.addedBy ? "Agent-added program reference" : `Official ${institution.shortName} program`}</p><h2>{program.name}</h2><p>{program.summary ?? `${program.credential} program for the ${program.catalogYear} catalog year.`}</p></div><div className="program-detail-actions"><a className="secondary-button" href={program.sourceUrl} target="_blank" rel="noreferrer">Open official page ↗</a><button className={tracking ? "secondary-button" : "primary-button"} type="button" onClick={() => onCommand({ type: "update_profile", patch: { declaredProgramId: tracking ? null : program.id } })}>{tracking ? "Stop tracking" : "Track this program"}</button>{program.addedBy && <button className="text-button" type="button" onClick={() => { onCommand({ type: "remove_reference_program", programId: program.id }); setSelectedId(workspace.programs.find((item) => item.id !== program.id)?.id ?? "") }}>Remove from my reference</button>}</div></div>
+        <div className="program-detail-heading"><div>{program.addedBy && <p className="eyebrow">Added by your agent</p>}<h2>{program.name}</h2><p>{program.summary ?? `${program.credential} program for the ${program.catalogYear} catalog year.`}</p></div><div className="program-detail-actions"><a className="secondary-button" href={program.sourceUrl} target="_blank" rel="noreferrer">Open official page ↗</a><button className={tracking ? "secondary-button" : "primary-button"} type="button" onClick={() => onCommand({ type: "update_profile", patch: { declaredProgramId: tracking ? null : program.id } })}>{tracking ? "Stop tracking" : "Track this program"}</button>{program.addedBy && <button className="text-button" type="button" onClick={() => { onCommand({ type: "remove_reference_program", programId: program.id }); setSelectedId(workspace.programs.find((item) => item.id !== program.id)?.id ?? "") }}>Remove from my reference</button>}</div></div>
 
         <div className="program-reference-meta"><span><b>Source</b> {program.addedBy ? "Added by your agent with a cited source" : `${institution.shortName} official pages`}</span><span><b>Catalog year</b> {program.catalogYear}</span><span><b>Your status</b> {tracking ? "Selected by you" : "Reference only"}</span></div>
 
@@ -87,6 +87,6 @@ export const ProgramsPage = ({ workspace, catalog, onCommand }: { workspace: Wor
     </div>
 
     <aside className="program-note"><span>i</span><p><b>Planning aid, not an official degree audit</b><small>CourseContext links to official requirements and leaves policy nuance open for advisor review.</small></p></aside>
-    {institution.resources.length > 0 && <section className="stanford-resources"><div className="section-heading"><div><p className="eyebrow">Planning resources</p><h2>Useful starting points</h2></div></div><div>{institution.resources.map((resource) => <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><span>{resource.kind === "official" ? `Official ${institution.shortName} source` : "Community tool"}</span><strong>{resource.title}</strong><small>{resource.note}</small></a>)}</div></section>}
+    {institution.resources.length > 0 && <section className="stanford-resources"><div className="section-heading"><div><h2>Planning resources</h2></div></div><div>{institution.resources.map((resource) => <a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><span>{resource.kind === "official" ? `Official ${institution.shortName} source` : "Community tool"}</span><strong>{resource.title}</strong><small>{resource.note}</small></a>)}</div></section>}
   </div>
 }

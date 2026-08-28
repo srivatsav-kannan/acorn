@@ -75,7 +75,6 @@ export const OnboardingPage = () => {
     </header>
     <div className="onboarding-intro">
       <section>
-        <p className="eyebrow">Start with the real question</p>
         <h1>What are you trying to figure out?</h1>
         <p>Give us the situation in your own words. You can add courses, majors, time constraints, and everything else when it becomes relevant.</p>
         <ul>
@@ -84,16 +83,14 @@ export const OnboardingPage = () => {
           <li><span>3</span><strong>You and your agent share the same view</strong><small>Every agent change is visible, editable, and undoable.</small></li>
         </ul>
         <aside className="agent-fill-card">
-          <p className="eyebrow">Already keep your context with an agent?</p>
-          <h2>Let it fill this in for you.</h2>
-          <p>This page registers setup tools through WebMCP. Keep it open, paste this to your agent, and it can create the workspace from what it already knows about you.</p>
+          <h2>Already keep your context with an agent?</h2>
+          <p>Keep this page open and paste this to it. It can create the workspace from what it already knows about you.</p>
           <blockquote>{agentFillPrompt}</blockquote>
           <button className="secondary-button" type="button" onClick={copyPrompt}>{copied ? "Copied" : "Copy agent instruction"}</button>
         </aside>
       </section>
       <form className="onboarding-simple-card" onSubmit={(event) => { event.preventDefault(); void finish() }}>
         <div>
-          <p className="eyebrow">Create your workspace</p>
           <h2>Tell us just enough to begin.</h2>
           <p>Nothing here is sent to your university.</p>
         </div>

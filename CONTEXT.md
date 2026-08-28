@@ -151,7 +151,7 @@ Stanford students who currently move among class search, degree progress, advisi
 ### REQ-027: Useful Stanford depth
 
 - Priority: hard
-- Requirement: The product ships with a broad, source-attributed Stanford reference pack covering courses, programs, and planning resources. Institutional data may be updated by a controlled import process. Agent discoveries remain user-specific overlays until explicitly curated into a future reference release.
+- Requirement: The product ships the complete public ExploreCourses catalog import for the current academic year, refreshed by a committed importer script, with curated rows adding prerequisite structure and demo determinism. Programs, WAYS designations, planning resources, and a campus opportunity directory ride the same reference layer. Agent discoveries remain user-specific overlays until explicitly curated into a future reference release.
 
 ### REQ-028: Honest authentication choices
 
@@ -194,6 +194,16 @@ Stanford students who currently move among class search, degree progress, advisi
 - Priority: hard
 - Requirement: Completed courses, grades, AP and transfer credit, and class standing are structured product state, editable by the student in Settings and writable by an agent through update_student_context. Credit equivalencies count toward prerequisites and requirement evaluation exactly like completed courses. Every change is attributed, visible in Activity, and undoable.
 
+### REQ-036: Deterministic degree timeline
+
+- Priority: hard
+- Requirement: Term identity, ordering, academic years, class standing, the current term, and units-toward-degree math are computed by application code, never inferred by a model. A student plans any quarter from entry to expected graduation, including five year coterm paths. The degree evaluator carries completed and planned work forward through the timeline to check prerequisite sequencing, duplicates across terms, quarter overloads, and unit totals.
+
+### REQ-037: Campus directory with amendable reference
+
+- Priority: hard
+- Requirement: The reference layer ships a starting directory of clubs, research programs, and campus programs. Students and agents extend it through the same command, and either may amend a shipped entry. An amendment always shows the difference against the original and offers a way back to it. Shipped and workspace-added entries stay visually distinct.
+
 ## Non-goals for the challenge build
 
 - Replacing Stanford Academic Advising.
@@ -208,7 +218,7 @@ Stanford students who currently move among class search, degree progress, advisi
 - Product name: CourseContext.
 - Visual identity: editorial academic workspace using paper, ink, Stanford red, navy, and restrained elevation.
 - Demo account: permanent shared Supabase identity. A reset returns it to onboarding. The scripted challenge journey may enter the fictional Alex Chen scenario during onboarding, but that profile is never hardcoded into the authenticated reset state.
-- Data posture: deterministic illustrative fixture for the judged demo. Live Stanford ingestion remains a post-challenge adapter.
+- Data posture: the full public ExploreCourses catalog is imported by `scripts/import-stanford/import-catalog.mjs` and committed, with real Autumn meeting times for detailed departments. Curated rows add prerequisites and keep the judged demo deterministic. Rerunning the importer refreshes the data.
 - Tool surface: six read tools and six mutation tools listed in `README.md` and implemented in `src/webmcp/tools.ts`. `extend_reference` is the pathway for agent-supplied institutional context.
 - Verification baseline: UI-only browser journeys, semantic WebMCP contract tests, deterministic domain tests, accessibility checks, and coverage gates.
 

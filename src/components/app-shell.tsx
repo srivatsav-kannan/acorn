@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
 import type { ActivityEntry } from "@/domain/types"
+import { mergedOpportunities } from "@/domain/reference"
 import { searchWorkspace } from "@/domain/search"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { parseTermId, termLabel } from "@/domain/timeline"
@@ -36,7 +37,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
   const exploreLabel = workspaceValue ? institutionForWorkspace(workspaceValue.workspace).shortName : "Stanford"
   const quarterLabel = workspaceValue ? (parseTermId(workspaceValue.workspace.currentTermId) ? termLabel(workspaceValue.workspace.currentTermId) : "Current term") : quarter
   const initials = workspaceValue?.workspace.profile.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "AC"
-  const searchResults = workspaceValue && searchQuery.trim() ? searchWorkspace(workspaceValue.workspace, workspaceValue.catalog, searchQuery) : null
+  const searchResults = workspaceValue && searchQuery.trim() ? searchWorkspace(workspaceValue.workspace, workspaceValue.catalog, searchQuery, mergedOpportunities(institutionForWorkspace(workspaceValue.workspace).buildOpportunities(), workspaceValue.workspace.referenceOverlay?.opportunities)) : null
   useEffect(() => {
     if (!window.matchMedia) return
     const media = window.matchMedia("(max-width: 900px)")
@@ -56,7 +57,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     window.addEventListener("keydown", handleShortcut)
     return () => window.removeEventListener("keydown", handleShortcut)
   }, [])
-  const resultHref = (type: string) => type === "courses" ? "/app/explore" : type === "programs" ? "/app/programs" : "/app/library"
+  const resultHref = (type: string) => type === "courses" || type === "opportunities" ? "/app/explore" : type === "programs" ? "/app/programs" : "/app/library"
   return <div className="app-frame">
     <a className="skip-link" href="#workspace-content">Skip to workspace</a>
     <header className="topbar">
@@ -87,8 +88,8 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
     </nav>}
     {activityOpen && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setActivityOpen(false)}>
       <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="drawer-heading"><div><p className="eyebrow">Shared history</p><h2>Activity</h2></div><button className="icon-button" onClick={() => setActivityOpen(false)} aria-label="Close activity">×</button></div>
-        {activity.length === 0 ? <div className="empty-drawer"><strong>No changes yet</strong><p>Human and agent actions will appear here with attribution and undo.</p></div> : <ol className="activity-list">
+        <div className="drawer-heading"><div><h2>Activity</h2></div><button className="icon-button" onClick={() => setActivityOpen(false)} aria-label="Close activity">×</button></div>
+        {activity.length === 0 ? <div className="empty-drawer"><strong>No changes yet</strong><p>Every edit shows up here with who made it and an undo.</p></div> : <ol className="activity-list">
           {[...activity].reverse().map((entry) => <li key={entry.id}><span className={`actor-dot ${entry.actor.type}`} /><div><strong>{entry.summary}</strong><p>{entry.actor.type === "agent" ? "Agent" : "You"} · just now</p><span>{entry.changed.length} workspace item{entry.changed.length === 1 ? "" : "s"} changed</span></div>{entry.undoAvailable && !entry.undoneAt && onUndo && <button className="text-button" onClick={() => onUndo(entry.receiptId)}>Undo</button>}</li>)}
         </ol>}
       </aside>
@@ -97,7 +98,7 @@ export const AppShell = ({ activePage, quarter, children, activity = [], onUndo 
       <section className="workspace-search-modal" role="dialog" aria-modal="true" aria-labelledby="workspace-search-title" onMouseDown={(event) => event.stopPropagation()}>
         <div className="workspace-search-field"><SearchIcon width={17} height={17} /><input autoFocus aria-label="Search courses, notes, people, and programs" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search courses, notes, people, and programs"/><button className="icon-button" type="button" onClick={() => setSearchOpen(false)} aria-label="Close search">×</button></div>
         <h2 id="workspace-search-title" className="sr-only">Workspace search</h2>
-        {!searchQuery.trim() && <div className="search-empty"><strong>Search the durable workspace</strong><p>Find courses, saved context, people, and program requirements without leaving your current task.</p></div>}
+        {!searchQuery.trim() && <div className="search-empty"><strong>Search everything</strong><p>Courses, notes, people, programs, clubs, and sources.</p></div>}
         {searchResults?.groups.map((group) => <section className="search-result-group" key={group.type}><h3>{group.type}</h3>{group.items.map((item) => <Link href={resultHref(group.type)} key={item.id} onClick={() => setSearchOpen(false)}><strong>{item.title}</strong><span>{item.summary}</span></Link>)}</section>)}
         {searchResults && !searchResults.sufficient && <div className="search-gap" role="status"><strong>No durable match yet</strong><p>{searchResults.gaps[0]}</p><a href="/app/library">Add this as an open question</a></div>}
       </section>

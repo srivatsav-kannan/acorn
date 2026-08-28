@@ -111,8 +111,9 @@ The repository now contains a complete local challenge demo:
 
 - a polished landing page, login surface, desktop workspace, and mobile navigation.
 - Home, Plan, Explore, Library, Programs, Activity, and Settings routes.
-- an isolated fictional judge demo plus a separate Stanford reference pack with 100+ catalog courses, structured requirement maps for Computer Science, Symbolic Systems, Data Science, and the WAYS general education requirement, six more official program references, official planning resources, and clearly labeled sample meeting data.
-- an institution registry that ships Stanford in full, lists other universities honestly as planned adapters, and lets a student's agent fill reference gaps through `extend_reference`.
+- the complete 2026-27 Stanford catalog imported from public ExploreCourses data, 15,000+ courses with official WAYS designations and real Autumn meeting times for detailed departments, plus structured requirement maps for Computer Science, Symbolic Systems, Data Science, and WAYS, six more official program references, official planning resources, and a starting club and research directory.
+- an institution registry that ships Stanford in full, lists other universities honestly as planned adapters, and supports custom schools whose reference an agent builds from scratch.
+- a deterministic degree timeline: quarter arithmetic, class standing, multi-year plans through graduation including coterm paths, prerequisite sequencing across terms, and units-toward-degree math, all computed by application code and served to agents as context.
 - atomic domain commands with version checks, idempotency keys, visible receipts, activity attribution, rollback, and undo.
 - deterministic checks for units, duplicates, meetings, commitments, offerings, sections, prerequisites, finals, day and time constraints, transition buffers, and stale evidence.
 - recursive requirement evaluation for completed, planned, missing, and manual-review states.

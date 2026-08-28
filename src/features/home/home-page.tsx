@@ -22,7 +22,7 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
 
   return <div className="page home-page home-rebuild">
     <header className="home-heading">
-      <div><p className="eyebrow">Your workspace</p><h1>Good to see you, {firstName}.</h1><p>Keep the question, the evidence, and the plan in one place.</p></div>
+      <div><h1>Good to see you, {firstName}.</h1></div>
       <Link className="primary-button" href="/app/plan">{active.length ? "Open my plan" : "Start my plan"}</Link>
     </header>
 
@@ -33,10 +33,9 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
 
     <div className="home-workspace-grid">
       <section className="home-next-step">
-        <p className="eyebrow">Best next step</p>
         {active.length === 0 ? <>
           <h2>Build a first version of your quarter.</h2>
-          <p>Browse the {workspace.institution} reference and add a few possibilities. You can set a major, unit limit, and time constraints when they become useful.</p>
+          <p>Browse the {workspace.institution} catalog and add a few possibilities.</p>
           <div className="next-actions"><Link className="primary-button" href="/app/explore">Browse courses</Link><Link className="secondary-button" href="/app/agent">Plan with an agent</Link></div>
         </> : <>
           <h2>{active.length} course{active.length === 1 ? "" : "s"} in your current plan.</h2>
@@ -53,7 +52,7 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
       </section>
 
       <section className="home-context-summary">
-        <div className="section-heading"><div><p className="eyebrow">Remembered here</p><h2>Your context</h2></div><Link href="/app/library" aria-label="Open Library">Library</Link></div>
+        <div className="section-heading"><div><h2>Your context</h2></div><Link href="/app/library" aria-label="Open Library">Library</Link></div>
         <dl>
           <div><dt>Program</dt><dd>{program ? program.name : "Not chosen"}</dd></div>
           <div><dt>Completed courses</dt><dd>{workspace.profile.completedCourseIds.length || "None added"}</dd></div>
@@ -61,14 +60,9 @@ export const HomePage = ({ workspace, catalog }: { workspace: WorkspaceState, ca
           <div><dt>Notes and research</dt><dd>{personalItems.length || "None yet"}</dd></div>
           <div><dt>Planning priorities</dt><dd>{workspace.profile.preferences.length || "None yet"}</dd></div>
         </dl>
-        <Link className="text-button" href="/app/settings">Add context when it matters</Link>
+        <Link className="text-button" href="/app/settings">Settings</Link>
       </section>
 
-      <section className="home-collaboration">
-        <div className="collaboration-mark">C</div>
-        <div><p className="eyebrow">Shared with your agent</p><h2>No copy and paste required.</h2><p>Your agent can read this workspace, add sourced research, and edit your plan. Every change appears here with a clear label and undo.</p></div>
-        <Link className="secondary-button" href="/app/agent">How it works</Link>
-      </section>
     </div>
   </div>
 }

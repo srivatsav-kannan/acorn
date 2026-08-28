@@ -32,7 +32,7 @@ export const LandingPage = () => {
       <div className="hero-copy">
         <p className="eyebrow">Course planning, with context that lasts</p>
         <h1>An academic workspace you and your agent <em>actually share</em>.</h1>
-        <p className="hero-lead">Plan a quarter, track degree progress, and keep the research behind every decision in one place. Your agent reads the same workspace you see, makes changes you can inspect, and never asks you to paste your schedule into a chat.</p>
+        <p className="hero-lead">Plan every quarter to graduation, track degree progress, and keep the research behind each decision. Your agent reads the same workspace you see and makes changes you can inspect and undo.</p>
         <div className="hero-actions"><a className="primary-button" href="/demo">Demo login</a><a className="secondary-button" href="/login">Create a workspace</a></div>
         <p className="trust-note">No university login required. Nothing is submitted anywhere on your behalf.</p>
       </div>
@@ -61,7 +61,7 @@ export const LandingPage = () => {
       <div>
         <p className="eyebrow">Built on WebMCP</p>
         <h2>The page itself is the tool surface.</h2>
-        <p>CourseContext registers twelve semantic planning tools directly in the browser through WebMCP. An agent working with you does not scrape pixels or click through filters. It reads your context, checks your plan against deterministic rules, and files its research where you can find it.</p>
+        <p>CourseContext registers twelve planning tools in the browser through WebMCP. An agent working with you reads your context, checks plans against deterministic rules, and files research where you can find it. No pixel scraping, no filter clicking.</p>
       </div>
       <div className="tool-manifest">
         <header><b>Registered tools</b><span>document.modelContext</span></header>
@@ -74,12 +74,12 @@ export const LandingPage = () => {
     <section className="institution-band">
       <p className="eyebrow">Institutional context</p>
       <h2>Stanford today. Built to travel.</h2>
-      <p>The reference layer ships with a deep Stanford pack of courses, programs, requirement maps, and official planning resources. Other universities plug in through the same model, and until an adapter lands, your agent can add verified missing reference with sources.</p>
+      <p>Every course in the 2026-27 Stanford catalog is imported and searchable, with requirement maps, WAYS tracking, and a club and research directory. Other universities plug into the same model, and your agent fills what is missing.</p>
       <div className="institution-grid">
         {institutionChoices.slice(0, 5).map((choice) => <article key={choice.id}>
           <span className={choice.status === "full" ? "institution-status live" : choice.status === "custom" ? "institution-status beta" : "institution-status"}>{choice.status === "full" ? "Available" : choice.status === "custom" ? "Beta" : "Planned"}</span>
           <h3>{choice.status === "custom" ? "Your school" : choice.shortName}</h3>
-          <p>{choice.status === "full" ? "Catalog sample, requirement maps, WAYS tracking, and official resources." : choice.status === "custom" ? "Name your university and your agent researches and builds its reference." : "Public catalog maps onto the same reference model."}</p>
+          <p>{choice.status === "full" ? "Full 2026-27 catalog import, requirement maps, WAYS, clubs, and research." : choice.status === "custom" ? "Name your university and your agent researches and builds its reference." : "Public catalog maps onto the same reference model."}</p>
         </article>)}
       </div>
     </section>

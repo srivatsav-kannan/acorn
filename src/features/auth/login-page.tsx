@@ -62,7 +62,6 @@ export const LoginPage = ({ initialStatus = "", demoAvailable = false, demoReque
     <Link className="wordmark auth-wordmark" href="/"><span className="wordmark-mark">C</span><span>CourseContext</span></Link>
     <section className="auth-card">
       <header>
-        <p className="eyebrow">CourseContext</p>
         <h1>Sign in</h1>
         <p>Use your email, or sign in with the shared demo account.</p>
       </header>

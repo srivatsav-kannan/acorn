@@ -111,7 +111,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       const next = await refresh()
       await persistWorkspace(next, current.version, key)
       setSaveState("saved")
-      setMessage({ kind: "success", text: "Saved to your workspace" })
+      setMessage({ kind: "success", text: "Saved" })
     } catch (error) {
       setSaveState("error")
       setMessage({ kind: "error", text: (error as Error).message })
@@ -165,7 +165,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
         try {
           await persistWorkspace(next, expectedVersion, idempotencyKey)
           setSaveState("saved")
-          setMessage({ kind: "success", text: "Agent change saved" })
+          setMessage({ kind: "success", text: "Saved by your agent" })
         } catch (error) {
           setSaveState("error")
           setMessage({ kind: "error", text: (error as Error).message })
