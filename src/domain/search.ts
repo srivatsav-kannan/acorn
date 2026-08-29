@@ -74,7 +74,9 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   if (people.length) groups.push({ type: "people", items: people.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary) })) })
   if (otherContext.length) groups.push({ type: "library", items: otherContext.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary), url: (item.content as { sourceUrl?: string } | undefined)?.sourceUrl })) })
   const referencedEvidenceIds = new Set(workspace.contextItems.flatMap((item) => item.sourceEvidenceIds ?? []))
-  const orphanedEvidence = workspace.evidence.filter((item) => !referencedEvidenceIds.has(item.id) && matches(`${item.title ?? ""} ${item.claim} ${item.sourceTitle}`))
+  const orphanedEvidence = workspace.evidence
+    .filter((item) => !referencedEvidenceIds.has(item.id) && matches(`${item.title ?? ""} ${item.claim} ${item.sourceTitle}`))
+    .sort((a, b) => relevance(b.title ?? b.sourceTitle, b.claim) - relevance(a.title ?? a.sourceTitle, a.claim))
   if (orphanedEvidence.length) groups.push({ type: "sources", items: orphanedEvidence.slice(0, 6).map((item) => ({ id: item.id, title: item.title || item.sourceTitle, summary: brief(item.claim), url: item.sourceUrl })) })
   const courses = searchCourses(catalog, { query }).slice(0, 5)
   if (courses.length) groups.push({ type: "courses", items: courses.map(({ course }) => ({ id: course.id, title: `${course.code} · ${course.title}`, summary: brief(course.description) })) })

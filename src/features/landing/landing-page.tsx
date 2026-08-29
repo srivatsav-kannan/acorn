@@ -28,7 +28,8 @@ const writeTools: Array<[string, string]> = [
   ["update_student_context", "Identity, hours, preferences, and history."],
   ["extend_reference", "Adds or amends courses and programs."],
   ["configure_view", "Composes saved views from safe blocks."],
-  ["undo", "Reverses any recent mutation by receipt."]
+  ["undo", "Reverses any recent mutation by receipt."],
+  ["manage_goal", "Goals with milestones linked to todos."]
 ]
 
 // Recognizable courses for the ticker, resolved against the real import so
@@ -61,7 +62,7 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
 
     <section className="hero">
       <h1>Plan every quarter to graduation in a workspace <em>your agent</em> shares.</h1>
-      <p className="hero-lead">Acorn keeps the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasoning behind each choice in one durable workspace. An agent working with you reads and edits that same workspace through twenty WebMCP tools, and each change it makes arrives attributed, inspectable, and reversible.</p>
+      <p className="hero-lead">Acorn keeps the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasoning behind each choice in one durable workspace. An agent working with you reads and edits that same workspace through twenty-one WebMCP tools, and each change it makes arrives attributed, inspectable, and reversible.</p>
       <div className="hero-actions">
         <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
         <a className="secondary-button" href="#agents">How agents work here</a>
@@ -108,7 +109,7 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
 
     <Reveal><section id="agents" className="webmcp-band">
       <div>
-        <h2>Agents work here through twenty real tools.</h2>
+        <h2>Agents work here through twenty-one real tools.</h2>
         <p>Acorn registers its planning tools directly in the page through WebMCP, so an agent working beside you can search your saved context, check a plan against the engine, file research with its sources, and extend the institutional reference when something is missing. Because those tools run through the same command path as your own clicks, every agent edit lands in the ledger with attribution and an undo.</p>
         <p>Read tools carry a read-only annotation, and write tools require the workspace version they started from, so an agent holding stale state receives a clean conflict and retries with fresh context.</p>
       </div>

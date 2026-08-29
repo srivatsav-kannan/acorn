@@ -72,6 +72,7 @@ const primaryVisibleType: Record<string, string> = {
   upsert_activity: "activity",
   remove_activity: "activity",
   annotate_course: "course_note",
+  manage_goal: "goal",
   set_course_interest: "course_interest",
   set_opportunity_interest: "opportunity_interest",
   set_goals: "student_profile",
@@ -304,6 +305,18 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         if (!Number.isInteger(buffer) || buffer < 0 || buffer > 120) throw commandError("transitionBufferMinutes must be an integer between 0 and 120")
         workspace.profile.transitionBufferMinutes = buffer
       }
+      if (patch.protectedWindows !== undefined) {
+        if (!Array.isArray(patch.protectedWindows) || patch.protectedWindows.length > 4) throw commandError("protectedWindows is a list of at most four windows")
+        const validDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        workspace.profile.protectedWindows = patch.protectedWindows.map((raw: Record<string, unknown>, index: number) => {
+          const days = Array.isArray(raw.days) ? raw.days.map(String).filter((day) => validDays.includes(day)) : []
+          if (days.length === 0) throw commandError("A protected window needs at least one valid day")
+          if (!isRealTime(String(raw.start)) || !isRealTime(String(raw.end))) throw commandError("Protected window times use 24h HH:MM with real clock values")
+          if (String(raw.end) <= String(raw.start)) throw commandError("A protected window's end must come after its start")
+          const label = String(raw.label ?? "").trim().slice(0, 60) || "Protected time"
+          return { id: String(raw.id ?? `WINDOW-${index + 1}`), days: days as WorkspaceState["profile"]["excludedDays"], start: String(raw.start), end: String(raw.end), label }
+        })
+      }
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))
       if (patch.declaredProgramId === null || (typeof patch.declaredProgramId === "string" && workspace.programs.some((program) => program.id === patch.declaredProgramId))) workspace.profile.declaredProgramId = patch.declaredProgramId as string | null
       changed.push({ type: "student_profile", id: workspace.profile.id })
@@ -493,6 +506,17 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         if (action === "toggle") {
           workspace.todos[index].done = !workspace.todos[index].done
           changed.push({ type: "todo", id: workspace.todos[index].id })
+          // A todo born from a goal milestone completes the milestone too, so
+          // the two views never disagree about what is done.
+          for (const item of workspace.contextItems.filter((candidate) => candidate.type === "goal" && !candidate.archived)) {
+            const milestones = (item.content as { milestones?: Array<{ todoId?: string, done: boolean }> }).milestones
+            const linked = milestones?.find((milestone) => milestone.todoId === workspace.todos[index].id)
+            if (linked) {
+              linked.done = workspace.todos[index].done
+              item.updatedAt = new Date().toISOString()
+              changed.push({ type: "goal", id: item.id })
+            }
+          }
         } else {
           const [removed] = workspace.todos.splice(index, 1)
           changed.push({ type: "todo", id: removed.id })
@@ -536,6 +560,96 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         else workspace.events.push(event)
         changed.push({ type: "event", id: event.id })
       } else throw commandError("Event action must be add, update, or remove")
+    } else if (command.type === "manage_goal") {
+      workspace.contextItems = Array.isArray(workspace.contextItems) ? workspace.contextItems : []
+      workspace.todos = Array.isArray(workspace.todos) ? workspace.todos : []
+      const action = String(command.action ?? "")
+      const goalItems = () => workspace.contextItems.filter((item) => item.type === "goal")
+      const syncMilestoneTodo = (goalTitle: string, milestone: { id: string, title: string, due?: string, done: boolean, todoId?: string }) => {
+        if (!milestone.due) {
+          if (milestone.todoId) {
+            workspace.todos = workspace.todos.filter((todo) => todo.id !== milestone.todoId)
+            milestone.todoId = undefined
+          }
+          return
+        }
+        const existing = milestone.todoId ? workspace.todos.find((todo) => todo.id === milestone.todoId) : undefined
+        if (existing) {
+          existing.title = milestone.title
+          existing.due = milestone.due
+          existing.done = milestone.done
+          existing.detail = `Milestone of ${goalTitle}`
+        } else {
+          const todoId = `TODO-${milestone.id.replace(/^MILESTONE-/, "")}`.slice(0, 60)
+          milestone.todoId = todoId
+          workspace.todos = workspace.todos.filter((todo) => todo.id !== todoId)
+          workspace.todos.push({ id: todoId, title: milestone.title, detail: `Milestone of ${goalTitle}`, due: milestone.due, done: milestone.done, source: envelope.actor.type === "agent" ? "agent" : "human", createdAt: new Date().toISOString() })
+        }
+        changed.push({ type: "todo", id: milestone.todoId! })
+      }
+      if (action === "upsert") {
+        const input = command.goal ?? {}
+        const title = String(input.title ?? "").trim()
+        if (!title) throw commandError("A goal needs a title")
+        if (title.length > 120) throw commandError("A goal title stays within 120 characters")
+        if (input.targetDate && !isRealDate(String(input.targetDate))) throw commandError("A goal target date uses YYYY-MM-DD and must be a real calendar date")
+        const rawMilestones = Array.isArray(input.milestones) ? input.milestones : []
+        if (rawMilestones.length > 12) throw commandError("A goal keeps at most twelve milestones")
+        const goalId = String(input.id ?? `GOAL-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`)
+        const existingItem = workspace.contextItems.find((item) => item.id === goalId)
+        if (existingItem && existingItem.type !== "goal") throw commandError("That ID belongs to a non-goal item")
+        const previous = existingItem ? (existingItem.content as { milestones?: Array<{ id: string, todoId?: string }> }).milestones ?? [] : []
+        const milestones = rawMilestones.map((raw: Record<string, unknown>, index: number) => {
+          const milestoneTitle = String(raw.title ?? "").trim()
+          if (!milestoneTitle) throw commandError("Every milestone needs a title")
+          if (milestoneTitle.length > 100) throw commandError("A milestone title stays within 100 characters")
+          if (raw.due && !isRealDate(String(raw.due))) throw commandError("A milestone due date uses YYYY-MM-DD and must be a real calendar date")
+          const id = String(raw.id ?? `MILESTONE-${goalId.replace(/^GOAL-/, "")}-${index + 1}`)
+          const carried = previous.find((item) => item.id === id)
+          return { id, title: milestoneTitle, due: raw.due ? String(raw.due) : undefined, done: raw.done === true, todoId: carried?.todoId }
+        })
+        // Milestones dropped in this upsert take their linked todos with them.
+        for (const gone of previous.filter((item) => item.todoId && !milestones.some((kept: { id: string }) => kept.id === item.id))) {
+          workspace.todos = workspace.todos.filter((todo) => todo.id !== gone.todoId)
+        }
+        for (const milestone of milestones) syncMilestoneTodo(title, milestone)
+        const status = ["active", "achieved", "dropped"].includes(String(input.status)) ? input.status : "active"
+        const content = { text: typeof input.why === "string" && input.why.trim() ? input.why.trim().slice(0, 600) : (existingItem?.content as { text?: string })?.text, status, targetDate: input.targetDate ? String(input.targetDate) : undefined, milestones, courseIds: Array.isArray(input.courseIds) ? input.courseIds.map(String).slice(0, 12) : [], opportunityIds: Array.isArray(input.opportunityIds) ? input.opportunityIds.map(String).slice(0, 12) : [] }
+        const summary = content.text ? content.text.slice(0, 140) : milestones.length ? `Next: ${milestones.find((item: { done: boolean }) => !item.done)?.title ?? "all milestones done"}` : ""
+        if (existingItem) {
+          existingItem.title = title
+          existingItem.summary = summary
+          existingItem.content = content
+          existingItem.tags = sanitizeTags(input.tags) ?? existingItem.tags
+          existingItem.updatedAt = new Date().toISOString()
+        } else {
+          workspace.contextItems.push({ id: goalId, type: "goal", title, summary, content, tags: sanitizeTags(input.tags), collectionId: "COLLECTION-INBOX", addedBy: envelope.actor, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+        }
+        changed.push({ type: "goal", id: goalId })
+      } else if (action === "toggle_milestone") {
+        const item = goalItems().find((candidate) => candidate.id === command.goalId)
+        if (!item) throw commandError("Goal not found")
+        const content = item.content as { milestones?: Array<{ id: string, title: string, due?: string, done: boolean, todoId?: string }> }
+        const milestone = content.milestones?.find((candidate) => candidate.id === command.milestoneId)
+        if (!milestone) throw commandError("Milestone not found")
+        milestone.done = command.done !== false
+        if (milestone.todoId) {
+          const todo = workspace.todos.find((candidate) => candidate.id === milestone.todoId)
+          if (todo) {
+            todo.done = milestone.done
+            changed.push({ type: "todo", id: todo.id })
+          }
+        }
+        item.updatedAt = new Date().toISOString()
+        changed.push({ type: "goal", id: item.id })
+      } else if (action === "set_status") {
+        const item = goalItems().find((candidate) => candidate.id === command.goalId)
+        if (!item) throw commandError("Goal not found")
+        if (!["active", "achieved", "dropped"].includes(String(command.status))) throw commandError("Goal status must be active, achieved, or dropped")
+        ;(item.content as { status?: string }).status = String(command.status)
+        item.updatedAt = new Date().toISOString()
+        changed.push({ type: "goal", id: item.id })
+      } else throw commandError("Goal action must be upsert, toggle_milestone, or set_status")
     } else if (command.type === "set_course_interest") {
       const courseId = String(command.courseId ?? "").trim()
       if (!courseId) throw commandError("A course ID is required")
@@ -543,6 +657,12 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       const has = workspace.interestedCourseIds.includes(courseId)
       if (command.interested && !has) workspace.interestedCourseIds.push(courseId)
       if (!command.interested && has) workspace.interestedCourseIds = workspace.interestedCourseIds.filter((id) => id !== courseId)
+      workspace.courseIntents = workspace.courseIntents && typeof workspace.courseIntents === "object" ? workspace.courseIntents : {}
+      if (command.interested && typeof command.intendedTermId === "string" && command.intendedTermId.trim()) {
+        if (!parseTermId(command.intendedTermId)) throw commandError("intendedTermId must be a term ID such as TERM-2027-WINTER")
+        workspace.courseIntents[courseId] = command.intendedTermId
+      }
+      if (!command.interested) delete workspace.courseIntents[courseId]
       changed.push({ type: "course_interest", id: courseId })
     } else if (command.type === "set_opportunity_interest") {
       const opportunityId = String(command.opportunityId ?? "").trim()

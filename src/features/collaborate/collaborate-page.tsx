@@ -27,7 +27,8 @@ const tools: Array<[string, string]> = [
   ["save_workspace_item", "Adds notes, people, and decisions"],
   ["extend_reference", "Adds or amends courses, clubs, and programs"],
   ["configure_view", "Composes saved views"],
-  ["undo", "Reverses any recent mutation by its receipt"]
+  ["undo", "Reverses any recent mutation by its receipt"],
+  ["manage_goal", "Structured goals with linked milestones"]
 ]
 
 export const CollaboratePage = () => {

@@ -78,6 +78,8 @@ export type ApCredit = {
   note?: string
 }
 
+export type ProtectedWindow = { id: string, days: Day[], start: string, end: string, label: string }
+
 export type StudentProfile = {
   id: string
   name: string
@@ -95,6 +97,7 @@ export type StudentProfile = {
   residentCourseIds: string[]
   preferences: Preference[]
   excludedDays: Day[]
+  protectedWindows?: ProtectedWindow[]
   earliestStart: string
   latestEnd: string
   transitionBufferMinutes: number
@@ -333,6 +336,7 @@ export type WorkspaceState = {
   todos: TodoItem[]
   events: WorkspaceEvent[]
   interestedCourseIds: string[]
+  courseIntents?: Record<string, string>
   interestedOpportunityIds: string[]
   courseNotes: Record<string, CourseNote[]>
   activities: Activity[]

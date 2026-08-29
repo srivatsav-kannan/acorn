@@ -224,7 +224,7 @@ test("registers the full semantic tool surface in a capable browser", async ({ p
     Object.defineProperty(window, "__registeredTools", { get: () => [...names] })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(20)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(21)
   expect(await page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools)).toContain("export_context")
 })
 
@@ -243,7 +243,7 @@ test("agent research and tracker edits become visible workspace state", async ({
     Object.defineProperty(window, "__courseContextTools", { value: tools })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(20)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(21)
   const result = await page.evaluate(async () => {
     const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
     const context = await tools.get("get_planning_context")!.execute({}) as { version: number }

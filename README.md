@@ -1,6 +1,6 @@
 # Acorn
 
-Acorn is an academic planning workspace for Stanford students that a student and their AI agent share. The page registers twenty planning tools on `document.modelContext` through [WebMCP](https://openai.com/webmcp-challenge/), so an agent working in the browser reads and edits the same workspace the student sees. Every agent change runs through the same validated command path as a click in the interface, lands in the activity ledger with attribution, and can be undone.
+Acorn is an academic planning workspace for Stanford students that a student and their AI agent share. The page registers twenty-one planning tools on `document.modelContext` through [WebMCP](https://openai.com/webmcp-challenge/), so an agent working in the browser reads and edits the same workspace the student sees. Every agent change runs through the same validated command path as a click in the interface, lands in the activity ledger with attribution, and can be undone.
 
 The app ships the complete 2026-2027 Stanford catalog, 15,587 courses across 256 departments imported from Stanford's official catalog, now published as Navigator, together with official registrar dates, degree timeline math, and a directory of clubs and research programs.
 
@@ -25,7 +25,8 @@ Read   search_workspace, get_planning_context, search_courses, get_plan,
 
 Write  edit_plan, manage_todo, manage_event, manage_activity, set_interest,
        annotate_course, ingest_context, save_research, save_workspace_item,
-       update_student_context, extend_reference, configure_view, undo
+       update_student_context, extend_reference, configure_view, undo,
+       manage_goal
 ```
 
 Write tools require the workspace version they started from, so an agent holding stale state receives a clean conflict instead of silently overwriting newer work. For bulk context transfer, `export_context` pages the entire workspace out as markdown in pages near five thousand characters, and `ingest_context` files context handed over from another assistant into the scratchpad.

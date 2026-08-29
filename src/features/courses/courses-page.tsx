@@ -222,7 +222,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
         </form>}
         {query.trim() === "" && interestedCourses.length > 0 && <section className="interested-strip">
           <h2>Interested</h2>
-          <div className="course-list">{interestedCourses.map((course) => courseRow(course, value.catalog.sections.filter((section) => section.courseId === course.id).length))}</div>
+          <div className="course-list">{interestedCourses.map((course) => <div key={course.id}>{courseRow(course, value.catalog.sections.filter((section) => section.courseId === course.id).length)}{workspace.courseIntents?.[course.id] && <p className="muted intent-note">Intended for {shortTermLabel(workspace.courseIntents[course.id])}</p>}</div>)}</div>
         </section>}
         {query.trim() === "" && interestedCourses.length === 0 && <div className="empty-card"><strong>Search the whole catalog</strong><p>Every one of the {value.catalog.courses.length.toLocaleString()} imported courses is here. Mark what looks interesting; plan what you decide on.</p></div>}
         {query.trim() !== "" && <div className="course-list">

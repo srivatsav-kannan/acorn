@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
+import { goalContentOf } from "@/domain/goals"
 import { degreeOptions } from "@/domain/timeline"
 import type { ContextItem } from "@/domain/types"
 
@@ -115,6 +116,21 @@ export const ScratchpadPage = () => {
           </div>
           <h3>{item.title}</h3>
           {item.summary && <p>{item.summary}</p>}
+          {(() => {
+            const structured = goalContentOf(item)
+            if (!structured) return null
+            return <div className="goal-structure">
+              <ul className="goal-milestones">
+                {structured.milestones.map((milestone) => <li key={milestone.id}>
+                  <label className="goal-milestone">
+                    <input type="checkbox" checked={milestone.done} onChange={() => void value.onCommand({ type: "manage_goal", action: "toggle_milestone", goalId: item.id, milestoneId: milestone.id, done: !milestone.done })} />
+                    <span className={milestone.done ? "goal-milestone-done" : ""}>{milestone.title}{milestone.due ? ` · ${milestone.due}` : ""}</span>
+                  </label>
+                </li>)}
+              </ul>
+              {structured.courseIds.length > 0 && <div className="scratch-tags">{structured.courseIds.map((id) => <span key={id}>{value.catalog.courses.find((course) => course.id === id)?.code ?? id}</span>)}</div>}
+            </div>
+          })()}
           {(item.tags ?? []).length > 0 && <div className="scratch-tags">{(item.tags ?? []).map((tag) => <span key={tag}>{tag}</span>)}</div>}
           <div className="scratch-card-actions">
             <button className="text-button" type="button" onClick={() => startEdit(item)}>Edit</button>

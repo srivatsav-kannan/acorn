@@ -1,4 +1,5 @@
 import { calendarEventsForRange, isoDate } from "@/domain/calendar"
+import { goalContentOf } from "@/domain/goals"
 import { creditCategory } from "@/domain/history"
 import { standingForTerm, supportsTimeline, termLabel, timelineFor } from "@/domain/timeline"
 import type { Catalog, Opportunity, WorkspaceState } from "@/domain/types"
@@ -26,12 +27,19 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
         `# ${workspace.title}`,
         `Student: ${profile.name || "unnamed"}. Institution: ${workspace.institution}. Current term: ${termLabel(workspace.currentTermId)}.`,
         timeline ? `Timeline: entered ${termLabel(timeline.entryTermId)}, graduating ${termLabel(timeline.expectedGraduationTermId)}, objective ${timeline.degree}. Standing now: ${standingForTerm(timeline, workspace.currentTermId)}.` : `No structured timeline; this is a custom institution.${profile.classYear ? ` Reported standing: ${profile.classYear}.` : ""}`,
-        `Planning window: classes between ${profile.earliestStart} and ${profile.latestEnd}; protected days: ${profile.excludedDays.join(", ") || "none"}.`
+        `Planning window: classes between ${profile.earliestStart} and ${profile.latestEnd}; protected days: ${profile.excludedDays.join(", ") || "none"}.`,
+        ...(profile.protectedWindows?.length ? [`Protected time: ${profile.protectedWindows.map((window) => `${window.label} ${window.days.join("/")} ${window.start} to ${window.end}`).join("; ")}.`] : [])
       ].join("\n"))
     }
     if (current === "goals") {
       const preferences = workspace.profile.preferences.map((preference) => `- ${preference.strength === "hard" ? "Hard" : "Soft"}: ${preference.label} \`${preference.id}\``)
-      const standing = workspace.contextItems.filter((item) => !item.archived && item.type === "goal").map((item) => `- ${item.title}${item.summary ? `: ${item.summary}` : ""} \`${item.id}\``)
+      const standing = workspace.contextItems.filter((item) => !item.archived && item.type === "goal").map((item) => {
+        const structured = goalContentOf(item)
+        if (!structured) return `- ${item.title}${item.summary ? `: ${item.summary}` : ""} \`${item.id}\``
+        const milestones = structured.milestones.map((milestone) => `  - [${milestone.done ? "x" : " "}] ${milestone.title}${milestone.due ? ` (due ${milestone.due})` : ""}`)
+        const links = [...structured.courseIds.map((id) => code(id)), ...structured.opportunityIds].join(", ")
+        return [`- ${item.title} (${structured.status}${structured.targetDate ? `, target ${structured.targetDate}` : ""}) \`${item.id}\``, ...milestones, ...(links ? [`  Linked: ${links}`] : [])].join("\n")
+      })
       blocks.push([`## Goals`, workspace.profile.summary ? workspace.profile.summary : "No goal note recorded yet.", ...(preferences.length ? ["Priorities:", ...preferences] : ["No priorities recorded."]), ...(standing.length ? ["Standing goals:", ...standing] : [])].join("\n"))
     }
     if (current === "todos") {
@@ -65,7 +73,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       }
     }
     if (current === "courses") {
-      const interested = (workspace.interestedCourseIds ?? []).map((id) => `- ${code(id)}: ${courseById.get(id)?.title ?? "unknown"} \`${id}\``)
+      const interested = (workspace.interestedCourseIds ?? []).map((id) => `- ${code(id)}: ${courseById.get(id)?.title ?? "unknown"}${workspace.courseIntents?.[id] ? ` (intended ${termLabel(workspace.courseIntents[id])})` : ""} \`${id}\``)
       blocks.push([`## Course tracker (${interested.length} interested)`, ...(interested.length ? interested : ["Nothing marked interested yet."])].join("\n"))
       const noted = Object.entries(workspace.courseNotes ?? {}).filter(([, notes]) => notes.length > 0)
       for (const [courseId, notes] of noted) {

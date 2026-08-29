@@ -24,7 +24,8 @@ const expectedNames = [
   "annotate_course",
   "manage_event",
   "manage_activity",
-  "undo"
+  "undo",
+  "manage_goal"
 ]
 
 const setup = () => {

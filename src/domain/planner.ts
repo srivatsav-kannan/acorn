@@ -2,7 +2,7 @@ import { isEvidenceStale } from "@/domain/evidence"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import type { Catalog, Evidence, Meeting, PlanScenario, StudentProfile } from "@/domain/types"
 
-export type PlanCheckCode = "UNIT_LIMIT" | "DUPLICATE_COURSE" | "MEETING_CONFLICT" | "COMMITMENT_CONFLICT" | "MISSING_SECTION" | "NOT_OFFERED" | "PREREQUISITE_MISSING" | "PREREQUISITE_UNCERTAIN" | "FINAL_CONFLICT" | "DAY_CONSTRAINT" | "TIME_CONSTRAINT" | "TRANSITION_BUFFER" | "STALE_EVIDENCE"
+export type PlanCheckCode = "UNIT_LIMIT" | "DUPLICATE_COURSE" | "MEETING_CONFLICT" | "COMMITMENT_CONFLICT" | "MISSING_SECTION" | "NOT_OFFERED" | "PREREQUISITE_MISSING" | "PREREQUISITE_UNCERTAIN" | "FINAL_CONFLICT" | "DAY_CONSTRAINT" | "TIME_CONSTRAINT" | "TRANSITION_BUFFER" | "PROTECTED_TIME" | "STALE_EVIDENCE"
 
 export type PlanCheck = {
   id: string
@@ -70,6 +70,11 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
       for (const itemMeeting of entry.section.meetings) {
         if (itemMeeting.days.some((day) => profile.excludedDays.includes(day))) add("DAY_CONSTRAINT", "error", [entry.item.id], "This section meets on a day marked unavailable.", ["Choose another section", "Change the day constraint"], entry.section.evidenceIds)
         if (minutes(itemMeeting.start) < minutes(profile.earliestStart) || minutes(itemMeeting.end) > minutes(profile.latestEnd)) add("TIME_CONSTRAINT", "error", [entry.item.id], "This section falls outside the allowed time window.", ["Choose another section", "Change the time constraint"], entry.section.evidenceIds)
+        for (const window of profile.protectedWindows ?? []) {
+          if (itemMeeting.days.some((day) => window.days.includes(day)) && minutes(itemMeeting.start) < minutes(window.end) && minutes(window.start) < minutes(itemMeeting.end)) {
+            add("PROTECTED_TIME", "warning", [entry.item.id], `This section overlaps protected time: ${window.label}, ${window.days.join("/")} ${window.start} to ${window.end}.`, ["Choose another section", "Adjust the protected window"], entry.section.evidenceIds)
+          }
+        }
       }
     }
   }

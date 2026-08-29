@@ -4,6 +4,7 @@ import { activeCourses, evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan } from "@/domain/planner"
 import { mergedCatalogFor, mergedOpportunities } from "@/domain/reference"
+import { nextMilestone, structuredGoals } from "@/domain/goals"
 import { standingForTerm, supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateRequirement } from "@/domain/requirements"
@@ -136,7 +137,10 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           for (const text of texts) for (const match of text.matchAll(/class of (20\d{2})/gi)) mentioned.add(Number(match[1]))
           for (const year of mentioned) if (year !== gradYear) warnings.push(`Durable notes say "Class of ${year}" but the structured timeline graduates in ${gradYear}. The timeline is authoritative; update or archive the stale notes.`)
         }
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Fill reference gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once per session", "Search the workspace before researching", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after each plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd, transitionBufferMinutes: value.profile.transitionBufferMinutes ?? 0 } }, uncertainties: value.uncertainties.slice(0, 2).map((item) => ({ id: item.id, question: item.question.slice(0, 60), status: item.status })), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
+        const expired = value.evidence.filter((item) => item.status === "current" && item.expiresAt && new Date(item.expiresAt) <= now()).length
+        if (expired) warnings.push(`${expired} evidence record${expired === 1 ? "" : "s"} passed expiry while still marked current; refresh or archive them.`)
+        const goals = structuredGoals(value).filter((entry) => entry.goal.status === "active").slice(0, 2).map((entry) => ({ id: entry.item.id, title: entry.item.title.slice(0, 60), next: nextMilestone(entry.goal)?.title.slice(0, 40) ?? null }))
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Fill reference gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once per session", "Search the workspace before researching", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after each plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd, transitionBufferMinutes: value.profile.transitionBufferMinutes ?? 0 } }, uncertainties: value.uncertainties.slice(0, 2).map((item) => ({ id: item.id, question: item.question.slice(0, 60), status: item.status })), ...(goals.length ? { goals } : {}), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
       }
     },
     {
@@ -263,7 +267,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             earliestStart: field("string", "Earliest acceptable class start, 24h HH:MM"),
             latestEnd: field("string", "Latest acceptable class end, 24h HH:MM"),
             excludedDays: { type: "array", description: "Days to keep meeting-free, e.g. [\"fri\"]", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] } },
-            transitionBufferMinutes: field("number", "Minimum passing minutes between classes, 0 to 120; tighter gaps raise a warning in check_plan")
+            transitionBufferMinutes: field("number", "Minimum passing minutes between classes, 0 to 120; tighter gaps raise a warning in check_plan"),
+            protectedWindows: field("array", "Up to four of {days, start, end, label}; check_plan warns when a section overlaps one")
           }
         },
         academicHistory: {
@@ -282,7 +287,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async (input) => {
         const sections = [input.profile, input.academicHistory, input.preferences].filter(Boolean).length
         if (sections !== 1) return { ok: false, code: "ONE_SECTION_PER_CALL", message: "Send profile, preferences, or academicHistory, exactly one per call, so each change is separately visible and undoable." }
-        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal, classYear: input.profile.classStanding, earliestStart: input.profile.earliestStart, latestEnd: input.profile.latestEnd, excludedDays: input.profile.excludedDays, transitionBufferMinutes: input.profile.transitionBufferMinutes } })
+        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal, classYear: input.profile.classStanding, earliestStart: input.profile.earliestStart, latestEnd: input.profile.latestEnd, excludedDays: input.profile.excludedDays, transitionBufferMinutes: input.profile.transitionBufferMinutes, protectedWindows: input.profile.protectedWindows } })
         if (input.academicHistory) return mutate(input, { type: "update_academic_history", patch: input.academicHistory })
         if (!Array.isArray(input.preferences) || input.preferences.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Provide at least one complete preference." }
         return mutate(input, { type: "set_student_preferences", preferences: input.preferences })
@@ -511,10 +516,10 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "set_interest",
       description: "Mark or unmark a course or a club as interesting. Interested clubs put their deadlines on the calendar; interested courses stay visible in the tracker until they are planned. Keep the reasoning or an intended term with annotate_course.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), kind: { type: "string", enum: ["course", "club"], description: "What the ID refers to" }, id: field("string", "Course ID or opportunity ID"), interested: field("boolean", "True to mark, false to clear") }, ["expectedVersion", "idempotencyKey", "kind", "id", "interested"]),
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), kind: { type: "string", enum: ["course", "club"], description: "What the ID refers to" }, id: field("string", "Course ID or opportunity ID"), interested: field("boolean", "True to mark, false to clear"), intendedTermId: field("string", "Optional term this interest aims at, such as TERM-2027-WINTER; courses only") }, ["expectedVersion", "idempotencyKey", "kind", "id", "interested"]),
       annotations: annotations(false),
       examples: [],
-      execute: async (input) => input.kind === "course" ? mutate(input, { type: "set_course_interest", courseId: input.id, interested: input.interested }) : mutate(input, { type: "set_opportunity_interest", opportunityId: input.id, interested: input.interested })
+      execute: async (input) => input.kind === "course" ? mutate(input, { type: "set_course_interest", courseId: input.id, interested: input.interested, intendedTermId: input.intendedTermId }) : mutate(input, { type: "set_opportunity_interest", opportunityId: input.id, interested: input.interested })
     },
     {
       name: "annotate_course",
@@ -547,6 +552,42 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       annotations: annotations(false),
       examples: [{ receiptId: "ACTION-EXAMPLE123" }],
       execute: async (input) => mutate(input, { type: "undo_action", receiptId: input.receiptId })
+    },
+    {
+      name: "manage_goal",
+      description: "Create, update, or progress a structured goal with linked milestones, courses, and opportunities. Milestones with due dates become linked todos on the calendar, and completing either side completes both. Goals appear in the scratchpad, the goals export, and planning context.",
+      inputSchema: schema({
+        expectedVersion: field("number", "Current workspace version"),
+        idempotencyKey: field("string", "Unique retry-safe operation key"),
+        action: { type: "string", enum: ["upsert", "toggle_milestone", "set_status"], description: "What to do" },
+        goal: {
+          type: "object",
+          additionalProperties: false,
+          description: "For upsert; reuse an ID to update the whole goal",
+          properties: {
+            id: field("string", "Stable ID, for example GOAL-CURIS-READY; omit to create"),
+            title: field("string", "The goal in one line, 120 characters at most"),
+            why: field("string", "Why this matters, kept as the card text"),
+            status: { type: "string", enum: ["active", "achieved", "dropped"], description: "Defaults to active" },
+            targetDate: field("string", "Optional YYYY-MM-DD target"),
+            milestones: field("array", "Up to twelve of {id?, title, due?, done?}; a due date creates a linked todo"),
+            courseIds: field("array", "Linked course IDs"),
+            opportunityIds: field("array", "Linked club or program IDs"),
+            tags: field("array", "Short lowercase tags")
+          },
+          required: ["title"]
+        },
+        goalId: field("string", "For toggle_milestone and set_status"),
+        milestoneId: field("string", "For toggle_milestone"),
+        done: field("boolean", "For toggle_milestone; defaults to true"),
+        status: { type: "string", enum: ["active", "achieved", "dropped"], description: "For set_status" }
+      }, ["expectedVersion", "idempotencyKey", "action"]),
+      annotations: annotations(false),
+      examples: [
+        { action: "upsert", goal: { id: "GOAL-CURIS-READY", title: "Be ready for CURIS", why: "Research early, health AI.", milestones: [{ title: "Shortlist health-AI labs", due: "2026-12-01" }, { title: "Coffee chat with one professor", due: "2027-01-15" }], courseIds: ["COURSE-CS-106B"] } },
+        { action: "toggle_milestone", goalId: "GOAL-CURIS-READY", milestoneId: "MILESTONE-CURIS-READY-1", done: true }
+      ],
+      execute: async (input) => mutate(input, { type: "manage_goal", action: input.action, goal: input.goal, goalId: input.goalId, milestoneId: input.milestoneId, done: input.done, status: input.status })
     }
   ]
 }
