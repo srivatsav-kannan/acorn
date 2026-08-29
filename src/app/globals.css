@@ -205,6 +205,7 @@ input, select, textarea { accent-color: var(--cardinal); }
 .week-body { display: grid; grid-template-columns: 58px repeat(7, 1fr); }
 .week-gutter { position: relative; background: var(--card); }
 .week-hour-label { position: absolute; right: 8px; transform: translateY(-45%); font-size: 10.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.week-hour-label:first-child { transform: none; top: 2px !important; }
 .week-day-col { position: relative; overflow: hidden; border-left: 1.5px solid var(--line); background: var(--card); }
 .week-day-col.today { background: #fdf6e9; }
 .week-hour-line { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px solid var(--line); pointer-events: none; }
