@@ -250,7 +250,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
           <div className="form-row-actions"><button className="secondary-button small" type="button" onClick={() => setRationaleDraft(null)}>Cancel</button><button className="primary-button small" type="button" onClick={async () => { await value.onCommand({ type: "edit_plan", planId: plan!.id, scenarioId: scenario.id, operations: [{ type: "set_rationale", rationale: rationaleDraft }] }); setRationaleDraft(null) }}>Save</button></div>
         </div> : scenario.rationale ? <button className="plan-rationale" type="button" onClick={() => setRationaleDraft(scenario.rationale ?? "")} aria-label="Edit why this scenario"><b>Why this shape</b> {scenario.rationale}</button> : scenario.courses.length > 0 ? <button className="text-button plan-rationale-add" type="button" onClick={() => setRationaleDraft("")}>Add why this shape</button> : null)}
         {checks.length > 0 && <div className="plan-rail-checks">
-          {checks.map((check, index) => <p key={index} className={check.severity}><b>{check.code.replaceAll("_", " ").toLowerCase()}</b> {check.message}</p>)}
+          {checks.map((check, index) => <p key={index} className={check.severity}><b>{check.code.replaceAll("_", " ").toLowerCase()}</b> {check.message}{check.alternative ? ` ${check.suggestedRepairs[0]} instead.` : ""}</p>)}
         </div>}
       </aside>
     </div>}

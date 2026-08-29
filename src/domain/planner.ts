@@ -13,6 +13,9 @@ export type PlanCheck = {
   evidenceIds: string[]
   message: string
   suggestedRepairs: string[]
+  // A concrete same-course section that clears every current constraint,
+  // when one exists; the first suggested repair names it.
+  alternative?: { sectionId: string, meets: string }
 }
 
 const minutes = (time: string) => {
@@ -27,9 +30,10 @@ const finalsOverlap = (a?: { start: string, end: string }, b?: { start: string, 
 export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = "TERM-2026-AUTUMN" }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], now: Date, termId?: string }): PlanCheck[] => {
   const checks: PlanCheck[] = []
   let sequence = 0
-  const add = (code: PlanCheckCode, severity: "error" | "warning", affectedIds: string[], message: string, suggestedRepairs: string[], evidenceIds: string[] = []) => {
+  const add = (code: PlanCheckCode, severity: "error" | "warning", affectedIds: string[], message: string, suggestedRepairs: string[], evidenceIds: string[] = [], alternative?: { sectionId: string, meets: string }) => {
     sequence += 1
-    checks.push({ id: `CHECK-${code}-${String(sequence).padStart(2, "0")}`, code, severity, deterministic: true, affectedIds, evidenceIds, message, suggestedRepairs })
+    const repairs = alternative ? [`Switch to ${alternative.sectionId}, ${alternative.meets}`, ...suggestedRepairs] : suggestedRepairs
+    checks.push({ id: `CHECK-${code}-${String(sequence).padStart(2, "0")}`, code, severity, deterministic: true, affectedIds, evidenceIds, message, suggestedRepairs: repairs, ...(alternative ? { alternative } : {}) })
   }
   const active = scenario.courses.filter((item) => item.status === "active")
   const totalUnits = active.reduce((sum, item) => sum + item.units, 0)
@@ -44,10 +48,47 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
 
   const selected = active.map((item) => ({ item, course: catalog.courses.find((course) => course.id === item.courseId), section: catalog.sections.find((section) => section.id === item.sectionId) }))
   const termHasSchedule = catalog.sections.some((section) => section.termId === termId)
+
+  // A violation whose repair is "choose another section" earns a concrete
+  // suggestion: the first same-course section this term that clears every
+  // constraint against the rest of the scenario, protected windows and
+  // transition buffers included.
+  const describeMeets = (candidate: { meetings: Meeting[] }) => candidate.meetings.map((one) => `${one.days.join("/")} ${one.start}-${one.end}`).join(" and ")
+  const fitsCleanly = (candidate: { meetings: Meeting[], final?: { start: string, end: string } }, replacingItemId: string) => {
+    for (const one of candidate.meetings) {
+      if (one.days.some((day) => profile.excludedDays.includes(day))) return false
+      if (minutes(one.start) < minutes(profile.earliestStart) || minutes(one.end) > minutes(profile.latestEnd)) return false
+      for (const window of profile.protectedWindows ?? []) {
+        if (one.days.some((day) => window.days.includes(day)) && minutes(one.start) < minutes(window.end) && minutes(window.start) < minutes(one.end)) return false
+      }
+      for (const commitment of scenario.commitments) if (commitment.meetings.some((two) => meetingsOverlap(one, two))) return false
+    }
+    for (const other of selected) {
+      if (other.item.id === replacingItemId || !other.section) continue
+      for (const one of candidate.meetings) for (const two of other.section.meetings) {
+        if (meetingsOverlap(one, two)) return false
+        if (one.days.some((day) => two.days.includes(day))) {
+          const gap = Math.max(minutes(two.start) - minutes(one.end), minutes(one.start) - minutes(two.end))
+          if (gap >= 0 && gap < profile.transitionBufferMinutes) return false
+        }
+      }
+      if (finalsOverlap(candidate.final, other.section.final)) return false
+    }
+    return true
+  }
+  const alternativeCache = new Map<string, { sectionId: string, meets: string } | undefined>()
+  const alternativeFor = (entry: typeof selected[number]) => {
+    const cached = alternativeCache.get(entry.item.id)
+    if (cached !== undefined || alternativeCache.has(entry.item.id)) return cached
+    const found = catalog.sections.find((candidate) => candidate.courseId === entry.item.courseId && candidate.termId === termId && candidate.id !== entry.section?.id && fitsCleanly(candidate, entry.item.id))
+    const value = found ? { sectionId: found.id, meets: describeMeets(found) } : undefined
+    alternativeCache.set(entry.item.id, value)
+    return value
+  }
   for (const entry of selected) {
     if (!entry.section && termHasSchedule) {
       const offered = catalog.sections.some((section) => section.courseId === entry.item.courseId && section.termId === termId)
-      add(offered ? "MISSING_SECTION" : "NOT_OFFERED", "error", [entry.item.id], offered ? "Choose a section before finalizing this course." : "No current term offering is stored for this course.", offered ? ["Select an available section"] : ["Verify the live schedule", "Move the course to a future term"])
+      add(offered ? "MISSING_SECTION" : "NOT_OFFERED", "error", [entry.item.id], offered ? "Choose a section before finalizing this course." : "No current term offering is stored for this course.", offered ? ["Select an available section"] : ["Verify the live schedule", "Move the course to a future term"], [], offered ? alternativeFor(entry) : undefined)
     }
     if (entry.course?.prerequisiteUncertain) add("PREREQUISITE_UNCERTAIN", "warning", [entry.item.id], "The prerequisite interpretation needs review.", ["Open the official course page", "Ask an advisor"])
     const completedWithCredit = effectiveCompletedCourseIds(profile)
@@ -68,11 +109,11 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
       })
       if (staleIds.length) add("STALE_EVIDENCE", "warning", [entry.section.id], "This section relies on stale schedule evidence.", ["Refresh the official schedule source"], staleIds)
       for (const itemMeeting of entry.section.meetings) {
-        if (itemMeeting.days.some((day) => profile.excludedDays.includes(day))) add("DAY_CONSTRAINT", "error", [entry.item.id], "This section meets on a day marked unavailable.", ["Choose another section", "Change the day constraint"], entry.section.evidenceIds)
-        if (minutes(itemMeeting.start) < minutes(profile.earliestStart) || minutes(itemMeeting.end) > minutes(profile.latestEnd)) add("TIME_CONSTRAINT", "error", [entry.item.id], "This section falls outside the allowed time window.", ["Choose another section", "Change the time constraint"], entry.section.evidenceIds)
+        if (itemMeeting.days.some((day) => profile.excludedDays.includes(day))) add("DAY_CONSTRAINT", "error", [entry.item.id], "This section meets on a day marked unavailable.", ["Choose another section", "Change the day constraint"], entry.section.evidenceIds, alternativeFor(entry))
+        if (minutes(itemMeeting.start) < minutes(profile.earliestStart) || minutes(itemMeeting.end) > minutes(profile.latestEnd)) add("TIME_CONSTRAINT", "error", [entry.item.id], "This section falls outside the allowed time window.", ["Choose another section", "Change the time constraint"], entry.section.evidenceIds, alternativeFor(entry))
         for (const window of profile.protectedWindows ?? []) {
           if (itemMeeting.days.some((day) => window.days.includes(day)) && minutes(itemMeeting.start) < minutes(window.end) && minutes(window.start) < minutes(itemMeeting.end)) {
-            add("PROTECTED_TIME", "warning", [entry.item.id], `This section overlaps protected time: ${window.label}, ${window.days.join("/")} ${window.start} to ${window.end}.`, ["Choose another section", "Adjust the protected window"], entry.section.evidenceIds)
+            add("PROTECTED_TIME", "warning", [entry.item.id], `This section overlaps protected time: ${window.label}, ${window.days.join("/")} ${window.start} to ${window.end}.`, ["Choose another section", "Adjust the protected window"], entry.section.evidenceIds, alternativeFor(entry))
           }
         }
       }
@@ -84,18 +125,18 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
       const a = selected[first]
       const b = selected[second]
       if (!a.section || !b.section) continue
-      if (a.section.meetings.some((one) => b.section!.meetings.some((two) => meetingsOverlap(one, two)))) add("MEETING_CONFLICT", "error", [a.item.id, b.item.id], "Two selected sections overlap.", ["Choose a different section", "Move one course to backups"], [...a.section.evidenceIds, ...b.section.evidenceIds])
-      if (finalsOverlap(a.section.final, b.section.final)) add("FINAL_CONFLICT", "error", [a.item.id, b.item.id], "Two final exams overlap.", ["Choose a different section", "Replace one course"], [...a.section.evidenceIds, ...b.section.evidenceIds])
+      if (a.section.meetings.some((one) => b.section!.meetings.some((two) => meetingsOverlap(one, two)))) add("MEETING_CONFLICT", "error", [a.item.id, b.item.id], "Two selected sections overlap.", ["Choose a different section", "Move one course to backups"], [...a.section.evidenceIds, ...b.section.evidenceIds], alternativeFor(b) ?? alternativeFor(a))
+      if (finalsOverlap(a.section.final, b.section.final)) add("FINAL_CONFLICT", "error", [a.item.id, b.item.id], "Two final exams overlap.", ["Choose a different section", "Replace one course"], [...a.section.evidenceIds, ...b.section.evidenceIds], alternativeFor(b) ?? alternativeFor(a))
       for (const one of a.section.meetings) for (const two of b.section.meetings) {
         if (!one.days.some((day) => two.days.includes(day)) || meetingsOverlap(one, two)) continue
         const gap = Math.max(minutes(two.start) - minutes(one.end), minutes(one.start) - minutes(two.end))
-        if (gap >= 0 && gap < profile.transitionBufferMinutes) add("TRANSITION_BUFFER", "warning", [a.item.id, b.item.id], `Only ${gap} minutes separate ${a.course?.code ?? "one class"} and ${b.course?.code ?? "the next"}.`, ["Choose a section with more travel time"])
+        if (gap >= 0 && gap < profile.transitionBufferMinutes) add("TRANSITION_BUFFER", "warning", [a.item.id, b.item.id], `Only ${gap} minutes separate ${a.course?.code ?? "one class"} and ${b.course?.code ?? "the next"}.`, ["Choose a section with more travel time"], [], alternativeFor(b) ?? alternativeFor(a))
       }
     }
   }
 
   for (const entry of selected) for (const commitment of scenario.commitments) {
-    if (entry.section?.meetings.some((one) => commitment.meetings.some((two) => meetingsOverlap(one, two)))) add("COMMITMENT_CONFLICT", "error", [entry.item.id, commitment.id], `A course conflicts with ${commitment.title}.`, ["Choose another section", "Move the commitment"])
+    if (entry.section?.meetings.some((one) => commitment.meetings.some((two) => meetingsOverlap(one, two)))) add("COMMITMENT_CONFLICT", "error", [entry.item.id, commitment.id], `A course conflicts with ${commitment.title}.`, ["Choose another section", "Move the commitment"], [], alternativeFor(entry))
   }
   return checks
 }

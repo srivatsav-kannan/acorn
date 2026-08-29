@@ -131,3 +131,60 @@ describe("plan checks", () => {
     expect(check?.suggestedRepairs.length).toBeGreaterThan(0)
   })
 })
+
+describe("alternative section suggestions", () => {
+  it("names a concrete same-course section that clears every constraint", () => {
+    const fixture = buildFixture()
+    const scenario = structuredClone(fixture.workspace.plans[0].scenarios[0])
+    scenario.courses[1].sectionId = "SECTION-EARLY"
+    const result = checkPlan({
+      scenario,
+      catalog: fixture.catalog,
+      profile: fixture.workspace.profile,
+      evidence: fixture.workspace.evidence,
+      now: new Date("2026-08-27T12:00:00Z")
+    })
+    const check = result.find((item) => item.code === "TIME_CONSTRAINT" && item.affectedIds.includes("PLANCOURSE-COMM-1"))
+    expect(check?.alternative).toBeDefined()
+    expect(check?.alternative?.sectionId).not.toBe("SECTION-EARLY")
+    const suggested = fixture.catalog.sections.find((section) => section.id === check?.alternative?.sectionId)
+    expect(suggested?.courseId).toBe("COURSE-COMM-1")
+    expect(check?.suggestedRepairs[0]).toContain(`Switch to ${check?.alternative?.sectionId}`)
+    expect(check?.alternative?.meets).toMatch(/\d{2}:\d{2}-\d{2}:\d{2}/)
+  })
+
+  it("offers no alternative when no sibling section fits", () => {
+    const fixture = buildFixture()
+    const scenario = structuredClone(fixture.workspace.plans[0].scenarios[0])
+    scenario.courses[1].sectionId = "SECTION-EARLY"
+    const profile = structuredClone(fixture.workspace.profile)
+    profile.latestEnd = "08:00"
+    const result = checkPlan({
+      scenario,
+      catalog: fixture.catalog,
+      profile,
+      evidence: fixture.workspace.evidence,
+      now: new Date("2026-08-27T12:00:00Z")
+    })
+    const check = result.find((item) => item.code === "TIME_CONSTRAINT" && item.affectedIds.includes("PLANCOURSE-COMM-1"))
+    expect(check).toBeDefined()
+    expect(check?.alternative).toBeUndefined()
+    expect(check?.suggestedRepairs[0]).toBe("Choose another section")
+  })
+
+  it("suggests a fitting replacement for a meeting conflict", () => {
+    const fixture = buildFixture()
+    const scenario = structuredClone(fixture.workspace.plans[0].scenarios[0])
+    scenario.courses[1].sectionId = "SECTION-CONFLICTING"
+    const result = checkPlan({
+      scenario,
+      catalog: fixture.catalog,
+      profile: fixture.workspace.profile,
+      evidence: fixture.workspace.evidence,
+      now: new Date("2026-08-27T12:00:00Z")
+    })
+    const check = result.find((item) => item.code === "MEETING_CONFLICT")
+    expect(check?.alternative).toBeDefined()
+    expect(check?.suggestedRepairs[0]).toContain("Switch to ")
+  })
+})

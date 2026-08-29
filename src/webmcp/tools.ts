@@ -180,7 +180,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "check_plan",
-      description: "Run deterministic unit, schedule, prerequisite, evidence, and constraint checks.",
+      description: "Run deterministic unit, schedule, prerequisite, evidence, and constraint checks. When a violated course has another section this term that clears every constraint, the check names it in alternative and its first suggested repair.",
       inputSchema: schema({ planId: field("string", "Stable plan ID"), scenarioId: field("string", "Stable scenario ID") }),
       annotations: annotations(true),
       examples: [{ planId: "Use the current plan ID", scenarioId: "Use a scenario ID returned by get_plan" }],
