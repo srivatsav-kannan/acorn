@@ -422,6 +422,24 @@ describe("codex round four findings", () => {
   })
 })
 
+describe("official schedule truth", () => {
+  it("serves imported ExploreCourses meeting times over stale curated samples", async () => {
+    const { buildStanfordCatalog } = await import("@/data/institutions/stanford")
+    const catalog = buildStanfordCatalog()
+    const cs106b = catalog.sections.find((section) => section.id === "SECTION-CS-106B-01")!
+    expect(cs106b.meetings[0]).toMatchObject({ days: ["mon", "wed", "fri"], start: "12:30", end: "13:20", location: "Hewlett Teaching Center 200" })
+    expect(cs106b.final).toBeDefined()
+    expect(cs106b.evidenceIds).toContain("EVIDENCE-EXPLORECOURSES-IMPORT")
+    const cs173a = catalog.sections.find((section) => section.courseId === "COURSE-CS-173A")!
+    expect(cs173a.meetings[0]).toMatchObject({ days: ["mon", "wed"], start: "13:30", end: "14:50" })
+    const ids = catalog.sections.map((section) => section.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const special of ["SECTION-CONFLICTING", "SECTION-FINAL-CONFLICT", "SECTION-FRIDAY", "SECTION-EARLY", "SECTION-TIGHT-TRANSITION", "SECTION-STALE"]) {
+      expect(ids).toContain(special)
+    }
+  })
+})
+
 describe("search sufficiency", () => {
   it("flags a missing program reference instead of claiming sufficiency", () => {
     const { workspace, catalog } = buildFixture()

@@ -64,7 +64,7 @@ test("the scratchpad takes jots with tags, edits, archives, and persists", async
 test("courses search, interest, planning, and undo run through one command path", async ({ page }) => {
   await page.goto("/demo")
   await page.getByRole("link", { name: "Courses", exact: true }).click()
-  await expect(page.getByText(/15 units/).first()).toBeVisible()
+  await expect(page.getByText(/13 units/).first()).toBeVisible()
   await page.getByLabel("Search courses").fill("CS 148")
   await expect(page.getByText("Introduction to Computer Graphics").first()).toBeVisible()
   await page.getByRole("button", { name: "Interested", exact: true }).first().click()

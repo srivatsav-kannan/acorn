@@ -130,8 +130,8 @@ describe("degree plan evaluation", () => {
     const evaluation = evaluateDegreePlan(fixture.workspace, fixture.catalog, now)
     expect(evaluation.requiredUnits).toBe(180)
     expect(evaluation.completedUnits).toBe(5)
-    expect(evaluation.plannedUnits).toBe(15)
-    expect(evaluation.projectedUnits).toBe(20)
+    expect(evaluation.plannedUnits).toBe(13)
+    expect(evaluation.projectedUnits).toBe(18)
     expect(evaluation.terms[0]).toMatchObject({ termId: "TERM-2025-AUTUMN", units: 0, status: "past" })
 
     const repository = new MemoryWorkspaceRepository(fixture)

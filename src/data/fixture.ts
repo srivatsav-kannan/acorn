@@ -37,11 +37,11 @@ export const buildFixture = (): Fixture => {
       courseGrades: { "COURSE-CS-106A": "A" },
       residentCourseIds: ["COURSE-CS-106A"],
       preferences: [
-        { id: "PREFERENCE-NO-FRIDAY", label: "Keep Fridays open", strength: "hard", value: true },
+        { id: "PREFERENCE-NO-FRIDAY", label: "Protect Friday research time", strength: "soft", value: true },
         { id: "PREFERENCE-DESIGN", label: "Include hands-on design", strength: "soft", value: true },
         { id: "PREFERENCE-RESEARCH", label: "Protect a research block", strength: "soft", value: true }
       ],
-      excludedDays: ["fri"],
+      excludedDays: ["sat"],
       earliestStart: "08:30",
       latestEnd: "18:00",
       transitionBufferMinutes: 15
@@ -58,11 +58,11 @@ export const buildFixture = (): Fixture => {
         courses: [
           { id: "PLANCOURSE-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" },
           { id: "PLANCOURSE-COMM-1", courseId: "COURSE-COMM-1", sectionId: "SECTION-COMM-1-01", units: 3, status: "active" },
-          { id: "PLANCOURSE-DESIGN-60", courseId: "COURSE-DESIGN-60", sectionId: "SECTION-DESIGN-60-01", units: 2, status: "active" },
+          { id: "PLANCOURSE-DESIGN-60", courseId: "COURSE-DESIGN-60", sectionId: "SECTION-DESIGN-60-01", units: 2, status: "backup" },
           { id: "PLANCOURSE-MATH-51", courseId: "COURSE-MATH-51", sectionId: "SECTION-MATH-51-01", units: 5, status: "active" },
           { id: "PLANCOURSE-BACKUP-CS-147", courseId: "COURSE-CS-147", sectionId: "SECTION-CS-147-01", units: 4, status: "backup" }
         ],
-        commitments: [{ id: "COMMITMENT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "13:00", "15:00", "commitment", "Research lab")] }]
+        commitments: [{ id: "COMMITMENT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "14:00", "16:00", "commitment", "Research lab")] }]
       }, {
         id: "SCENARIO-LIGHTER",
         name: "Lighter option",
@@ -73,7 +73,7 @@ export const buildFixture = (): Fixture => {
           { id: "PLANCOURSE-LIGHT-MATH-51", courseId: "COURSE-MATH-51", sectionId: "SECTION-MATH-51-01", units: 5, status: "active" },
           { id: "PLANCOURSE-LIGHT-DESIGN-60", courseId: "COURSE-DESIGN-60", sectionId: "SECTION-DESIGN-60-01", units: 2, status: "backup" }
         ],
-        commitments: [{ id: "COMMITMENT-LIGHT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "13:00", "15:00", "commitment", "Research lab")] }]
+        commitments: [{ id: "COMMITMENT-LIGHT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "14:00", "16:00", "commitment", "Research lab")] }]
       }]
     }],
     programs: buildStanfordPrograms(),

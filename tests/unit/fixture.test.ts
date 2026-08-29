@@ -31,7 +31,7 @@ describe("Stanford demo fixture", () => {
     expect(plan.scenarios).toHaveLength(2)
     const [primary, lighter] = plan.scenarios
     const activeUnits = (scenario: typeof primary) => scenario.courses.filter((course) => course.status === "active").reduce((sum, course) => sum + course.units, 0)
-    expect(activeUnits(primary)).toBe(15)
+    expect(activeUnits(primary)).toBe(13)
     expect(activeUnits(lighter)).toBe(13)
     expect(primary.courses).not.toEqual(lighter.courses)
   })

@@ -3,9 +3,11 @@ import type { Catalog, Course, Evidence, Meeting, Opportunity, Program, Requirem
 import type { InstitutionReference } from "@/data/institutions/types"
 
 // The full 2026-27 catalog is imported from the public ExploreCourses API by
-// scripts/import-stanford/import-catalog.mjs. Curated rows below add what the
-// feed lacks, prerequisite structure and planning tags, and they win on ID
-// collisions so the demo stays deterministic.
+// scripts/import-stanford/import-catalog.mjs. Curated COURSE rows below add
+// what the feed lacks, prerequisite structure and planning tags, and win on
+// ID collisions. Curated SECTIONS are the opposite: imported meeting times
+// are the schedule truth and win on ID collisions, because the sample times
+// below drifted from the official schedule.
 type ImportedCourse = { c: string, t: string, u?: number | [number, number], w?: string[], o?: string, d?: string, s?: Array<{ n: string, m: Array<{ d: string[], s: string, e: string, l?: string }> }> }
 type ImportedPayload = { meta: { source: string, retrievedAt: string, academicYear: string, departments: number, courses: number, note: string }, courses: ImportedCourse[] }
 
@@ -257,11 +259,11 @@ const sections = (): Section[] => [
   quick("HUMBIO 2B", ["mon", "wed", "fri"], "13:00", "13:50", "Building 300"),
   quick("BIOE 101", ["tue", "thu"], "11:00", "12:20", "Shriram 104"),
   quick("BIOMEDIN 215", ["wed"], "16:00", "18:50", "MSOB", "seminar"),
-  section("SECTION-CONFLICTING", "COMM 1", 3, [meeting(["mon"], "10:30", "11:50")]),
+  section("SECTION-CONFLICTING", "COMM 1", 3, [meeting(["mon"], "13:00", "14:20")]),
   section("SECTION-FINAL-CONFLICT", "COMM 1", 3, [meeting(["tue"], "09:00", "10:20")], ["EVIDENCE-TERM-SCHEDULE"], { start: "2026-12-08T10:00:00-08:00", end: "2026-12-08T13:00:00-08:00" }),
-  section("SECTION-FRIDAY", "COMM 1", 3, [meeting(["fri"], "10:00", "11:20")]),
+  section("SECTION-FRIDAY", "COMM 1", 3, [meeting(["sat"], "10:00", "11:20")]),
   section("SECTION-EARLY", "COMM 1", 3, [meeting(["tue", "thu"], "07:30", "08:50")]),
-  section("SECTION-TIGHT-TRANSITION", "COMM 1", 3, [meeting(["mon"], "11:25", "12:45", "lecture", "Engineering Quad")]),
+  section("SECTION-TIGHT-TRANSITION", "COMM 1", 3, [meeting(["mon"], "13:30", "14:50", "lecture", "Engineering Quad")]),
   section("SECTION-STALE", "COMM 1", 3, [meeting(["tue", "thu"], "09:00", "10:20")], ["EVIDENCE-STALE-OFFERING"])
 ]
 
@@ -283,14 +285,14 @@ const programEvidence = (id: string, programName: string, url: string): Evidence
 export const buildStanfordEvidence = (): Evidence[] => [
   {
     id: "EVIDENCE-TERM-SCHEDULE",
-    classification: "official",
+    classification: "derived",
     authority: "term_schedule",
-    claim: "Illustrative Autumn 2026 section and meeting data for planning. Verify live times on ExploreCourses before enrolling.",
+    claim: "Illustrative Autumn 2026 section and meeting data for planning, used only where ExploreCourses publishes no section. Verify live times before enrolling.",
     sourceUrl: "https://explorecourses.stanford.edu/",
     sourceTitle: "Stanford ExploreCourses",
     retrievedAt: "2026-08-20T12:00:00Z",
     expiresAt: "2026-10-01T00:00:00Z",
-    confidence: 0.9,
+    confidence: 0.6,
     status: "current",
     addedBy: "system",
     untrustedExternalContent: true
@@ -430,12 +432,11 @@ const importedCourses = (curatedCodes: Set<string>): Course[] => imported.course
     }
   })
 
-const importedSections = (curatedSectionCourseIds: Set<string>): Section[] => {
+const importedSections = (): Section[] => {
   const result: Section[] = []
   for (const row of imported.courses) {
     if (!row.s?.length) continue
     const id = courseId(row.c)
-    if (curatedSectionCourseIds.has(id)) continue
     const units = row.u === undefined ? 3 : typeof row.u === "number" ? row.u : row.u[1]
     for (const section of row.s) {
       result.push({
@@ -460,10 +461,22 @@ export const buildStanfordCatalog = (): Catalog => {
   const curated = courses().map((course) => ({ ...course, ways: course.ways ?? importedWaysByCode.get(course.code) }))
   const curatedCodes = new Set(curated.map((course) => course.code))
   const curatedSections = sections()
-  const curatedSectionCourseIds = new Set(curatedSections.map((section) => section.courseId))
+  // Imported ExploreCourses sections are the schedule truth. The curated
+  // list predates the import and its sample times drifted from the official
+  // schedule, so on an ID collision the imported section wins. Curated
+  // sections with unique IDs survive: the deterministic-check demos and the
+  // courses the import carries no sections for. Curated final-exam blocks
+  // graft onto their imported twins, which the import does not know about.
+  const importedList = importedSections()
+  const importedIds = new Set(importedList.map((section) => section.id))
+  const curatedFinals = new Map(curatedSections.filter((section) => section.final).map((section) => [section.id, section.final!]))
+  for (const section of importedList) {
+    const final = curatedFinals.get(section.id)
+    if (final && !section.final) section.final = final
+  }
   catalogCache = {
     courses: [...curated, ...importedCourses(curatedCodes)],
-    sections: [...curatedSections, ...importedSections(curatedSectionCourseIds)]
+    sections: [...importedList, ...curatedSections.filter((section) => !importedIds.has(section.id))]
   }
   return catalogCache
 }
