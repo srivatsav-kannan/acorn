@@ -9,6 +9,7 @@ import { mergedOpportunities } from "@/domain/reference"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { standingForTerm, termForDate, timelineFor } from "@/domain/timeline"
 import { CAMPUS_TIMEZONE, convertZonedTime, timezoneChoices, timezoneOffsetLabel } from "@/domain/timezone"
+import { WeekView } from "@/features/calendar/week-view"
 
 // One continuous calendar from New Student Orientation to commencement. The
 // grid is a fixed lattice: cells never grow, and clicking a day or any single
@@ -20,13 +21,17 @@ const yearHeadline: Record<string, string> = { "Frosh": "Freshman year", "Sophom
 const seasonNames: Record<string, string> = { AUTUMN: "Autumn quarter", WINTER: "Winter quarter", SPRING: "Spring quarter", SUMMER: "Summer" }
 const kindLabel: Record<string, string> = { academic: "Stanford", course: "Class", club: "Club", activity: "Activity", todo: "Todo", event: "Event" }
 const timezoneStorageKey = "acorn-display-timezone"
+const viewStorageKey = "acorn-calendar-view"
 
 type Inspection = { kind: "day", date: string } | { kind: "entry", entry: CalendarEvent, fromDate?: string } | null
 
 export const CalendarPage = () => {
   const value = useWorkspace()
   const timeline = timelineFor(value.workspace.profile, new Date())
-  const [monthStart, setMonthStart] = useState(() => startOfMonth(new Date()))
+  const [anchor, setAnchor] = useState(() => new Date())
+  const [view, setView] = useState<"month" | "week">("month")
+  const monthStart = useMemo(() => startOfMonth(anchor), [anchor])
+  const weekStart = useMemo(() => subDays(anchor, (anchor.getDay() + 6) % 7), [anchor])
   const [inspection, setInspection] = useState<Inspection>(null)
   const [displayTimezone, setDisplayTimezone] = useState(CAMPUS_TIMEZONE)
   const [todoTitle, setTodoTitle] = useState("")
@@ -39,12 +44,18 @@ export const CalendarPage = () => {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(timezoneStorageKey)
-      if (stored && timezoneChoices.some((choice) => choice.id === stored)) {
-        const timeout = window.setTimeout(() => setDisplayTimezone(stored), 0)
-        return () => window.clearTimeout(timeout)
-      }
+      const storedView = localStorage.getItem(viewStorageKey)
+      const timeout = window.setTimeout(() => {
+        if (stored && timezoneChoices.some((choice) => choice.id === stored)) setDisplayTimezone(stored)
+        if (storedView === "week" || storedView === "month") setView(storedView)
+      }, 0)
+      return () => window.clearTimeout(timeout)
     } catch {}
   }, [])
+  const chooseView = (next: "month" | "week") => {
+    setView(next)
+    try { localStorage.setItem(viewStorageKey, next) } catch {}
+  }
   const chooseTimezone = (timezone: string) => {
     setDisplayTimezone(timezone)
     try { localStorage.setItem(timezoneStorageKey, timezone) } catch {}
@@ -62,7 +73,9 @@ export const CalendarPage = () => {
   // entry in the display zone; the padding keeps entries that cross midnight
   // during conversion from falling off the grid's edges.
   const events = useMemo(() => {
-    const raw = calendarEventsForRange(value.workspace, value.catalog, opportunities, isoDate(subDays(gridStart, 1)), isoDate(addDays(gridStart, 42)))
+    const rangeStart = view === "week" ? subDays(weekStart, 1) : subDays(gridStart, 1)
+    const rangeEnd = view === "week" ? addDays(weekStart, 8) : addDays(gridStart, 42)
+    const raw = calendarEventsForRange(value.workspace, value.catalog, opportunities, isoDate(rangeStart), isoDate(rangeEnd))
     return raw.map((event) => {
       if (!event.start) return event
       const homeZone = event.timezone ?? CAMPUS_TIMEZONE
@@ -71,7 +84,7 @@ export const CalendarPage = () => {
       const convertedEnd = event.end ? convertZonedTime(event.date, event.end, homeZone, displayTimezone) : undefined
       return { ...event, date: converted.date, start: converted.time, end: convertedEnd?.time }
     }).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "00:00").localeCompare(b.start ?? "00:00"))
-  }, [value.workspace, value.catalog, opportunities, gridStart, displayTimezone])
+  }, [value.workspace, value.catalog, opportunities, gridStart, weekStart, view, displayTimezone])
 
   // The export uses home-zone times with real TZIDs rather than the converted
   // display times, so calendar apps place every instant correctly themselves.
@@ -183,24 +196,38 @@ export const CalendarPage = () => {
     <header className="page-heading calendar-heading">
       <div>
         <h1>{headline}</h1>
-        <p>{seasonNames[currentTermRef.season]} · {format(monthStart, "MMMM yyyy")}</p>
+        <p>{seasonNames[currentTermRef.season]} · {view === "week" ? `${format(weekStart, "MMM d")} to ${format(addDays(weekStart, 6), "MMM d, yyyy")}` : format(monthStart, "MMMM yyyy")}</p>
       </div>
       <div className="calendar-controls">
+        <div className="view-toggle" role="group" aria-label="Calendar view">
+          <button className={`secondary-button small${view === "month" ? " toggled" : ""}`} type="button" aria-pressed={view === "month"} onClick={() => chooseView("month")}>Month</button>
+          <button className={`secondary-button small${view === "week" ? " toggled" : ""}`} type="button" aria-pressed={view === "week"} onClick={() => chooseView("week")}>Week</button>
+        </div>
         <label className="timezone-control">
           <span className="sr-only">Times shown in</span>
           <select className="chunky-select" aria-label="Times shown in" value={displayTimezone} onChange={(event) => chooseTimezone(event.target.value)}>
             {timezoneChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label} ({timezoneOffsetLabel(choice.id)})</option>)}
           </select>
         </label>
-        <button className="secondary-button small" type="button" onClick={() => setMonthStart((current) => addMonths(current, -1))} aria-label="Previous month">← Previous</button>
-        <button className="secondary-button small" type="button" onClick={() => setMonthStart(startOfMonth(new Date()))}>Today</button>
-        <button className="secondary-button small" type="button" onClick={() => setMonthStart((current) => addMonths(current, 1))} aria-label="Next month">Next →</button>
+        <button className="secondary-button small" type="button" onClick={() => setAnchor((current) => view === "week" ? subDays(current, 7) : addMonths(current, -1))} aria-label={view === "week" ? "Previous week" : "Previous month"}>← Previous</button>
+        <button className="secondary-button small" type="button" onClick={() => setAnchor(new Date())}>Today</button>
+        <button className="secondary-button small" type="button" onClick={() => setAnchor((current) => view === "week" ? addDays(current, 7) : addMonths(current, 1))} aria-label={view === "week" ? "Next week" : "Next month"}>Next →</button>
         <button className="secondary-button small" type="button" onClick={downloadIcs} aria-label="Download this month as an ICS calendar file">Download .ics</button>
       </div>
     </header>
 
     <div className="calendar-layout">
-      <section className="calendar-panel" aria-label="Month calendar">
+      <section className="calendar-panel" aria-label={view === "week" ? "Week calendar" : "Month calendar"}>
+        {view === "week" && <WeekView
+          days={Array.from({ length: 7 }, (_, index) => isoDate(addDays(weekStart, index)))}
+          eventsByDay={eventsByDay}
+          protectedWindows={value.workspace.profile.protectedWindows ?? []}
+          todayIso={todayIso}
+          nowMinutes={new Date().getHours() * 60 + new Date().getMinutes()}
+          onDay={inspectDay}
+          onEntry={inspectEntry}
+        />}
+        {view === "month" && <>
         <div className="calendar-weekday-row">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => <span key={day}>{day}</span>)}</div>
         <div className="calendar-grid">
           {gridDays.map((day) => {
@@ -216,6 +243,7 @@ export const CalendarPage = () => {
             </div>
           })}
         </div>
+        </>}
         <div className="calendar-legend">
           <span className="legend-item academic">Stanford dates</span>
           <span className="legend-item course">Classes</span>

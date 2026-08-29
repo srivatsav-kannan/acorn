@@ -130,6 +130,23 @@ test("the calendar carries registrar dates, todos, and planned classes", async (
   await expect(page.locator(".calendar-grid").getByText("CS 106B").first()).toBeVisible()
 })
 
+test("the week view lays classes on an hour grid beside the research block", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile")
+  await page.goto("/demo")
+  await page.getByRole("link", { name: "Calendar", exact: true }).click()
+  await page.getByRole("button", { name: "Week", exact: true }).click()
+  await expect(page.locator(".week-body")).toBeVisible()
+  let found = false
+  for (let hop = 0; hop < 8 && !found; hop += 1) {
+    found = await page.locator(".week-block", { hasText: "CS 106B" }).first().isVisible().catch(() => false)
+    if (!found) await page.getByRole("button", { name: "Next week" }).click()
+  }
+  expect(found).toBe(true)
+  await expect(page.locator(".week-block", { hasText: "Research block" }).first()).toBeVisible()
+  await page.locator(".week-block", { hasText: "CS 106B" }).first().click()
+  await expect(page.getByRole("heading", { name: "CS 106B", exact: true })).toBeVisible()
+})
+
 test("timed events carry descriptions and re-express in other timezones", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === "mobile")
   await page.goto("/demo")
