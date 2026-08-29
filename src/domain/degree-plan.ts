@@ -36,7 +36,10 @@ export type DegreeEvaluation = {
   issues: TimelineIssue[]
 }
 
-const activeCourses = (plan: Plan | undefined) => {
+// Every consumer of "what is planned" must read the plan's ACTIVE scenario;
+// reaching for scenarios[0] silently pins evaluation to whichever scenario
+// happens to be first.
+export const activeCourses = (plan: Plan | undefined) => {
   if (!plan) return []
   const scenario = plan.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan.scenarios[0]
   return scenario?.courses.filter((item) => item.status === "active") ?? []

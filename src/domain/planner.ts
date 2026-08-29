@@ -52,7 +52,15 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
     if (entry.course?.prerequisiteUncertain) add("PREREQUISITE_UNCERTAIN", "warning", [entry.item.id], "The prerequisite interpretation needs review.", ["Open the official course page", "Ask an advisor"])
     const completedWithCredit = effectiveCompletedCourseIds(profile)
     const missing = entry.course?.prerequisites?.filter((id) => !completedWithCredit.includes(id)) ?? []
-    if (missing.length) add("PREREQUISITE_MISSING", "error", [entry.item.id, ...missing], "A required prerequisite is not completed or planned.", ["Add the prerequisite", "Choose another course"])
+    if (missing.length) {
+      // Planning the prerequisite in the same term does not satisfy it, but
+      // telling the student it is "not planned" while it sits in the plan
+      // reads as a contradiction, so the message names the actual problem.
+      const plannedHere = missing.some((id) => scenario.courses.some((item) => item.status === "active" && item.courseId === id))
+      const message = plannedHere ? "A prerequisite is planned in this same term; it must be completed in an earlier term." : "A required prerequisite is not completed before this term."
+      const repairs = plannedHere ? ["Move this course to a later term", "Take the prerequisite in an earlier term"] : ["Complete the prerequisite first", "Choose another course"]
+      add("PREREQUISITE_MISSING", "error", [entry.item.id, ...missing], message, repairs)
+    }
     if (entry.section) {
       const staleIds = entry.section.evidenceIds.filter((id) => {
         const found = evidence.find((item) => item.id === id)

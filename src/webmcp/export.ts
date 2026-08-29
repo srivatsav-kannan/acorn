@@ -36,7 +36,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
     if (current === "todos") {
       const open = (workspace.todos ?? []).filter((todo) => !todo.done)
       const done = (workspace.todos ?? []).filter((todo) => todo.done)
-      blocks.push([`## Todos (${open.length} open)`, ...open.map((todo) => `- [ ] ${todo.title}${todo.due ? ` (due ${todo.due})` : ""}${todo.detail ? `: ${todo.detail}` : ""} \`${todo.id}\``), ...(done.length ? [`Done: ${done.map((todo) => todo.title).join("; ")}`] : [])].join("\n"))
+      blocks.push([`## Todos (${open.length} open)`, ...open.map((todo) => `- [ ] ${todo.title}${todo.due ? ` (due ${todo.due}${todo.dueTime ? ` ${todo.dueTime}` : ""})` : ""}${todo.detail ? `: ${todo.detail}` : ""} \`${todo.id}\``), ...(done.length ? [`Done: ${done.map((todo) => todo.title).join("; ")}`] : [])].join("\n"))
     }
     if (current === "events") {
       const upcoming = (workspace.events ?? []).slice().sort((a, b) => a.date.localeCompare(b.date))
@@ -90,7 +90,8 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       for (const activity of activities) {
         blocks.push([
           `### ${activity.name} \`${activity.id}\``,
-          `${activity.kind}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}` : ""}.`,
+          `${activity.kind}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}${activity.schedule.location ? ` at ${activity.schedule.location}` : ""}` : ""}.`,
+          activity.startDate || activity.endDate ? `Runs ${activity.startDate ?? "now"} to ${activity.endDate ?? "open-ended"}.` : "",
           activity.detail ?? "",
           ...(activity.dates?.length ? [`Dates: ${activity.dates.map((dated) => `${dated.date} ${dated.label}`).join("; ")}`] : [])
         ].filter(Boolean).join("\n"))

@@ -234,6 +234,70 @@ describe("codex round one findings", () => {
   })
 })
 
+describe("codex round two findings", () => {
+  const envelope = (command: Record<string, unknown>, expectedVersion: number, key: string) =>
+    ({ actor: { type: "agent" as const, id: "AGENT-TEST" }, ownerUserId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", expectedVersion, idempotencyKey: key, command })
+
+  it("rejects impossible planning-window values instead of silently skipping them", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    await expect(executeCommand(repository, envelope({ type: "update_profile", patch: { earliestStart: "25:00" } }, 1, "WIN-1"))).rejects.toThrow(/real clock value/)
+    await expect(executeCommand(repository, envelope({ type: "update_profile", patch: { earliestStart: "18:00", latestEnd: "09:00" } }, 1, "WIN-2"))).rejects.toThrow(/must come after/)
+    const valid = await executeCommand(repository, envelope({ type: "update_profile", patch: { earliestStart: "09:30" } }, 1, "WIN-3"))
+    expect(valid.ok).toBe(true)
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.profile.earliestStart).toBe("09:30")
+  })
+
+  it("evaluates program progress and projected units against the active scenario", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const before = await findTool(tools, "get_program_progress").execute({}) as { program: { requirements: Array<{ courseIds?: string[] }> } }
+    const plannedBefore = new Set(before.program.requirements.flatMap((requirement) => requirement.courseIds ?? []))
+    await executeCommand(repository, envelope({
+      type: "edit_plan",
+      planId: "PLAN-AUT26",
+      operations: [{ type: "create_scenario", scenario: { id: "SCENARIO-ALT", name: "Alternate", courses: [{ id: "PLANCOURSE-ALT-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" }] } }]
+    }, 1, "SCEN-1"))
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-ALT", operations: [{ type: "set_active_scenario" }] }, 2, "SCEN-2"))
+    const after = await findTool(tools, "get_program_progress").execute({}) as { program: { requirements: Array<{ courseIds?: string[] }> } }
+    const plannedAfter = new Set(after.program.requirements.flatMap((requirement) => requirement.courseIds ?? []))
+    expect(plannedAfter.has("COURSE-CS-106B")).toBe(true)
+    expect(plannedAfter).not.toEqual(plannedBefore)
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const { evaluateDegreePlan } = await import("@/domain/degree-plan")
+    const { buildStanfordCatalog } = await import("@/data/fixture")
+    const evaluation = evaluateDegreePlan(workspace, buildStanfordCatalog(), new Date("2026-08-29T12:00:00Z"))
+    const scenario = workspace.plans[0].scenarios.find((item) => item.id === "SCENARIO-ALT")!
+    expect(workspace.plans[0].activeScenarioId).toBe("SCENARIO-ALT")
+    expect(scenario.courses).toHaveLength(1)
+    expect(evaluation.plannedUnits).toBe(5)
+  })
+
+  it("exports due times, activity bounds, and locations", () => {
+    const { workspace, catalog } = buildFixture()
+    workspace.todos.push({ id: "TODO-TIMED-EXPORT", title: "Submit form", due: "2026-09-15", dueTime: "18:30", done: false, source: "human", createdAt: "2026-08-29T00:00:00Z" })
+    workspace.activities.push({ id: "ACT-BOUNDED", name: "Robotics build", kind: "other", schedule: { days: ["tue", "thu"], start: "17:00", end: "18:00", location: "Gates" }, startDate: "2026-09-22", endDate: "2026-10-09", addedBy: "human" })
+    const exported = exportBlocks(workspace, catalog, [], "all", new Date("2026-08-29T12:00:00Z")).join("\n")
+    expect(exported).toContain("(due 2026-09-15 18:30)")
+    expect(exported).toContain("17:00 to 18:00 at Gates")
+    expect(exported).toContain("Runs 2026-09-22 to 2026-10-09.")
+  })
+
+  it("explains a same-term prerequisite instead of claiming it is not planned", async () => {
+    const { workspace, catalog } = buildFixture()
+    const { checkPlan } = await import("@/domain/planner")
+    const scenario = structuredClone(workspace.plans[0].scenarios[0])
+    scenario.courses.push({ id: "PLANCOURSE-MATH-52", courseId: "COURSE-MATH-52", sectionId: "SECTION-MATH-52-01", units: 5, status: "active" })
+    const sameTerm = checkPlan({ scenario, catalog, profile: workspace.profile, evidence: workspace.evidence, now: new Date("2026-08-28T12:00:00Z") })
+    const check = sameTerm.find((item) => item.code === "PREREQUISITE_MISSING" && item.affectedIds.includes("PLANCOURSE-MATH-52"))!
+    expect(check.message).toContain("planned in this same term")
+    scenario.courses = scenario.courses.filter((item) => item.courseId !== "COURSE-MATH-51")
+    const notPlanned = checkPlan({ scenario, catalog, profile: workspace.profile, evidence: workspace.evidence, now: new Date("2026-08-28T12:00:00Z") })
+    const missing = notPlanned.find((item) => item.code === "PREREQUISITE_MISSING" && item.affectedIds.includes("PLANCOURSE-MATH-52"))!
+    expect(missing.message).toContain("not completed before this term")
+  })
+})
+
 describe("search sufficiency", () => {
   it("flags a missing program reference instead of claiming sufficiency", () => {
     const { workspace, catalog } = buildFixture()

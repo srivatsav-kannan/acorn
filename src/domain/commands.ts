@@ -262,8 +262,15 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         workspace.profile.classYear = patch.classYear.trim().slice(0, 30) || undefined
       }
       if (typeof patch.recoveryPhone === "string") workspace.profile.recoveryPhone = patch.recoveryPhone.trim().slice(0, 24) || undefined
-      if (typeof patch.earliestStart === "string" && isRealTime(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
-      if (typeof patch.latestEnd === "string" && isRealTime(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
+      if (typeof patch.earliestStart === "string") {
+        if (!isRealTime(patch.earliestStart)) throw commandError("earliestStart uses 24h HH:MM with a real clock value")
+        workspace.profile.earliestStart = patch.earliestStart
+      }
+      if (typeof patch.latestEnd === "string") {
+        if (!isRealTime(patch.latestEnd)) throw commandError("latestEnd uses 24h HH:MM with a real clock value")
+        workspace.profile.latestEnd = patch.latestEnd
+      }
+      if ((typeof patch.earliestStart === "string" || typeof patch.latestEnd === "string") && workspace.profile.latestEnd <= workspace.profile.earliestStart) throw commandError("The planning window's latest end must come after its earliest start")
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))
       if (patch.declaredProgramId === null || (typeof patch.declaredProgramId === "string" && workspace.programs.some((program) => program.id === patch.declaredProgramId))) workspace.profile.declaredProgramId = patch.declaredProgramId as string | null
       changed.push({ type: "student_profile", id: workspace.profile.id })

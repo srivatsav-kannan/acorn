@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { executeCommand } from "@/domain/commands"
-import { evaluateDegreePlan } from "@/domain/degree-plan"
+import { activeCourses, evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan } from "@/domain/planner"
 import { mergedCatalogFor, mergedOpportunities } from "@/domain/reference"
@@ -167,7 +167,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async ({ planId, scenarioId }) => {
         const value = await workspace()
         const plan = value.plans.find((item) => item.id === planId) ?? value.plans[0]
-        const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios[0]
+        const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios.find((item) => item.id === plan?.activeScenarioId) ?? plan?.scenarios[0]
         const merged = mergedCatalogFor(value, repository.catalog)
         const degree = supportsTimeline(value) ? evaluateDegreePlan(value, merged, now()) : null
         return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { projected: degree.projectedUnits, required: degree.requiredUnits } : null }
@@ -182,7 +182,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async ({ programId }) => {
         const value = await workspace()
         const program = value.programs.find((item) => item.id === programId) ?? value.programs[0]
-        const planned = value.plans.flatMap((plan) => plan.scenarios[0]?.courses.filter((item) => item.status === "active").map((item) => item.courseId) ?? [])
+        const planned = value.plans.flatMap((plan) => activeCourses(plan).map((item) => item.courseId))
         const units = Object.fromEntries(mergedCatalogFor(value, repository.catalog).courses.map((course) => [course.id, course.maxUnits]))
         return { workspaceVersion: value.version, program: program ? { id: program.id, name: program.name, requirements: program.requirements.map((requirement) => {
           const evaluation = evaluateRequirement({ rule: requirement.rule, completedCourseIds: effectiveCompletedCourseIds(value.profile), plannedCourseIds: planned, courseUnits: units, courseGrades: value.profile.courseGrades, residentCourseIds: value.profile.residentCourseIds, allowDoubleCount: false })
