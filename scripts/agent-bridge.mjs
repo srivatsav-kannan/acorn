@@ -113,7 +113,8 @@ console.log(`  ${toolNames.join(", ")}`)
 const listTools = () => page.evaluate(() => [...window.__acornToolRegistry.values()].map((tool) => ({
   name: tool.name,
   readOnly: tool.annotations?.readOnlyHint ?? false,
-  description: tool.description
+  description: tool.description,
+  inputSchema: tool.inputSchema
 })))
 
 const callTool = (tool, input) => page.evaluate(async ({ tool, input }) => {

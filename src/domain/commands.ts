@@ -22,6 +22,26 @@ type Envelope = {
 const commandError = (message: string) => new RepositoryError("COMMAND_INVALID", message)
 const actionId = (key: string) => `ACTION-${key.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)}`
 
+// An idempotency key names one operation. Replaying the same key with the
+// same payload returns the stored receipt; replaying it with a different
+// payload is a caller bug that must fail loudly, never acknowledge falsely.
+const stableStringify = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>).filter(([, item]) => item !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`
+  }
+  return JSON.stringify(value) ?? "null"
+}
+const commandHash = (command: Record<string, unknown>): string => {
+  const text = stableStringify(command)
+  let hash = 0x811c9dc5
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, "0")
+}
+
 // Format checks alone let 2026-02-30 and 25:61 through, so calendar values
 // are checked against the actual calendar and clock.
 const isRealDate = (value: string): boolean => {
@@ -84,7 +104,10 @@ const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, 
     if (operation.type === "create_scenario") {
       const candidate = operation.scenario
       if (!candidate?.id || !candidate.name || plan.scenarios.some((item) => item.id === candidate.id)) throw commandError("A valid unique scenario is required")
-      plan.scenarios.push(structuredClone(candidate))
+      const normalized = structuredClone(candidate)
+      normalized.courses = Array.isArray(normalized.courses) ? normalized.courses : []
+      normalized.commitments = Array.isArray(normalized.commitments) ? normalized.commitments : []
+      plan.scenarios.push(normalized)
       changed.push({ type: "plan_scenario", id: candidate.id })
       continue
     }
@@ -165,7 +188,12 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
   const accessUserId = envelope.ownerUserId ?? envelope.actor.id
   const existingWorkspace = await repository.getWorkspace(envelope.workspaceId, accessUserId)
   const existing = existingWorkspace.receipts.find((receipt) => receipt.receiptId === actionId(envelope.idempotencyKey))
-  if (existing) return structuredClone(existing)
+  if (existing) {
+    if (existing.commandHash && existing.commandHash !== commandHash(envelope.command)) {
+      throw new RepositoryError("IDEMPOTENCY_CONFLICT", "This idempotency key was already used for a different operation. Use a fresh key for a new operation.")
+    }
+    return structuredClone(existing)
+  }
 
   if (envelope.command.type === "update_profile_fact") return {
     ok: false,
@@ -648,7 +676,8 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       undoAvailable,
       actor: envelope.actor,
       visibleChange: true,
-      primaryVisibleId: primaryVisibleType[command.type] ? changed.find((item) => item.type === primaryVisibleType[command.type])?.id : undefined
+      primaryVisibleId: primaryVisibleType[command.type] ? changed.find((item) => item.type === primaryVisibleType[command.type])?.id : undefined,
+      commandHash: commandHash(envelope.command)
     }
     workspace.receipts.push(receipt)
     if (workspace.receipts.length > 300) workspace.receipts.splice(0, workspace.receipts.length - 300)

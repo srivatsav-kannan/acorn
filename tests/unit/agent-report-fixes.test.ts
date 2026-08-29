@@ -298,6 +298,74 @@ describe("codex round two findings", () => {
   })
 })
 
+describe("codex round three findings", () => {
+  const envelope = (command: Record<string, unknown>, expectedVersion: number, key: string) =>
+    ({ actor: { type: "agent" as const, id: "AGENT-TEST" }, ownerUserId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", expectedVersion, idempotencyKey: key, command })
+  const referenceEvidence = { id: "EVIDENCE-R3", title: "Ref source", classification: "official", claim: "Official reference.", sourceUrl: "https://example.edu/ref", sourceTitle: "Catalog", retrievedAt: "2026-08-29T00:00:00Z", confidence: 0.9, status: "current" }
+
+  it("lists the active scenario first in get_plan", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", operations: [{ type: "create_scenario", scenario: { id: "SCENARIO-ALT", name: "Alternate", courses: [] } }] }, 1, "GP-1"))
+    await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-ALT", operations: [{ type: "set_active_scenario" }] }, 2, "GP-2"))
+    const result = await findTool(tools, "get_plan").execute({ planId: "PLAN-AUT26" }) as { plan: { activeScenarioId: string, scenarios: Array<{ id: string }> } }
+    expect(result.plan.activeScenarioId).toBe("SCENARIO-ALT")
+    expect(result.plan.scenarios[0].id).toBe("SCENARIO-ALT")
+  })
+
+  it("rejects a reused idempotency key with a different payload", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const manageEvent = findTool(tools, "manage_event")
+    const first = await manageEvent.execute({ expectedVersion: 1, idempotencyKey: "SAME-KEY", action: "add", event: { title: "Payload A", date: "2026-10-05" } })
+    expect(first).toMatchObject({ ok: true, workspaceVersion: 2 })
+    const different = await manageEvent.execute({ expectedVersion: 1, idempotencyKey: "SAME-KEY", action: "add", event: { title: "Payload B", date: "2026-10-06" } })
+    expect(different).toMatchObject({ ok: false, code: "IDEMPOTENCY_CONFLICT" })
+    const replay = await manageEvent.execute({ expectedVersion: 1, idempotencyKey: "SAME-KEY", action: "add", event: { title: "Payload A", date: "2026-10-05" } })
+    expect(replay).toMatchObject({ ok: true, receiptId: first.receiptId })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.events.filter((event) => event.title.startsWith("Payload"))).toHaveLength(1)
+  })
+
+  it("removes agent-added reference entries through extend_reference and protects shipped ones", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const extend = findTool(tools, "extend_reference")
+    const added = await extend.execute({ expectedVersion: 1, idempotencyKey: "REF-ADD", course: { code: "CS 197X", title: "Applied Planning Studio" }, evidence: referenceEvidence })
+    expect(added).toMatchObject({ ok: true })
+    const courseId = (added.changed as Array<{ type: string, id: string }>).find((item) => item.type === "reference_course")?.id ?? added.primaryVisibleId
+    const removed = await extend.execute({ expectedVersion: 2, idempotencyKey: "REF-REMOVE", remove: { kind: "course", id: courseId } })
+    expect(removed).toMatchObject({ ok: true })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.referenceOverlay?.courses ?? []).toHaveLength(0)
+    const shipped = await extend.execute({ expectedVersion: 3, idempotencyKey: "REF-SHIPPED", remove: { kind: "program", id: workspace.programs[0].id } })
+    expect(shipped).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    const missingEvidence = await extend.execute({ expectedVersion: 3, idempotencyKey: "REF-NOEV", course: { code: "CS 198X", title: "Another" } })
+    expect(missingEvidence).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(String(missingEvidence.message)).toMatch(/evidence/)
+  })
+
+  it("flags an exact course code the catalog does not carry", () => {
+    const { workspace, catalog } = buildFixture()
+    const missing = searchWorkspace(workspace, catalog, "CS 197X Applied Planning Systems Studio")
+    expect(missing.sufficient).toBe(false)
+    expect(missing.gaps.some((gap) => gap.includes("CS 197X"))).toBe(true)
+    const present = searchWorkspace(workspace, catalog, "CS 106A introduction")
+    expect(present.gaps.some((gap) => gap.includes("No catalog course matches"))).toBe(false)
+  })
+
+  it("warns a fresh agent when durable notes contradict the structured timeline", async () => {
+    const fixture = buildFixture()
+    fixture.workspace.contextItems.push({ id: "NOTE-STALE-YEAR", type: "note", title: "Roadmap", summary: "Four year roadmap for the Class of 2099.", content: { text: "Class of 2099 plan." }, tags: [], collectionId: "COLLECTION-INBOX", addedBy: { type: "human", id: "USER-DEMO" }, createdAt: "2026-08-29T00:00:00Z", updatedAt: "2026-08-29T00:00:00Z" })
+    const repository = new MemoryWorkspaceRepository(fixture)
+    const tools = buildTools(repository)
+    const context = await findTool(tools, "get_planning_context").execute({}) as { warnings?: string[] }
+    expect(context.warnings?.some((warning) => warning.includes("Class of 2099") && warning.includes("authoritative"))).toBe(true)
+    const clean = await findTool(buildTools(new MemoryWorkspaceRepository(buildFixture())), "get_planning_context").execute({}) as { warnings?: string[] }
+    expect(clean.warnings).toBeUndefined()
+  })
+})
+
 describe("search sufficiency", () => {
   it("flags a missing program reference instead of claiming sufficiency", () => {
     const { workspace, catalog } = buildFixture()

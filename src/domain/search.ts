@@ -77,6 +77,18 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   const gaps: string[] = []
   if (durableTotal === 0) gaps.push(`No durable workspace context strongly matches “${query}”. Research it and save the findings with save_research.`)
   if (programSeeking && !groups.some((group) => group.type === "programs")) gaps.push(`No program reference in this workspace matches “${query}”. If the program is real, add it with extend_reference from an official source.`)
+  // A query naming an exact course code that the catalog does not carry is a
+  // reference gap even when looser matches pad the result groups.
+  const catalogCodes = new Set(catalog.courses.map((course) => normalize(course.code)))
+  const subjects = new Set(catalog.courses.map((course) => course.code.split(" ")[0].toUpperCase()))
+  const missingCodes = new Set<string>()
+  for (const match of query.matchAll(/([A-Za-z][A-Za-z&]{1,6})\s*-?\s*(\d{1,3}[A-Za-z]{0,2})\b/g)) {
+    const subject = match[1].toUpperCase()
+    if (!subjects.has(subject)) continue
+    const codeText = `${subject} ${match[2].toUpperCase()}`
+    if (!catalogCodes.has(normalize(codeText))) missingCodes.add(codeText)
+  }
+  for (const code of [...missingCodes].slice(0, 2)) gaps.push(`No catalog course matches ${code}. If it is real, add it with extend_reference from an official source.`)
   return {
     query,
     sufficient: gaps.length === 0,

@@ -217,6 +217,7 @@ export type ActionReceipt = {
   message?: string
   visibleChange?: boolean
   primaryVisibleId?: string
+  commandHash?: string
 }
 
 export type ActivityEntry = {

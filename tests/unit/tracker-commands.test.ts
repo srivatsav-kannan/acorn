@@ -107,7 +107,8 @@ describe("goals and bulk ingest", () => {
     const imported = workspace.contextItems.filter((item) => item.tags?.includes("language"))
     expect(imported).toHaveLength(1)
     expect(imported[0].tags).toEqual(["language"])
-    await expect(run(repository, { type: "ingest_context_items", items: [{ title: "Again" }] }, 2, "B3")).resolves.toMatchObject({ ok: true })
+    await expect(run(repository, { type: "ingest_context_items", items: [{ title: "Again" }] }, 2, "B3")).rejects.toThrow(/already used for a different operation/)
+    await expect(run(repository, { type: "ingest_context_items", items: [{ title: "Language background", summary: "Four years of French.", tags: ["Language", "language"] }, { title: "Possible lab" }] }, 1, "B3", "agent")).resolves.toMatchObject({ ok: true, workspaceVersion: 2 })
   })
 })
 

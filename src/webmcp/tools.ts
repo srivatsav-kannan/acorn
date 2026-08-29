@@ -125,7 +125,18 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const currentPlan = value.plans.find((plan) => plan.termId === value.currentTermId) ?? value.plans[0]
         const custom = value.institutionId === "INSTITUTION-CUSTOM"
         const timeline = supportsTimeline(value) ? timelineFor(value.profile, now()) : null
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once for a fresh session", "Search the workspace before external research", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties.slice(0, 3).map((item) => ({ id: item.id, question: item.question.slice(0, 80), status: item.status })) }
+        // Durable notes can carry a class year written before the profile
+        // dates changed. A fresh agent reading both needs the contradiction
+        // named, with the structured timeline declared authoritative.
+        const warnings: string[] = []
+        const gradYear = timeline ? Number(timeline.expectedGraduationTermId.split("-")[1]) : null
+        if (gradYear) {
+          const texts = [...value.contextItems.filter((item) => !item.archived).map((item) => `${item.title} ${item.summary}`), ...value.evidence.map((item) => item.claim)]
+          const mentioned = new Set<number>()
+          for (const text of texts) for (const match of text.matchAll(/class of (20\d{2})/gi)) mentioned.add(Number(match[1]))
+          for (const year of mentioned) if (year !== gradYear) warnings.push(`Durable notes say "Class of ${year}" but the structured timeline graduates in ${gradYear}. The timeline is authoritative; update or archive the stale notes.`)
+        }
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once for a fresh session", "Search the workspace before external research", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties.slice(0, 3).map((item) => ({ id: item.id, question: item.question.slice(0, 80), status: item.status })), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
       }
     },
     {
@@ -148,12 +159,12 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         return { workspaceVersion: value.version, plan: plan ? {
           id: plan.id,
           activeScenarioId: plan.activeScenarioId,
-          scenarios: plan.scenarios.map((scenario) => ({
+          scenarios: [...plan.scenarios].sort((a, b) => Number(b.id === plan.activeScenarioId) - Number(a.id === plan.activeScenarioId)).map((scenario) => ({
             id: scenario.id,
             name: scenario.name,
             unitLimit: scenario.unitLimit,
-            courses: scenario.courses,
-            commitments: scenario.commitments.map((commitment) => ({ id: commitment.id, title: commitment.title }))
+            courses: scenario.courses ?? [],
+            commitments: (scenario.commitments ?? []).map((commitment) => ({ id: commitment.id, title: commitment.title }))
           }))
         } : null }
       }
@@ -258,7 +269,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "extend_reference",
-      description: "Add or correct institutional reference: a course with an optional section, a program with a validated requirement tree, or a club, research, or campus program listing. Pass exactly one of course, program, or opportunity per call, always with a classified source. Reusing a shipped entry's ID amends it, and the interface shows the change against the original. Additions merge into search and checks and stay removable.",
+      description: "Add, correct, or remove institutional reference: a course with an optional section, a program with a validated requirement tree, or a club, research, or campus program listing. Pass exactly one of course, program, opportunity, or remove per call; additions and corrections always carry a classified source. Reusing a shipped entry's ID amends it, and the interface shows the change against the original. Agent-added entries are removable; shipped programs are not.",
       inputSchema: schema({
         expectedVersion: field("number", "Current workspace version"),
         idempotencyKey: field("string", "Unique retry-safe operation key"),
@@ -327,13 +338,30 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           },
           required: ["name", "summary", "kind"]
         },
+        remove: {
+          type: "object",
+          additionalProperties: false,
+          description: "Remove an agent-added reference entry by ID; shipped entries cannot be removed",
+          properties: {
+            kind: { type: "string", enum: ["course", "program", "opportunity"], description: "What to remove" },
+            id: field("string", "The entry's stable ID")
+          },
+          required: ["kind", "id"]
+        },
         evidence: evidenceField
-      }, ["expectedVersion", "idempotencyKey", "evidence"]),
+      }, ["expectedVersion", "idempotencyKey"]),
       annotations: annotations(false, true),
       examples: [],
       execute: async (input) => {
-        const provided = [input.course, input.program, input.opportunity].filter(Boolean).length
-        if (provided !== 1) return { ok: false, code: "COMMAND_INVALID", message: "Pass exactly one of course, program, or opportunity per call." }
+        const provided = [input.course, input.program, input.opportunity, input.remove].filter(Boolean).length
+        if (provided !== 1) return { ok: false, code: "COMMAND_INVALID", message: "Pass exactly one of course, program, opportunity, or remove per call." }
+        if (input.remove) {
+          if (input.remove.kind === "program") return mutate(input, { type: "remove_reference_program", programId: input.remove.id })
+          if (input.remove.kind === "opportunity") return mutate(input, { type: "remove_reference_opportunity", opportunityId: input.remove.id })
+          if (input.remove.kind === "course") return mutate(input, { type: "remove_reference_course", courseId: input.remove.id })
+          return { ok: false, code: "COMMAND_INVALID", message: "remove.kind must be course, program, or opportunity." }
+        }
+        if (!input.evidence) return { ok: false, code: "COMMAND_INVALID", message: "Adding or correcting reference always carries a classified evidence source." }
         if (input.program) return mutate(input, { type: "add_reference_program", program: input.program, evidence: input.evidence })
         if (input.opportunity) return mutate(input, { type: "extend_reference_opportunity", opportunity: input.opportunity, evidence: input.evidence })
         return mutate(input, { type: "extend_reference", course: input.course, section: input.section, evidence: input.evidence })
@@ -349,7 +377,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "export_context",
-      description: "Export the workspace as paged markdown for your context window. Sections: all, profile, goals, todos, scratchpad, plans, courses, clubs, activities, calendar, history. Follow nextCursor until it is absent; each page stays near five thousand characters. Pull this once at the start of a session instead of many small reads.",
+      description: "Export the workspace as paged markdown for your context window. Sections: all, profile, goals, todos, events, scratchpad, plans, courses, clubs, activities, calendar, history. Follow nextCursor until it is absent; each page stays near five thousand characters. Pull this once at the start of a session instead of many small reads.",
       inputSchema: schema({ section: { type: "string", enum: ["all", "profile", "goals", "todos", "events", "scratchpad", "plans", "courses", "clubs", "activities", "calendar", "history"], description: "Section to export; defaults to all" }, cursor: field("number", "Page cursor returned by the previous call") }),
       annotations: annotations(true),
       examples: [{ section: "all" }],
