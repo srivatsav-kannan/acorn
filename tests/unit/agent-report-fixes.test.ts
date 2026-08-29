@@ -378,6 +378,9 @@ describe("codex round four findings", () => {
       expect(declared).toContain(op)
     }
     expect(editPlan.examples.length).toBeGreaterThan(0)
+    const conditionals = (operations.items as { allOf?: Array<{ if: { properties: { type: { const: string } } }, then: { required: string[] } }> }).allOf ?? []
+    expect(conditionals.find((entry) => entry.if.properties.type.const === "set_unit_limit")?.then.required).toContain("unitLimit")
+    expect(conditionals.find((entry) => entry.if.properties.type.const === "add_course")?.then.required).toContain("planCourse")
   })
 
   it("archives agent evidence and its source card through extend_reference remove", async () => {

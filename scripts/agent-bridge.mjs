@@ -114,7 +114,8 @@ const listTools = () => page.evaluate(() => [...window.__acornToolRegistry.value
   name: tool.name,
   readOnly: tool.annotations?.readOnlyHint ?? false,
   description: tool.description,
-  inputSchema: tool.inputSchema
+  inputSchema: tool.inputSchema,
+  examples: tool.examples ?? []
 })))
 
 const callTool = (tool, input) => page.evaluate(async ({ tool, input }) => {

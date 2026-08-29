@@ -280,7 +280,19 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             name: field("string", "rename_scenario"),
             unitLimit: field("number", "set_unit_limit: 1 to 30")
           },
-          required: ["type"]
+          required: ["type"],
+          allOf: [
+            { if: { properties: { type: { const: "add_course" } } }, then: { required: ["planCourse"] } },
+            { if: { properties: { type: { const: "remove_course" } } }, then: { required: ["planCourseId"] } },
+            { if: { properties: { type: { const: "select_section" } } }, then: { required: ["planCourseId", "sectionId"] } },
+            { if: { properties: { type: { const: "set_status" } } }, then: { required: ["planCourseId", "status"] } },
+            { if: { properties: { type: { const: "set_units" } } }, then: { required: ["planCourseId", "units"] } },
+            { if: { properties: { type: { const: "add_commitment" } } }, then: { required: ["commitment"] } },
+            { if: { properties: { type: { const: "remove_commitment" } } }, then: { required: ["commitmentId"] } },
+            { if: { properties: { type: { const: "create_scenario" } } }, then: { required: ["scenario"] } },
+            { if: { properties: { type: { const: "rename_scenario" } } }, then: { required: ["name"] } },
+            { if: { properties: { type: { const: "set_unit_limit" } } }, then: { required: ["unitLimit"] } }
+          ]
         }
       } }, ["expectedVersion", "idempotencyKey", "operations"]),
       annotations: annotations(false),
