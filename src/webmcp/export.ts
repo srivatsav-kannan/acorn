@@ -67,6 +67,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
         const units = scenario.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0)
         blocks.push([
           `### ${termLabel(plan.termId)} \`${plan.id}\` (${units} units planned)`,
+          ...(scenario.rationale ? [`Why: ${scenario.rationale}`] : []),
           ...scenario.courses.map((item) => `- ${code(item.courseId)} (${item.units} units${item.status === "backup" ? ", backup" : ""}) \`${item.courseId}\``),
           ...(scenario.commitments.length ? [`Commitments: ${scenario.commitments.map((item) => item.title).join("; ")}`] : [])
         ].join("\n"))

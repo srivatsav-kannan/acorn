@@ -112,6 +112,15 @@ const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, 
       changed.push({ type: "plan_scenario", id: candidate.id })
       continue
     }
+    if (operation.type === "set_rationale") {
+      const target = plan.scenarios.find((item) => item.id === command.scenarioId)
+      if (!target) throw commandError("Scenario not found")
+      const rationale = String(operation.rationale ?? "").trim()
+      if (rationale.length > 500) throw commandError("A scenario rationale stays within 500 characters")
+      target.rationale = rationale || undefined
+      changed.push({ type: "plan_scenario", id: target.id })
+      continue
+    }
     if (operation.type === "set_unit_limit") {
       const target = plan.scenarios.find((item) => item.id === command.scenarioId)
       const limit = Number(operation.unitLimit)

@@ -57,6 +57,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
   const [creditInstitution, setCreditInstitution] = useState("")
   const [creditCourseTitle, setCreditCourseTitle] = useState("")
   const [addingCredit, setAddingCredit] = useState(false)
+  const [rationaleDraft, setRationaleDraft] = useState<string | null>(null)
 
   const institution = institutionForWorkspace(workspace)
   const shippedCourses = useMemo(() => new Map(institution.buildCatalog().courses.map((course) => [course.id, course])), [institution])
@@ -244,6 +245,10 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
             return <li key={item.id}><span><b>{course?.code ?? item.courseId}</b><small>{course?.title}</small></span><em>{item.units}</em><button className="text-button" type="button" onClick={() => void removePlanned(item.id)} aria-label={`Remove ${course?.code ?? item.courseId} from plan`}>Remove</button></li>
           })}
         </ul>}
+        {scenario && (rationaleDraft !== null ? <div className="plan-rationale-edit">
+          <textarea aria-label="Why this scenario" rows={3} maxLength={500} value={rationaleDraft} onChange={(event) => setRationaleDraft(event.target.value)} autoFocus />
+          <div className="form-row-actions"><button className="secondary-button small" type="button" onClick={() => setRationaleDraft(null)}>Cancel</button><button className="primary-button small" type="button" onClick={async () => { await value.onCommand({ type: "edit_plan", planId: plan!.id, scenarioId: scenario.id, operations: [{ type: "set_rationale", rationale: rationaleDraft }] }); setRationaleDraft(null) }}>Save</button></div>
+        </div> : scenario.rationale ? <button className="plan-rationale" type="button" onClick={() => setRationaleDraft(scenario.rationale ?? "")} aria-label="Edit why this scenario"><b>Why this shape</b> {scenario.rationale}</button> : scenario.courses.length > 0 ? <button className="text-button plan-rationale-add" type="button" onClick={() => setRationaleDraft("")}>Add why this shape</button> : null)}
         {checks.length > 0 && <div className="plan-rail-checks">
           {checks.map((check, index) => <p key={index} className={check.severity}><b>{check.code.replaceAll("_", " ").toLowerCase()}</b> {check.message}</p>)}
         </div>}

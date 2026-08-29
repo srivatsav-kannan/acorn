@@ -121,6 +121,9 @@ export type PlanScenario = {
   id: string
   name: string
   unitLimit: number
+  // Why the quarter has this shape: the tradeoffs behind the course mix,
+  // written by the student or their agent and kept with the plan it explains.
+  rationale?: string
   courses: PlanCourse[]
   commitments: Commitment[]
 }

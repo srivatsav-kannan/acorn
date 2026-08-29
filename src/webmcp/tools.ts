@@ -167,6 +167,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             id: scenario.id,
             name: scenario.name,
             unitLimit: scenario.unitLimit,
+            rationale: scenario.rationale,
             courses: scenario.courses ?? [],
             commitments: (scenario.commitments ?? []).map((commitment) => ({ id: commitment.id, title: commitment.title }))
           }))
@@ -306,7 +307,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         items: {
           type: "object",
           properties: {
-            type: { type: "string", enum: ["add_course", "remove_course", "select_section", "set_status", "set_units", "add_commitment", "remove_commitment", "create_scenario", "delete_scenario", "rename_scenario", "set_active_scenario", "set_unit_limit"], description: "Operation kind" },
+            type: { type: "string", enum: ["add_course", "remove_course", "select_section", "set_status", "set_units", "add_commitment", "remove_commitment", "create_scenario", "delete_scenario", "rename_scenario", "set_active_scenario", "set_unit_limit", "set_rationale"], description: "Operation kind" },
             planCourse: field("object", "add_course: {id, courseId, sectionId, units, status: active or backup}"),
             planCourseId: field("string", "remove_course, select_section, set_status, and set_units name the plan course this way"),
             sectionId: field("string", "select_section: the section to switch to"),
@@ -316,7 +317,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             commitmentId: field("string", "remove_commitment"),
             scenario: field("object", "create_scenario: {id, name, courses: []}; activate it separately"),
             name: field("string", "rename_scenario"),
-            unitLimit: field("number", "set_unit_limit: 1 to 30")
+            unitLimit: field("number", "set_unit_limit: 1 to 30"),
+            rationale: field("string", "set_rationale: why this scenario has its shape, 500 characters at most; empty clears it")
           },
           required: ["type"],
           allOf: [
@@ -329,7 +331,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             { if: { properties: { type: { const: "remove_commitment" } } }, then: { required: ["commitmentId"] } },
             { if: { properties: { type: { const: "create_scenario" } } }, then: { required: ["scenario"] } },
             { if: { properties: { type: { const: "rename_scenario" } } }, then: { required: ["name"] } },
-            { if: { properties: { type: { const: "set_unit_limit" } } }, then: { required: ["unitLimit"] } }
+            { if: { properties: { type: { const: "set_unit_limit" } } }, then: { required: ["unitLimit"] } },
+            { if: { properties: { type: { const: "set_rationale" } } }, then: { required: ["rationale"] } }
           ]
         }
       } }, ["expectedVersion", "idempotencyKey", "operations"]),

@@ -186,6 +186,30 @@ describe("goal edge cases", () => {
   })
 })
 
+describe("scenario rationale", () => {
+  it("stores, exposes, exports, validates, and clears the why of a plan shape", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const editPlan = findTool(tools, "edit_plan")
+    const tooLong = await editPlan.execute({ expectedVersion: 1, idempotencyKey: "RAT-0", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_rationale", rationale: "x".repeat(501) }] })
+    expect(tooLong).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    const set = await editPlan.execute({ expectedVersion: 1, idempotencyKey: "RAT-1", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_rationale", rationale: "Capped at 13 units so CS 106B gets the attention its per-unit weight demands." }] })
+    expect(set).toMatchObject({ ok: true })
+    const plan = await findTool(tools, "get_plan").execute({ planId: "PLAN-AUT26" }) as { plan: { scenarios: Array<{ id: string, rationale?: string }> } }
+    expect(plan.plan.scenarios.find((scenario) => scenario.id === "SCENARIO-PRIMARY")?.rationale).toContain("per-unit weight")
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const exported = exportBlocks(workspace, buildFixture().catalog, [], "plans", new Date("2026-08-29T12:00:00Z")).join("\n")
+    expect(exported).toContain("Why: Capped at 13 units")
+    const schema = editPlan.inputSchema.properties?.operations as { items?: { properties?: { type?: { enum?: string[] } }, allOf?: Array<{ if: { properties: { type: { const: string } } }, then: { required: string[] } }> } }
+    expect(schema.items?.properties?.type?.enum).toContain("set_rationale")
+    expect(schema.items?.allOf?.find((entry) => entry.if.properties.type.const === "set_rationale")?.then.required).toContain("rationale")
+    const cleared = await editPlan.execute({ expectedVersion: 2, idempotencyKey: "RAT-2", planId: "PLAN-AUT26", scenarioId: "SCENARIO-PRIMARY", operations: [{ type: "set_rationale", rationale: "" }] })
+    expect(cleared).toMatchObject({ ok: true })
+    const after = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(after.plans[0].scenarios[0].rationale).toBeUndefined()
+  })
+})
+
 describe("protected time windows", () => {
   it("stores validated windows through the profile and flags overlapping sections", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())

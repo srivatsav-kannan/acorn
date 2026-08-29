@@ -144,6 +144,11 @@ input, select, textarea { accent-color: var(--cardinal); }
 .goal-milestone { display: flex; align-items: baseline; gap: 8px; font-size: 14px; cursor: pointer; }
 .goal-milestone input { accent-color: var(--cardinal); }
 .goal-milestone-done { text-decoration: line-through; color: var(--muted); }
+.plan-rationale { display: block; width: 100%; text-align: left; margin: 10px 0 0; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--paper); font-size: 13.5px; line-height: 1.5; color: #5a4536; cursor: pointer; }
+.plan-rationale b { display: block; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.plan-rationale-add { margin-top: 10px; }
+.plan-rationale-edit { margin-top: 10px; display: grid; gap: 8px; }
+.plan-rationale-edit textarea { width: 100%; }
 .scratch-card h3 { margin: 0 0 6px; font-size: 17.5px; }
 .scratch-card p { flex: 1; margin: 0 0 10px; color: #5a4536; font-size: 14px; line-height: 1.55; white-space: pre-line; }
 .scratch-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
