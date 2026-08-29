@@ -70,7 +70,7 @@ test("courses search, interest, planning, and undo run through one command path"
   await page.getByRole("button", { name: "Interested", exact: true }).first().click()
   await expect(page.getByRole("button", { name: /Interested ✓/ }).first()).toBeVisible()
   await page.getByRole("button", { name: /Plan CS 148 for Aut 2026/ }).first().click()
-  await expect(page.locator(".plan-rail").getByText("CS 148")).toBeVisible()
+  await expect(page.locator(".plan-rail").getByText("CS 148", { exact: true }).first()).toBeVisible()
 
   await page.locator(".plan-rail").getByRole("button", { name: /Remove DESIGN 60 from plan/ }).click()
   await page.getByRole("button", { name: "Activity" }).click()
