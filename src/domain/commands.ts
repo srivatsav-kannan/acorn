@@ -22,6 +22,19 @@ type Envelope = {
 const commandError = (message: string) => new RepositoryError("COMMAND_INVALID", message)
 const actionId = (key: string) => `ACTION-${key.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)}`
 
+// Format checks alone let 2026-02-30 and 25:61 through, so calendar values
+// are checked against the actual calendar and clock.
+const isRealDate = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [year, month, day] = value.split("-").map(Number)
+  return month >= 1 && month <= 12 && day >= 1 && day <= new Date(Date.UTC(year, month, 0)).getUTCDate()
+}
+const isRealTime = (value: string): boolean => {
+  if (!/^\d{2}:\d{2}$/.test(value)) return false
+  const [hours, minutes] = value.split(":").map(Number)
+  return hours <= 23 && minutes <= 59
+}
+
 const sanitizeTags = (tags: unknown): string[] | undefined => {
   if (!Array.isArray(tags)) return undefined
   const cleaned = tags.map((tag) => String(tag).trim().toLowerCase().slice(0, 24)).filter(Boolean).slice(0, 8)
@@ -249,8 +262,8 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         workspace.profile.classYear = patch.classYear.trim().slice(0, 30) || undefined
       }
       if (typeof patch.recoveryPhone === "string") workspace.profile.recoveryPhone = patch.recoveryPhone.trim().slice(0, 24) || undefined
-      if (typeof patch.earliestStart === "string" && /^\d{2}:\d{2}$/.test(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
-      if (typeof patch.latestEnd === "string" && /^\d{2}:\d{2}$/.test(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
+      if (typeof patch.earliestStart === "string" && isRealTime(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
+      if (typeof patch.latestEnd === "string" && isRealTime(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))
       if (patch.declaredProgramId === null || (typeof patch.declaredProgramId === "string" && workspace.programs.some((program) => program.id === patch.declaredProgramId))) workspace.profile.declaredProgramId = patch.declaredProgramId as string | null
       changed.push({ type: "student_profile", id: workspace.profile.id })
@@ -394,12 +407,13 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       workspace.todos = Array.isArray(workspace.todos) ? workspace.todos : []
       const action = String(command.action ?? "")
       if (action === "add") {
-        const title = String(command.todo?.title ?? "").trim().slice(0, 120)
+        const title = String(command.todo?.title ?? "").trim()
         if (!title) throw commandError("A todo needs a title")
+        if (title.length > 120) throw commandError("A todo title stays within 120 characters")
         const due = command.todo?.due ? String(command.todo.due) : undefined
-        if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw commandError("A todo due date uses YYYY-MM-DD")
+        if (due && !isRealDate(due)) throw commandError("A todo due date uses YYYY-MM-DD and must be a real calendar date")
         const dueTime = command.todo?.dueTime ? String(command.todo.dueTime) : undefined
-        if (dueTime && !/^\d{2}:\d{2}$/.test(dueTime)) throw commandError("A todo due time uses 24h HH:MM")
+        if (dueTime && !isRealTime(dueTime)) throw commandError("A todo due time uses 24h HH:MM with a real clock value")
         if (dueTime && !due) throw commandError("A due time needs a due date")
         const todo = {
           id: String(command.todo?.id ?? `TODO-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`),
@@ -435,13 +449,14 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         changed.push({ type: "event", id: removed.id })
       } else if (action === "add" || action === "update") {
         const input = command.event ?? {}
-        const title = String(input.title ?? "").trim().slice(0, 100)
+        const title = String(input.title ?? "").trim()
         if (!title) throw commandError("An event needs a title")
+        if (title.length > 100) throw commandError("An event title stays within 100 characters")
         const date = String(input.date ?? "")
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw commandError("An event date uses YYYY-MM-DD")
-        const time = /^\d{2}:\d{2}$/
-        for (const bound of [input.start, input.end]) if (bound && !time.test(String(bound))) throw commandError("Event times use 24h HH:MM")
+        if (!isRealDate(date)) throw commandError("An event date uses YYYY-MM-DD and must be a real calendar date")
+        for (const bound of [input.start, input.end]) if (bound && !isRealTime(String(bound))) throw commandError("Event times use 24h HH:MM with real clock values")
         if (input.end && !input.start) throw commandError("An end time needs a start time")
+        if (input.start && input.end && String(input.end) < String(input.start)) throw commandError("An event's end time comes before its start time")
         const timezone = input.timezone ? String(input.timezone) : undefined
         if (timezone && !isValidTimezone(timezone)) throw commandError("Unknown timezone; use an IANA name such as America/New_York")
         const event = {
@@ -509,17 +524,16 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (!name) throw commandError("An activity needs a name")
       const kind = ["research", "job", "volunteering", "athletics", "arts", "other"].includes(String(input.kind)) ? input.kind : "other"
       const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-      const time = /^\d{2}:\d{2}$/
-      const isoDate = /^\d{4}-\d{2}-\d{2}$/
       let schedule
       if (input.schedule) {
         const scheduleDays = Array.isArray(input.schedule.days) ? input.schedule.days.map(String).filter((day: string) => days.includes(day)) : []
-        if (scheduleDays.length === 0 || !time.test(String(input.schedule.start)) || !time.test(String(input.schedule.end))) throw commandError("An activity schedule needs days and HH:MM start and end times")
+        if (scheduleDays.length === 0 || !isRealTime(String(input.schedule.start)) || !isRealTime(String(input.schedule.end))) throw commandError("An activity schedule needs days and real HH:MM start and end times")
+        if (String(input.schedule.end) <= String(input.schedule.start)) throw commandError("An activity's end time must come after its start time")
         schedule = { days: scheduleDays, start: String(input.schedule.start), end: String(input.schedule.end), location: typeof input.schedule.location === "string" ? input.schedule.location.trim().slice(0, 80) : undefined }
       }
-      for (const bound of [input.startDate, input.endDate]) if (bound && !isoDate.test(String(bound))) throw commandError("Activity dates use YYYY-MM-DD")
+      for (const bound of [input.startDate, input.endDate]) if (bound && !isRealDate(String(bound))) throw commandError("Activity dates use YYYY-MM-DD and must be real calendar dates")
       const dates = Array.isArray(input.dates) ? input.dates.slice(0, 30).map((item: Record<string, unknown>) => {
-        if (!isoDate.test(String(item?.date)) || !String(item?.label ?? "").trim()) throw commandError("Each activity date needs a YYYY-MM-DD date and a label")
+        if (!isRealDate(String(item?.date)) || !String(item?.label ?? "").trim()) throw commandError("Each activity date needs a real YYYY-MM-DD date and a label")
         return { date: String(item.date), label: String(item.label).trim().slice(0, 80) }
       }) : undefined
       const activity = {

@@ -15,10 +15,19 @@ const requireText = (value: unknown, field: string, max = 120): string => {
   return text.slice(0, max)
 }
 
+// The stored kind wins when it was chosen deliberately, but records created
+// before the kind field existed, or through callers that never set it, were
+// stamped "ap" by default. An exam literally named IB is IB regardless.
+export const creditCategory = (credit: { kind?: string, exam: string }): "ap" | "ib" | "college" => {
+  if (credit.kind === "college") return "college"
+  if (credit.kind === "ib" || /^IB\b/i.test(credit.exam)) return "ib"
+  return "ap"
+}
+
 export const validateApCredit = (input: Record<string, unknown>): ApCredit => {
   const exam = requireText(input.exam, "named exam or credit source", 80)
   const id = String(input.id ?? `AP-${exam.toUpperCase().replace(/[^A-Z0-9]+/g, "-")}`).slice(0, 80)
-  const kind = ["ap", "ib", "college"].includes(String(input.kind)) ? input.kind as ApCredit["kind"] : "ap"
+  const kind = ["ap", "ib", "college"].includes(String(input.kind)) ? input.kind as ApCredit["kind"] : creditCategory({ exam })
   const credit: ApCredit = { id, exam, kind }
   if (kind === "college" && typeof input.institution === "string" && input.institution.trim()) credit.institution = input.institution.trim().slice(0, 80)
   if (input.score !== undefined && input.score !== null && input.score !== "") {

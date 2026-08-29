@@ -3,6 +3,7 @@
 import { useDeferredValue, useMemo, useState } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
 import { apExamPresets, apGrantFor, apScoreChoices, ibExamPresets, ibScoreChoices } from "@/data/institutions/stanford-ap"
+import { creditCategory } from "@/domain/history"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateDegreePlan, planForTerm } from "@/domain/degree-plan"
 import { checkPlan } from "@/domain/planner"
@@ -361,7 +362,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
           </>}
           <button className="primary-button" type="submit">Save credit</button>
         </form>}
-        {apCredits.length === 0 ? <p className="muted">No credits recorded.</p> : <ul className="history-list">{apCredits.map((credit) => <li key={credit.id}><span><b>{credit.exam}</b><small>{[credit.kind === "ib" ? "IB" : credit.kind === "college" ? (credit.institution || "College") : "AP", credit.score !== undefined ? `score ${credit.score}` : null, credit.unitsGranted !== undefined ? `${credit.unitsGranted} units granted` : null].filter(Boolean).join(" · ")}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "update_academic_history", patch: { apCredits: apCredits.filter((item) => item.id !== credit.id) } })}>Remove</button></li>)}</ul>}
+        {apCredits.length === 0 ? <p className="muted">No credits recorded.</p> : <ul className="history-list">{apCredits.map((credit) => <li key={credit.id}><span><b>{credit.exam}</b><small>{[creditCategory(credit) === "ib" ? "IB" : creditCategory(credit) === "college" ? (credit.institution || "College") : "AP", credit.score !== undefined ? `score ${credit.score}` : null, credit.unitsGranted !== undefined ? `${credit.unitsGranted} units granted` : null].filter(Boolean).join(" · ")}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "update_academic_history", patch: { apCredits: apCredits.filter((item) => item.id !== credit.id) } })}>Remove</button></li>)}</ul>}
       </section>
     </div>}
 

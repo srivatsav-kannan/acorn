@@ -60,6 +60,12 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
   const catalog = async () => mergedCatalogFor(await workspace(), repository.catalog)
   const gate = runExclusive ?? (<T,>(task: () => Promise<T>) => task())
   const mutate = (input: any, command: Record<string, unknown>) => gate(async () => {
+    // A spec-following WebMCP host validates the input schema before calling
+    // execute, but a permissive host or a raw bridge can reach this point
+    // with the envelope fields missing. Answer plainly instead of crashing.
+    if (!Number.isInteger(input?.expectedVersion) || typeof input?.idempotencyKey !== "string" || !input.idempotencyKey.trim()) {
+      return { ok: false, code: "COMMAND_INVALID", retryable: false, message: "Every mutation needs an integer expectedVersion and a non-empty idempotencyKey string." }
+    }
     let applied: { receiptId: string } | null = null
     try {
       const versionBefore = await repository.getWorkspaceVersion(session.workspaceId, session.userId)
@@ -390,7 +396,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "manage_todo",
       description: "Add, complete, or remove a visible todo. Todos with a due date appear on the calendar. Actions: add with a todo object, toggle or remove with a todoId.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), action: { type: "string", enum: ["add", "toggle", "remove"], description: "What to do" }, todo: { type: "object", additionalProperties: false, description: "For add", properties: { title: field("string", "Short imperative title"), detail: field("string", "Optional context"), due: field("string", "Optional due date, YYYY-MM-DD") }, required: ["title"] }, todoId: field("string", "For toggle and remove") }, ["expectedVersion", "idempotencyKey", "action"]),
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), action: { type: "string", enum: ["add", "toggle", "remove"], description: "What to do" }, todo: { type: "object", additionalProperties: false, description: "For add", properties: { title: field("string", "Short imperative title, 120 characters at most"), detail: field("string", "Optional context"), due: field("string", "Optional due date, YYYY-MM-DD"), dueTime: field("string", "Optional 24h HH:MM due time; needs a due date") }, required: ["title"] }, todoId: field("string", "For toggle and remove") }, ["expectedVersion", "idempotencyKey", "action"]),
       annotations: annotations(false),
       examples: [],
       execute: async (input) => mutate(input, { type: "manage_todo", action: input.action, todo: input.todo, todoId: input.todoId })
@@ -414,7 +420,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "manage_event",
       description: "Add, update, or remove a standalone calendar event: an interview, a flight, a review session. Events take a date, optional HH:MM start and end, an optional IANA timezone (campus Pacific time when omitted), and a description. Actions: add or update with an event object, remove with an eventId.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), action: { type: "string", enum: ["add", "update", "remove"], description: "What to do" }, event: { type: "object", additionalProperties: false, description: "For add and update; reuse an ID to update", properties: { id: field("string", "Stable ID; omit to create"), title: field("string", "Short event title"), description: field("string", "What this is and anything worth remembering"), date: field("string", "YYYY-MM-DD"), start: field("string", "24h HH:MM"), end: field("string", "24h HH:MM"), timezone: field("string", "IANA zone such as America/New_York") }, required: ["title", "date"] }, eventId: field("string", "For remove") }, ["expectedVersion", "idempotencyKey", "action"]),
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), action: { type: "string", enum: ["add", "update", "remove"], description: "What to do" }, event: { type: "object", additionalProperties: false, description: "For add and update; reuse an ID to update", properties: { id: field("string", "Stable ID; omit to create"), title: field("string", "Short event title, 100 characters at most"), description: field("string", "What this is and anything worth remembering"), date: field("string", "YYYY-MM-DD, a real calendar date"), start: field("string", "24h HH:MM"), end: field("string", "24h HH:MM, not before start"), timezone: field("string", "IANA zone such as America/New_York") }, required: ["title", "date"] }, eventId: field("string", "For remove") }, ["expectedVersion", "idempotencyKey", "action"]),
       annotations: annotations(false),
       examples: [],
       execute: async (input) => mutate(input, { type: "manage_event", action: input.action, event: input.event, eventId: input.eventId })

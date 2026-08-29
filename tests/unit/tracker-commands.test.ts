@@ -66,7 +66,7 @@ describe("activity commands", () => {
   it("validates schedules, dates, and sources before saving", async () => {
     const repository = setup()
     await expect(run(repository, { type: "upsert_activity", activity: { name: "" } }, 1, "A0")).rejects.toThrow(/needs a name/)
-    await expect(run(repository, { type: "upsert_activity", activity: { name: "Lab", schedule: { days: [], start: "15:00", end: "17:00" } } }, 1, "A1")).rejects.toThrow(/days and HH:MM/)
+    await expect(run(repository, { type: "upsert_activity", activity: { name: "Lab", schedule: { days: [], start: "15:00", end: "17:00" } } }, 1, "A1")).rejects.toThrow(/days and real HH:MM/)
     await expect(run(repository, { type: "upsert_activity", activity: { name: "Lab", startDate: "October" } }, 1, "A2")).rejects.toThrow(/YYYY-MM-DD/)
     await expect(run(repository, { type: "upsert_activity", activity: { name: "Lab", dates: [{ date: "2026-10-01", label: " " }] } }, 1, "A3")).rejects.toThrow(/date and a label/)
     await expect(run(repository, { type: "upsert_activity", activity: { name: "Lab", sourceUrl: "javascript:alert(1)" } }, 1, "A4")).rejects.toThrow()

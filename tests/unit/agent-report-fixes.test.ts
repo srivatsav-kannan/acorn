@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { buildFixture } from "@/data/fixture"
 import { executeCommand } from "@/domain/commands"
+import { creditCategory, validateApCredit } from "@/domain/history"
 import { searchWorkspace } from "@/domain/search"
 import type { WorkspaceState } from "@/domain/types"
 import { createCourseContextTools } from "@/webmcp/tools"
@@ -171,6 +172,65 @@ describe("identity and history consistency", () => {
     expect(exported).toContain("- AP: AP Computer Science A, score 5, 5 units granted")
     expect(exported).toContain("- IB: IB Physics HL, score 7, 8 units granted")
     expect(exported).toContain("- Foothill College: Multivariable Calculus, 4 units granted")
+  })
+})
+
+describe("codex round one findings", () => {
+  const envelope = (command: Record<string, unknown>, expectedVersion: number, key: string) =>
+    ({ actor: { type: "agent" as const, id: "AGENT-TEST" }, ownerUserId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", expectedVersion, idempotencyKey: key, command })
+
+  it("rejects impossible calendar values instead of committing them", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const add = (event: Record<string, unknown>, key: string) =>
+      executeCommand(repository, envelope({ type: "manage_event", action: "add", event }, 1, key))
+    await expect(add({ title: "Bad day", date: "2026-02-30" }, "IMP-1")).rejects.toThrow(/real calendar date/)
+    await expect(add({ title: "Bad day", date: "2027-02-29" }, "IMP-2")).rejects.toThrow(/real calendar date/)
+    await expect(add({ title: "Bad clock", date: "2026-10-05", start: "25:61" }, "IMP-3")).rejects.toThrow(/real clock/)
+    await expect(add({ title: "Backwards", date: "2026-10-05", start: "17:00", end: "09:00" }, "IMP-4")).rejects.toThrow(/end time comes before its start/)
+    await expect(executeCommand(repository, envelope({ type: "manage_todo", action: "add", todo: { title: "Bad due", due: "2026-02-30" } }, 1, "IMP-5"))).rejects.toThrow(/real calendar date/)
+    await expect(executeCommand(repository, envelope({ type: "manage_todo", action: "add", todo: { title: "Bad due time", due: "2026-10-05", dueTime: "24:00" } }, 1, "IMP-6"))).rejects.toThrow(/real clock/)
+    const leapDay = await add({ title: "Leap day brunch", date: "2028-02-29", start: "10:00", end: "11:30" }, "IMP-7")
+    expect(leapDay.ok).toBe(true)
+  })
+
+  it("rejects oversized titles instead of silently truncating them", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    await expect(executeCommand(repository, envelope({ type: "manage_event", action: "add", event: { title: "x".repeat(101), date: "2026-10-05" } }, 1, "LONG-1"))).rejects.toThrow(/100 characters/)
+    await expect(executeCommand(repository, envelope({ type: "manage_todo", action: "add", todo: { title: "x".repeat(121) } }, 1, "LONG-2"))).rejects.toThrow(/120 characters/)
+  })
+
+  it("labels legacy IB records as IB even when their stored kind defaulted to ap", () => {
+    const { workspace, catalog } = buildFixture()
+    workspace.profile.apCredits = [
+      { id: "AP-IB-PHYSICS-HL", exam: "IB Physics HL", score: 7, unitsGranted: 8, satisfiesCourseIds: [], kind: "ap" },
+      { id: "AP-CALC", exam: "AP Calculus BC", score: 5, unitsGranted: 10, satisfiesCourseIds: [], kind: "ap" }
+    ]
+    const exported = exportBlocks(workspace, catalog, [], "history", new Date("2026-08-29T12:00:00Z")).join("\n")
+    expect(exported).toContain("- IB: IB Physics HL")
+    expect(exported).toContain("- AP: AP Calculus BC")
+  })
+
+  it("infers IB from the exam name and allows IB score bounds when kind is omitted", () => {
+    const credit = validateApCredit({ exam: "IB Chemistry HL", score: 7 })
+    expect(credit.kind).toBe("ib")
+    expect(credit.score).toBe(7)
+    expect(creditCategory({ exam: "AP Statistics" })).toBe("ap")
+    expect(creditCategory({ exam: "Multivariable Calculus", kind: "college" })).toBe("college")
+  })
+
+  it("registers dueTime in the manage_todo schema so schema-following hosts can send it", () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const schema = findTool(tools, "manage_todo").inputSchema.properties?.todo as { properties?: Record<string, unknown> }
+    expect(schema.properties?.dueTime).toBeDefined()
+  })
+
+  it("answers a missing envelope with a clean error instead of crashing", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const bare = await findTool(tools, "manage_event").execute({})
+    expect(bare).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(String(bare.message)).toMatch(/expectedVersion/)
   })
 })
 

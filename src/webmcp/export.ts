@@ -1,4 +1,5 @@
 import { calendarEventsForRange, isoDate } from "@/domain/calendar"
+import { creditCategory } from "@/domain/history"
 import { standingForTerm, supportsTimeline, termLabel, timelineFor } from "@/domain/timeline"
 import type { Catalog, Opportunity, WorkspaceState } from "@/domain/types"
 
@@ -105,8 +106,11 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
     }
     if (current === "history") {
       const completed = workspace.profile.completedCourseIds.map((id) => code(id))
-      const creditKind = (credit: { kind?: string, institution?: string }) => credit.kind === "ib" ? "IB" : credit.kind === "college" ? credit.institution || "College course" : "AP"
-      const credits = (workspace.profile.apCredits ?? []).map((credit) => `- ${creditKind(credit)}: ${credit.exam}${credit.score ? `, score ${credit.score}` : ""}${credit.unitsGranted ? `, ${credit.unitsGranted} units granted` : ""}`)
+      const creditLabel = (credit: { kind?: string, exam: string, institution?: string }) => {
+        const category = creditCategory(credit)
+        return category === "ib" ? "IB" : category === "college" ? credit.institution || "College course" : "AP"
+      }
+      const credits = (workspace.profile.apCredits ?? []).map((credit) => `- ${creditLabel(credit)}: ${credit.exam}${credit.score ? `, score ${credit.score}` : ""}${credit.unitsGranted ? `, ${credit.unitsGranted} units granted` : ""}`)
       blocks.push([`## Academic history`, completed.length ? `Completed: ${completed.join(", ")}.` : "No completed courses recorded.", ...(credits.length ? ["External credit (AP, IB, and college coursework):", ...credits] : ["No external credit recorded."])].join("\n"))
     }
   }

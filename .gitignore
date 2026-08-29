@@ -15,3 +15,4 @@ test-results/
 *.tsbuildinfo
 *.log
 scripts/import-stanford/.cache/
+.claude/settings.local.json
