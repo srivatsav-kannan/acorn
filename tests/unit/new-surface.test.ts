@@ -199,10 +199,13 @@ describe("organization search gaps and source urls", () => {
     for (let index = 0; index < 8; index++) {
       workspace.contextItems.push({ id: `NOTE-FILLER-${index}`, type: "note", title: `Research filler ${index}`, summary: "General research note about health and AI readiness.", content: { text: "research health readiness" }, tags: [], collectionId: "COLLECTION-INBOX", addedBy: { type: "human", id: "USER-DEMO" }, createdAt: "2026-08-29T00:00:00Z", updatedAt: "2026-08-29T00:00:00Z" })
     }
-    workspace.contextItems.push({ id: "GOAL-CURIS-RANK", type: "goal", title: "Be ready for early health-AI research and CURIS", summary: "Shortlist labs by winter.", content: { text: "steps" }, tags: [], collectionId: "COLLECTION-INBOX", addedBy: { type: "agent", id: "AGENT" }, createdAt: "2026-08-29T00:00:00Z", updatedAt: "2026-08-29T00:00:00Z" })
+    workspace.contextItems.push({ id: "GOAL-CURIS-RANK", type: "goal", title: "Be ready for early health-AI research and CURIS", summary: undefined as unknown as string, content: { text: "steps" }, tags: [], collectionId: "COLLECTION-INBOX", addedBy: { type: "agent", id: "AGENT" }, createdAt: "2026-08-29T00:00:00Z", updatedAt: "2026-08-29T00:00:00Z" })
     const found = searchWorkspace(workspace, catalog, "Be ready for early health-AI research and CURIS")
     const library = found.groups.find((group) => group.type === "library")!
     expect(library.items[0].id).toBe("GOAL-CURIS-RANK")
+    const bodyOnly = searchWorkspace(workspace, catalog, "general research note about health")
+    const bodyLibrary = bodyOnly.groups.find((group) => group.type === "library")!
+    expect(bodyLibrary.items.length).toBeGreaterThan(0)
   })
 
   it("exposes source urls through search results", () => {

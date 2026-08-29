@@ -33,7 +33,7 @@ export const searchCourses = (catalog: Catalog, filters: CourseSearchFilters): C
       .filter((section) => !filters.earliestStart || section.meetings.every((item) => item.start >= filters.earliestStart!))
       .filter((section) => !filters.latestEnd || section.meetings.every((item) => item.end <= filters.latestEnd!))
     const code = normalize(course.code)
-    const text = normalize(`${course.code} ${course.title} ${course.description} ${course.tags.join(" ")}`)
+    const text = normalize(`${course.code} ${course.title} ${course.description} ${(course.tags ?? []).join(" ")}`)
     let score = query === code && query ? 1000 : code.startsWith(query) && query ? 700 : text.includes(query) && query ? 300 : query ? 0 : 100
     if (filters.subjects && !filters.subjects.includes(course.subject)) score = 0
     if (filters.levels && !filters.levels.includes(course.level)) score = 0
@@ -52,7 +52,7 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
     const text = value.toLowerCase()
     return Boolean(normalized && text.includes(normalized)) || tokens.some((token) => text.includes(token))
   }
-  const brief = (value: string) => value.length > 110 ? `${value.slice(0, 109).trimEnd()}…` : value
+  const brief = (value?: string) => !value ? "" : value.length > 110 ? `${value.slice(0, 109).trimEnd()}…` : value
   // Matching alone is not enough: a broad query matches dozens of notes and
   // the six-item cap used to crowd out the exact-title hit. Rank first.
   const relevance = (title: string, rest: string) => {
@@ -80,7 +80,7 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   if (courses.length) groups.push({ type: "courses", items: courses.map(({ course }) => ({ id: course.id, title: `${course.code} · ${course.title}`, summary: brief(course.description) })) })
   const programs = workspace.programs.filter((program) => matches(`${program.name} ${program.credential}`))
   if (programs.length) groups.push({ type: "programs", items: programs.slice(0, 6).map((program) => ({ id: program.id, title: program.name, summary: program.credential })) })
-  const matchedOpportunities = opportunities.filter((item) => matches(`${item.name} ${item.summary} ${item.tags.join(" ")}`))
+  const matchedOpportunities = opportunities.filter((item) => matches(`${item.name} ${item.summary} ${(item.tags ?? []).join(" ")}`))
   if (matchedOpportunities.length) groups.push({ type: "opportunities", items: matchedOpportunities.slice(0, 6).map((item) => ({ id: item.id, title: item.name, summary: brief(item.summary) })) })
   // Sufficiency means the saved workspace can answer this question, so only
   // durable context counts toward it. Catalog courses and the opportunity
@@ -112,7 +112,7 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
     const generic = new Set(["stanford", "club", "clubs", "association", "intramural", "hackathon", "society", "fraternity", "sorority", "student", "students", "first", "meeting", "meet", "campus", "group", "join", "the", "and"])
     const distinctive = tokens.filter((token) => !generic.has(token))
     const covered = matchedOpportunities.some((item) => {
-      const text = `${item.name} ${item.summary} ${item.tags.join(" ")}`.toLowerCase()
+      const text = `${item.name} ${item.summary} ${(item.tags ?? []).join(" ")}`.toLowerCase()
       return (normalized && text.includes(normalized)) || distinctive.some((token) => text.includes(token))
     })
     if (!covered) gaps.push(`No club or program listing matches “${query}”. If it exists, add it with extend_reference as an opportunity, with an official source.`)
