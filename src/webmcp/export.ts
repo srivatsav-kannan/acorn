@@ -1,4 +1,5 @@
 import { calendarEventsForRange, isoDate } from "@/domain/calendar"
+import { meetingComponent } from "@/domain/planner"
 import { goalContentOf } from "@/domain/goals"
 import { creditCategory } from "@/domain/history"
 import { standingForTerm, supportsTimeline, termLabel, timelineFor } from "@/domain/timeline"
@@ -130,7 +131,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       const meetingLines = (activeScenario?.courses ?? []).filter((item) => item.status === "active" && item.sectionId).map((item) => {
         const section = catalog.sections.find((candidate) => candidate.id === item.sectionId)
         if (!section) return null
-        const meets = section.meetings.map((meeting) => `${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; ")
+        const meets = section.meetings.map((meeting) => `${meetingComponent(meeting.type) ? `${meetingComponent(meeting.type)} ` : ""}${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; ")
         return `- ${code(item.courseId)}: ${meets}`
       }).filter((line): line is string => Boolean(line))
       if (meetingLines.length) blocks.push([`## Class meetings this term`, ...meetingLines].join("\n"))

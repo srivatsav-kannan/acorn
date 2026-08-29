@@ -297,3 +297,15 @@ describe("save_workspace_item idempotent replay", () => {
     expect(restoredReplay).toMatchObject({ ok: true, receiptId: restored.receiptId, workspaceVersion: 5 })
   })
 })
+
+describe("discussion components on read surfaces", () => {
+  it("labels non-lecture meetings in search_courses meets strings", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const found = await findTool(tools, "search_courses").execute({ query: "COMM 1" })
+    const comm = found.results.find((row: { id: string }) => row.id === "COURSE-COMM-1")
+    const withDiscussion = comm?.sections.find((section: { id: string }) => section.id === "SECTION-COMM-1-02")
+    expect(withDiscussion?.meets).toContain("discussion fri 10:45 to 11:35")
+    expect(withDiscussion?.meets).toContain("tue/thu 13:30 to 14:50")
+  })
+})

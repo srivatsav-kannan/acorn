@@ -259,6 +259,9 @@ const sections = (): Section[] => [
   quick("HUMBIO 2B", ["mon", "wed", "fri"], "13:00", "13:50", "Building 300"),
   quick("BIOE 101", ["tue", "thu"], "11:00", "12:20", "Shriram 104"),
   quick("BIOMEDIN 215", ["wed"], "16:00", "18:50", "MSOB", "seminar"),
+  // The one curated section carrying a bundled discussion component, so the
+  // planner's component-aware checks and labels have shipped data to show.
+  section("SECTION-COMM-1-02", "COMM 1", 3, [meeting(["tue", "thu"], "13:30", "14:50"), meeting(["fri"], "10:45", "11:35", "section")]),
   section("SECTION-CONFLICTING", "COMM 1", 3, [meeting(["mon"], "13:00", "14:20")]),
   section("SECTION-FINAL-CONFLICT", "COMM 1", 3, [meeting(["tue"], "09:00", "10:20")], ["EVIDENCE-TERM-SCHEDULE"], { start: "2026-12-08T10:00:00-08:00", end: "2026-12-08T13:00:00-08:00" }),
   section("SECTION-FRIDAY", "COMM 1", 3, [meeting(["sat"], "10:00", "11:20")]),
@@ -446,6 +449,10 @@ const importedSections = (): Section[] => {
         sectionNumber: section.n,
         instructor: "See Stanford Navigator",
         units,
+        // The public export carries no component field, so imported meetings
+        // are typed lecture-as-primary rather than guessing which block is a
+        // discussion or lab; agents can correct one through extend_reference
+        // with a typed meeting and a source.
         meetings: section.m.map((meeting) => ({ days: meeting.d as Meeting["days"], start: meeting.s, end: meeting.e, timezone: "America/Los_Angeles", type: "lecture" as const, location: meeting.l })),
         evidenceIds: ["EVIDENCE-EXPLORECOURSES-IMPORT"]
       })

@@ -2,7 +2,7 @@
 import { executeCommand } from "@/domain/commands"
 import { activeCourses, evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
-import { checkPlan } from "@/domain/planner"
+import { checkPlan, meetingComponent } from "@/domain/planner"
 import { mergedCatalogFor, mergedOpportunities } from "@/domain/reference"
 import { nextMilestone, structuredGoals } from "@/domain/goals"
 import { standingForTerm, supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
@@ -153,7 +153,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       inputSchema: schema({ query: field("string", "Course code, title, topic, or keyword"), termId: field("string", "Stable academic term ID") }, ["query"]),
       annotations: annotations(true),
       examples: [{ query: "design", termId: "Use currentTermId from get_planning_context" }],
-      execute: async (input) => ({ results: searchCourses(await catalog(), input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sections: sections.slice(0, 3).map((item) => ({ id: item.id, meets: item.meetings.map((meeting) => `${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; "), instructor: item.instructor })) })) })
+      execute: async (input) => ({ results: searchCourses(await catalog(), input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sections: sections.slice(0, 3).map((item) => ({ id: item.id, meets: item.meetings.map((meeting) => `${meetingComponent(meeting.type) ? `${meetingComponent(meeting.type)} ` : ""}${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; "), instructor: item.instructor })) })) })
     },
     {
       name: "get_plan",

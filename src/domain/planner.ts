@@ -23,6 +23,11 @@ const minutes = (time: string) => {
   return hours * 60 + mins
 }
 
+// Stanford calls a discussion component a "section", but in prose that word
+// collides with the enrollable section itself, so surfaces say "discussion".
+// Lectures are the assumed default and get no label.
+export const meetingComponent = (type: Meeting["type"]) => type === "lecture" ? null : type === "section" ? "discussion" : type
+
 export const meetingsOverlap = (a: Meeting, b: Meeting) => a.days.some((day) => b.days.includes(day)) && minutes(a.start) < minutes(b.end) && minutes(b.start) < minutes(a.end)
 
 const finalsOverlap = (a?: { start: string, end: string }, b?: { start: string, end: string }) => Boolean(a && b && new Date(a.start) < new Date(b.end) && new Date(b.start) < new Date(a.end))
@@ -53,7 +58,7 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
   // suggestion: the first same-course section this term that clears every
   // constraint against the rest of the scenario, protected windows and
   // transition buffers included.
-  const describeMeets = (candidate: { meetings: Meeting[] }) => candidate.meetings.map((one) => `${one.days.join("/")} ${one.start}-${one.end}`).join(" and ")
+  const describeMeets = (candidate: { meetings: Meeting[] }) => candidate.meetings.map((one) => `${meetingComponent(one.type) ? `${meetingComponent(one.type)} ` : ""}${one.days.join("/")} ${one.start}-${one.end}`).join(" and ")
   const fitsCleanly = (candidate: { meetings: Meeting[], final?: { start: string, end: string } }, replacingItemId: string) => {
     for (const one of candidate.meetings) {
       if (one.days.some((day) => profile.excludedDays.includes(day))) return false
@@ -109,11 +114,12 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
       })
       if (staleIds.length) add("STALE_EVIDENCE", "warning", [entry.section.id], "This section relies on stale schedule evidence.", ["Refresh the official schedule source"], staleIds)
       for (const itemMeeting of entry.section.meetings) {
-        if (itemMeeting.days.some((day) => profile.excludedDays.includes(day))) add("DAY_CONSTRAINT", "error", [entry.item.id], "This section meets on a day marked unavailable.", ["Choose another section", "Change the day constraint"], entry.section.evidenceIds, alternativeFor(entry))
-        if (minutes(itemMeeting.start) < minutes(profile.earliestStart) || minutes(itemMeeting.end) > minutes(profile.latestEnd)) add("TIME_CONSTRAINT", "error", [entry.item.id], "This section falls outside the allowed time window.", ["Choose another section", "Change the time constraint"], entry.section.evidenceIds, alternativeFor(entry))
+        const component = meetingComponent(itemMeeting.type)
+        if (itemMeeting.days.some((day) => profile.excludedDays.includes(day))) add("DAY_CONSTRAINT", "error", [entry.item.id], component ? `This section's ${component} meets on a day marked unavailable.` : "This section meets on a day marked unavailable.", ["Choose another section", "Change the day constraint"], entry.section.evidenceIds, alternativeFor(entry))
+        if (minutes(itemMeeting.start) < minutes(profile.earliestStart) || minutes(itemMeeting.end) > minutes(profile.latestEnd)) add("TIME_CONSTRAINT", "error", [entry.item.id], component ? `This section's ${component} falls outside the allowed time window.` : "This section falls outside the allowed time window.", ["Choose another section", "Change the time constraint"], entry.section.evidenceIds, alternativeFor(entry))
         for (const window of profile.protectedWindows ?? []) {
           if (itemMeeting.days.some((day) => window.days.includes(day)) && minutes(itemMeeting.start) < minutes(window.end) && minutes(window.start) < minutes(itemMeeting.end)) {
-            add("PROTECTED_TIME", "warning", [entry.item.id], `This section overlaps protected time: ${window.label}, ${window.days.join("/")} ${window.start} to ${window.end}.`, ["Choose another section", "Adjust the protected window"], entry.section.evidenceIds, alternativeFor(entry))
+            add("PROTECTED_TIME", "warning", [entry.item.id], `This section${component ? `'s ${component}` : ""} overlaps protected time: ${window.label}, ${window.days.join("/")} ${window.start} to ${window.end}.`, ["Choose another section", "Adjust the protected window"], entry.section.evidenceIds, alternativeFor(entry))
           }
         }
       }

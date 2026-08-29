@@ -188,3 +188,38 @@ describe("alternative section suggestions", () => {
     expect(check?.suggestedRepairs[0]).toContain("Switch to ")
   })
 })
+
+describe("bundled discussion components", () => {
+  it("names the discussion when it is the meeting that violates", () => {
+    const fixture = buildFixture()
+    const scenario = structuredClone(fixture.workspace.plans[0].scenarios[0])
+    scenario.courses[1].sectionId = "SECTION-COMM-1-02"
+    const profile = structuredClone(fixture.workspace.profile)
+    profile.protectedWindows = [{ id: "WINDOW-RESEARCH", days: ["fri"], start: "10:00", end: "11:00", label: "Research block" }]
+    const result = checkPlan({
+      scenario,
+      catalog: fixture.catalog,
+      profile,
+      evidence: fixture.workspace.evidence,
+      now: new Date("2026-08-27T12:00:00Z")
+    })
+    const check = result.find((item) => item.code === "PROTECTED_TIME" && item.affectedIds.includes("PLANCOURSE-COMM-1"))
+    expect(check?.message).toContain("This section's discussion overlaps protected time")
+    expect(check?.message).toContain("Research block")
+  })
+
+  it("keeps the plain wording when the lecture itself violates", () => {
+    const fixture = buildFixture()
+    const scenario = structuredClone(fixture.workspace.plans[0].scenarios[0])
+    scenario.courses[1].sectionId = "SECTION-EARLY"
+    const result = checkPlan({
+      scenario,
+      catalog: fixture.catalog,
+      profile: fixture.workspace.profile,
+      evidence: fixture.workspace.evidence,
+      now: new Date("2026-08-27T12:00:00Z")
+    })
+    const check = result.find((item) => item.code === "TIME_CONSTRAINT" && item.affectedIds.includes("PLANCOURSE-COMM-1"))
+    expect(check?.message).toBe("This section falls outside the allowed time window.")
+  })
+})

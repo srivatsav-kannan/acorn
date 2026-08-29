@@ -1,4 +1,5 @@
 import { academicDatesBetween, noClassDates, quarterClassRange } from "@/data/institutions/stanford-academic-calendar"
+import { meetingComponent } from "@/domain/planner"
 import { parseTermId } from "@/domain/timeline"
 import type { Catalog, Day, Opportunity, WorkspaceState } from "@/domain/types"
 
@@ -89,7 +90,7 @@ export const calendarEventsForRange = (workspace: WorkspaceState, catalog: Catal
       if (section && section.meetings.length > 0) {
         for (const meeting of section.meetings) {
           for (const date of recurringDays(meeting.days, classRange.start, classRange.end, from, to, skip)) {
-            events.push({ id: `COURSE-${plan.termId}-${planCourse.id}-${meeting.start}-${date}`, date, start: meeting.start, end: meeting.end, title: label, detail: [course?.title, meeting.location].filter(Boolean).join(" · "), kind: "course", projected: classRange.projected })
+            events.push({ id: `COURSE-${plan.termId}-${planCourse.id}-${meeting.start}-${date}`, date, start: meeting.start, end: meeting.end, title: label, detail: [course?.title, meetingComponent(meeting.type), meeting.location].filter(Boolean).join(" · "), kind: "course", projected: classRange.projected })
           }
         }
       } else {
