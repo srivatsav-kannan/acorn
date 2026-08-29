@@ -224,7 +224,7 @@ test("registers the full semantic tool surface in a capable browser", async ({ p
     Object.defineProperty(window, "__registeredTools", { get: () => [...names] })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(19)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools.length)).toBe(20)
   expect(await page.evaluate(() => (window as unknown as { __registeredTools: string[] }).__registeredTools)).toContain("export_context")
 })
 
@@ -243,12 +243,12 @@ test("agent research and tracker edits become visible workspace state", async ({
     Object.defineProperty(window, "__courseContextTools", { value: tools })
   })
   await page.goto("/demo")
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(19)
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(20)
   const result = await page.evaluate(async () => {
     const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
     const context = await tools.get("get_planning_context")!.execute({}) as { version: number }
     await tools.get("manage_todo")!.execute({ expectedVersion: context.version, idempotencyKey: "AGENT-TODO-E2E", action: "add", todo: { title: "Ask advisor about coterm timing" } })
-    const saved = await tools.get("save_research")!.execute({ expectedVersion: context.version + 1, idempotencyKey: "HEALTH-RESEARCH-E2E", evidence: { id: "EVIDENCE-HEALTH-AI-E2E", title: "Freshman health-AI course shortlist", claim: "Start with a low-load healthcare AI seminar before committing to advanced technical depth.", sourceUrl: "https://explorecourses.stanford.edu/", sourceTitle: "Stanford ExploreCourses", retrievedAt: "2026-08-28T00:00:00Z", classification: "official", confidence: 0.9, status: "current" } })
+    const saved = await tools.get("save_research")!.execute({ expectedVersion: context.version + 1, idempotencyKey: "HEALTH-RESEARCH-E2E", evidence: { id: "EVIDENCE-HEALTH-AI-E2E", title: "Freshman health-AI course shortlist", claim: "Start with a low-load healthcare AI seminar before committing to advanced technical depth.", sourceUrl: "https://navigator.stanford.edu/classes", sourceTitle: "Stanford Navigator", retrievedAt: "2026-08-28T00:00:00Z", classification: "official", confidence: 0.9, status: "current" } })
     const exported = await tools.get("export_context")!.execute({ section: "todos" }) as { markdown: string }
     return { saved, exported: exported.markdown }
   })

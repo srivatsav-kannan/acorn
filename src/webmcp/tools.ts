@@ -234,7 +234,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             classStanding: field("string", "Only for custom institutions without a computed timeline. With a timeline, standing is derived from the profile's entry and graduation dates and this field is rejected"),
             earliestStart: field("string", "Earliest acceptable class start, 24h HH:MM"),
             latestEnd: field("string", "Latest acceptable class end, 24h HH:MM"),
-            excludedDays: { type: "array", description: "Days to keep meeting-free, e.g. [\"fri\"]", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] } }
+            excludedDays: { type: "array", description: "Days to keep meeting-free, e.g. [\"fri\"]", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] } },
+            transitionBufferMinutes: field("number", "Minimum passing minutes between classes, 0 to 120; tighter gaps raise a warning in check_plan")
           }
         },
         academicHistory: {
@@ -253,7 +254,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       execute: async (input) => {
         const sections = [input.profile, input.academicHistory, input.preferences].filter(Boolean).length
         if (sections !== 1) return { ok: false, code: "ONE_SECTION_PER_CALL", message: "Send profile, preferences, or academicHistory, exactly one per call, so each change is separately visible and undoable." }
-        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal, classYear: input.profile.classStanding, earliestStart: input.profile.earliestStart, latestEnd: input.profile.latestEnd, excludedDays: input.profile.excludedDays } })
+        if (input.profile) return mutate(input, { type: "update_profile", patch: { name: input.profile.preferredName, summary: input.profile.goal, classYear: input.profile.classStanding, earliestStart: input.profile.earliestStart, latestEnd: input.profile.latestEnd, excludedDays: input.profile.excludedDays, transitionBufferMinutes: input.profile.transitionBufferMinutes } })
         if (input.academicHistory) return mutate(input, { type: "update_academic_history", patch: input.academicHistory })
         if (!Array.isArray(input.preferences) || input.preferences.length === 0) return { ok: false, code: "COMMAND_INVALID", message: "Provide at least one complete preference." }
         return mutate(input, { type: "set_student_preferences", preferences: input.preferences })
@@ -510,6 +511,14 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       annotations: annotations(false),
       examples: [],
       execute: async (input) => input.removeActivityId ? mutate(input, { type: "remove_activity", activityId: input.removeActivityId }) : input.activity ? mutate(input, { type: "upsert_activity", activity: input.activity }) : { ok: false, code: "COMMAND_INVALID", message: "Pass an activity to save or removeActivityId to delete." }
+    },
+    {
+      name: "undo",
+      description: "Reverse a previous mutation by its receiptId, restoring the workspace state that action changed. Works on the ten most recent mutations; older receipts report that they can no longer be undone. The undo itself is recorded in the activity ledger.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), receiptId: field("string", "The receiptId returned by the mutation to reverse") }, ["expectedVersion", "idempotencyKey", "receiptId"]),
+      annotations: annotations(false),
+      examples: [{ receiptId: "ACTION-EXAMPLE123" }],
+      execute: async (input) => mutate(input, { type: "undo_action", receiptId: input.receiptId })
     }
   ]
 }

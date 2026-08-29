@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { addDays, addMonths, format, startOfMonth, subDays } from "date-fns"
 import { useWorkspace } from "@/components/workspace-provider"
 import { calendarEventsForRange, isoDate, type CalendarEvent } from "@/domain/calendar"
+import { buildIcs } from "@/domain/ics"
 import { mergedOpportunities } from "@/domain/reference"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { standingForTerm, termForDate, timelineFor } from "@/domain/timeline"
@@ -71,6 +72,19 @@ export const CalendarPage = () => {
       return { ...event, date: converted.date, start: converted.time, end: convertedEnd?.time }
     }).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "00:00").localeCompare(b.start ?? "00:00"))
   }, [value.workspace, value.catalog, opportunities, gridStart, displayTimezone])
+
+  // The export uses home-zone times with real TZIDs rather than the converted
+  // display times, so calendar apps place every instant correctly themselves.
+  const downloadIcs = () => {
+    const raw = calendarEventsForRange(value.workspace, value.catalog, opportunities, isoDate(startOfMonth(monthStart)), isoDate(addDays(startOfMonth(addMonths(monthStart, 1)), -1)))
+    const blob = new Blob([buildIcs(raw, `Acorn ${format(monthStart, "MMMM yyyy")}`)], { type: "text/calendar" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `acorn-${format(monthStart, "yyyy-MM")}.ics`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
@@ -181,6 +195,7 @@ export const CalendarPage = () => {
         <button className="secondary-button small" type="button" onClick={() => setMonthStart((current) => addMonths(current, -1))} aria-label="Previous month">← Previous</button>
         <button className="secondary-button small" type="button" onClick={() => setMonthStart(startOfMonth(new Date()))}>Today</button>
         <button className="secondary-button small" type="button" onClick={() => setMonthStart((current) => addMonths(current, 1))} aria-label="Next month">Next →</button>
+        <button className="secondary-button small" type="button" onClick={downloadIcs} aria-label="Download this month as an ICS calendar file">Download .ics</button>
       </div>
     </header>
 

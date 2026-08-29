@@ -423,7 +423,7 @@ describe("codex round four findings", () => {
 })
 
 describe("official schedule truth", () => {
-  it("serves imported ExploreCourses meeting times over stale curated samples", async () => {
+  it("serves imported official meeting times over stale curated samples", async () => {
     const { buildStanfordCatalog } = await import("@/data/institutions/stanford")
     const catalog = buildStanfordCatalog()
     const cs106b = catalog.sections.find((section) => section.id === "SECTION-CS-106B-01")!

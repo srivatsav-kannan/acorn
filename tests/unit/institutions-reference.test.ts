@@ -21,8 +21,8 @@ const referenceEvidence = {
   title: "CS 329S offering",
   classification: "official",
   claim: "CS 329S is offered this term.",
-  sourceUrl: "https://explorecourses.stanford.edu/search?q=CS+329S",
-  sourceTitle: "Stanford ExploreCourses",
+  sourceUrl: "https://navigator.stanford.edu/classes?q=CS+329S",
+  sourceTitle: "Stanford Navigator",
   retrievedAt: "2026-08-28T00:00:00Z",
   confidence: 0.95,
   status: "current"
@@ -64,7 +64,7 @@ describe("institution registry", () => {
 })
 
 describe("imported catalog", () => {
-  it("carries the complete ExploreCourses import with curated rows winning collisions", () => {
+  it("carries the complete catalog import with curated course rows winning collisions", () => {
     const catalog = stanfordInstitution.buildCatalog()
     expect(stanfordCatalogMeta.courses).toBeGreaterThan(15000)
     expect(catalog.courses.length).toBeGreaterThan(15000)
@@ -148,7 +148,7 @@ describe("reference overlay", () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())
     const receipt = await executeCommand(repository, envelope({
       type: "extend_reference",
-      course: { code: "CS 329S", title: "Machine Learning Systems Design", subject: "CS", level: 300, units: 3, sourceUrl: "https://explorecourses.stanford.edu/" },
+      course: { code: "CS 329S", title: "Machine Learning Systems Design", subject: "CS", level: 300, units: 3, sourceUrl: "https://navigator.stanford.edu/classes" },
       section: { units: 3, meetings: [{ days: ["mon", "wed"], start: "13:30", end: "14:50", location: "Gates B01" }] },
       evidence: referenceEvidence
     }))

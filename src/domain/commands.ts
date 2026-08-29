@@ -299,6 +299,11 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         workspace.profile.latestEnd = patch.latestEnd
       }
       if ((typeof patch.earliestStart === "string" || typeof patch.latestEnd === "string") && workspace.profile.latestEnd <= workspace.profile.earliestStart) throw commandError("The planning window's latest end must come after its earliest start")
+      if (patch.transitionBufferMinutes !== undefined) {
+        const buffer = Number(patch.transitionBufferMinutes)
+        if (!Number.isInteger(buffer) || buffer < 0 || buffer > 120) throw commandError("transitionBufferMinutes must be an integer between 0 and 120")
+        workspace.profile.transitionBufferMinutes = buffer
+      }
       if (Array.isArray(patch.excludedDays)) workspace.profile.excludedDays = patch.excludedDays.filter((day): day is WorkspaceState["profile"]["excludedDays"][number] => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(String(day)))
       if (patch.declaredProgramId === null || (typeof patch.declaredProgramId === "string" && workspace.programs.some((program) => program.id === patch.declaredProgramId))) workspace.profile.declaredProgramId = patch.declaredProgramId as string | null
       changed.push({ type: "student_profile", id: workspace.profile.id })
@@ -672,6 +677,10 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (original) original.undoneAt = new Date().toISOString()
       changed.push(...(original?.changed ?? []))
       Object.assign(workspace, restored)
+      // The restored snapshot carries the version it was taken at; the undo
+      // itself is a new mutation, so the receipt must count from the current
+      // version, not the snapshot's.
+      workspace.version = before.version
     } else throw commandError("Unsupported command")
 
     const receiptId = actionId(envelope.idempotencyKey)

@@ -2,7 +2,7 @@ import importedCatalog from "@/data/institutions/stanford-catalog.json"
 import type { Catalog, Course, Evidence, Meeting, Opportunity, Program, RequirementRule, Section } from "@/domain/types"
 import type { InstitutionReference } from "@/data/institutions/types"
 
-// The full 2026-27 catalog is imported from the public ExploreCourses API by
+// The full 2026-27 catalog is imported from Stanford's public class feed by
 // scripts/import-stanford/import-catalog.mjs. Curated COURSE rows below add
 // what the feed lacks, prerequisite structure and planning tags, and win on
 // ID collisions. Curated SECTIONS are the opposite: imported meeting times
@@ -143,7 +143,7 @@ const courses = (): Course[] => courseRows.map(([code, title, subject, level, un
   minUnits: units,
   maxUnits: units,
   tags,
-  sourceUrl: "https://explorecourses.stanford.edu/",
+  sourceUrl: "https://navigator.stanford.edu/classes",
   catalogYear: "2026-27",
   prerequisites: prerequisites?.map(courseId),
   prerequisiteUncertain: uncertain
@@ -156,7 +156,7 @@ const section = (
   meetings: Meeting[],
   evidenceIds = ["EVIDENCE-TERM-SCHEDULE"],
   final?: { start: string, end: string }
-): Section => ({ id, courseId: courseId(courseCode), termId: "TERM-2026-AUTUMN", sectionNumber: "01", instructor: "See ExploreCourses", units, meetings, evidenceIds, final })
+): Section => ({ id, courseId: courseId(courseCode), termId: "TERM-2026-AUTUMN", sectionNumber: "01", instructor: "See Stanford Navigator", units, meetings, evidenceIds, final })
 
 const quick = (courseCode: string, days: Meeting["days"], start: string, end: string, location: string, type: Meeting["type"] = "lecture") => {
   const row = courseRows.find(([code]) => code === courseCode)
@@ -287,9 +287,9 @@ export const buildStanfordEvidence = (): Evidence[] => [
     id: "EVIDENCE-TERM-SCHEDULE",
     classification: "derived",
     authority: "term_schedule",
-    claim: "Illustrative Autumn 2026 section and meeting data for planning, used only where ExploreCourses publishes no section. Verify live times before enrolling.",
-    sourceUrl: "https://explorecourses.stanford.edu/",
-    sourceTitle: "Stanford ExploreCourses",
+    claim: "Illustrative Autumn 2026 section and meeting data for planning, used only where Navigator publishes no section. Verify live times before enrolling.",
+    sourceUrl: "https://navigator.stanford.edu/classes",
+    sourceTitle: "Stanford Navigator",
     retrievedAt: "2026-08-20T12:00:00Z",
     expiresAt: "2026-10-01T00:00:00Z",
     confidence: 0.6,
@@ -315,7 +315,7 @@ export const buildStanfordEvidence = (): Evidence[] => [
     id: "EVIDENCE-WAYS",
     classification: "official",
     authority: "program_requirements",
-    claim: "WAYS course counts follow the official requirement, and the course groups use the WAY designations in the imported 2026-27 ExploreCourses catalog.",
+    claim: "WAYS course counts follow the official requirement, and the course groups use the WAY designations in the imported 2026-27 Stanford Navigator catalog.",
     sourceUrl: "https://advising.stanford.edu/current-students/advising-student-handbook/ways-thinking-ways-doing",
     sourceTitle: "Stanford Academic Advising: Ways of Thinking, Ways of Doing",
     retrievedAt: "2026-08-28T12:00:00Z",
@@ -329,9 +329,9 @@ export const buildStanfordEvidence = (): Evidence[] => [
     id: "EVIDENCE-EXPLORECOURSES-IMPORT",
     classification: "official",
     authority: "term_schedule",
-    claim: `The 2026-27 catalog and Autumn meeting times were imported from the public ExploreCourses listing. Confirm live sections before enrolling.`,
-    sourceUrl: "https://explorecourses.stanford.edu/",
-    sourceTitle: "Stanford ExploreCourses",
+    claim: `The 2026-27 catalog and Autumn meeting times were imported from Stanford's official catalog, now published as Navigator. Confirm live sections before enrolling.`,
+    sourceUrl: "https://navigator.stanford.edu/classes",
+    sourceTitle: "Stanford Navigator",
     retrievedAt: stanfordCatalogMeta.retrievedAt,
     expiresAt: "2026-12-15T00:00:00Z",
     confidence: 0.95,
@@ -379,8 +379,8 @@ export const buildStanfordEvidence = (): Evidence[] => [
     classification: "official",
     authority: "term_schedule",
     claim: "An intentionally stale section record used to test warnings.",
-    sourceUrl: "https://explorecourses.stanford.edu/",
-    sourceTitle: "Stanford ExploreCourses",
+    sourceUrl: "https://navigator.stanford.edu/classes",
+    sourceTitle: "Stanford Navigator",
     retrievedAt: "2026-05-01T12:00:00Z",
     expiresAt: "2026-08-01T00:00:00Z",
     confidence: 0.6,
@@ -427,7 +427,7 @@ const importedCourses = (curatedCodes: Set<string>): Course[] => imported.course
       tags: [],
       ways: row.w,
       offeredSeasons: row.o,
-      sourceUrl: "https://explorecourses.stanford.edu/",
+      sourceUrl: "https://navigator.stanford.edu/classes",
       catalogYear: "2026-27"
     }
   })
@@ -444,7 +444,7 @@ const importedSections = (): Section[] => {
         courseId: id,
         termId: "TERM-2026-AUTUMN",
         sectionNumber: section.n,
-        instructor: "See ExploreCourses",
+        instructor: "See Stanford Navigator",
         units,
         meetings: section.m.map((meeting) => ({ days: meeting.d as Meeting["days"], start: meeting.s, end: meeting.e, timezone: "America/Los_Angeles", type: "lecture" as const, location: meeting.l })),
         evidenceIds: ["EVIDENCE-EXPLORECOURSES-IMPORT"]
@@ -461,7 +461,7 @@ export const buildStanfordCatalog = (): Catalog => {
   const curated = courses().map((course) => ({ ...course, ways: course.ways ?? importedWaysByCode.get(course.code) }))
   const curatedCodes = new Set(curated.map((course) => course.code))
   const curatedSections = sections()
-  // Imported ExploreCourses sections are the schedule truth. The curated
+  // Imported Stanford Navigator sections are the schedule truth. The curated
   // list predates the import and its sample times drifted from the official
   // schedule, so on an ID collision the imported section wins. Curated
   // sections with unique IDs survive: the deterministic-check demos and the
@@ -486,7 +486,7 @@ const course = (code: string, id?: string): RequirementRule => ({ id: id ?? `RUL
 const group = (id: string, count: number, ...codes: string[]): RequirementRule => ({ id, type: "course_group", count, courseIds: ids(...codes) })
 
 // WAYS groups come from the official WAY designations in the imported
-// ExploreCourses feed. Each group carries a sample of designated courses, low
+// official class feed. Each group carries a sample of designated courses, low
 // numbered and described first, because the complete lists run to hundreds.
 const waysDefinitions: Array<[string, string, number]> = [
   ["A-II", "Aesthetic and Interpretive Inquiry", 2],
@@ -597,7 +597,7 @@ export const buildStanfordPrograms = (): Program[] => [{
     })),
     {
       id: "REQUIREMENT-WAYS-VERIFY",
-      title: "The complete WAYS lists live on ExploreCourses",
+      title: "The complete WAYS lists live on Stanford Navigator",
       rule: { id: "RULE-WAYS-VERIFY", type: "manual_review", reason: "Each group above shows a sample of officially designated courses from the imported catalog. Hundreds more carry each designation." },
       evidenceIds: ["EVIDENCE-WAYS"]
     }
@@ -679,7 +679,7 @@ export const stanfordInstitution: InstitutionReference = {
   timezone: "America/Los_Angeles",
   termSystem: "quarter",
   status: "full",
-  coverageNote: "Includes a broad sample of the 2026-27 catalog, structured requirement maps for Computer Science, Symbolic Systems, Data Science, and WAYS, and manual-review references for five more programs. Meeting times are planning samples to verify on ExploreCourses.",
+  coverageNote: "Includes a broad sample of the 2026-27 catalog, structured requirement maps for Computer Science, Symbolic Systems, Data Science, and WAYS, and manual-review references for five more programs. Meeting times are planning samples to verify on Stanford Navigator.",
   currentTermId: "TERM-2026-AUTUMN",
   terms: [
     { id: "TERM-2026-AUTUMN", name: "Autumn 2026", startsOn: "2026-09-21", endsOn: "2026-12-11" },
@@ -692,7 +692,7 @@ export const stanfordInstitution: InstitutionReference = {
   buildOpportunities: buildStanfordOpportunities,
   resources: [
     { id: "RESOURCE-BULLETIN", title: "Stanford Bulletin", url: "https://bulletin.stanford.edu/", note: "The official catalog of programs, requirements, and policies.", kind: "official" },
-    { id: "RESOURCE-EXPLORECOURSES", title: "ExploreCourses", url: "https://explorecourses.stanford.edu/", note: "The official course and section listing with live meeting times.", kind: "official" },
+    { id: "RESOURCE-EXPLORECOURSES", title: "Stanford Navigator", url: "https://navigator.stanford.edu/classes", note: "The official class search with live meeting times; the successor to ExploreCourses.", kind: "official" },
     { id: "RESOURCE-CALENDAR", title: "Academic Calendar 2026-27", url: "https://studentservices.stanford.edu/calendar-events/academic-calendars/stanford-academic-calendar-2026-2027", note: "Official quarter dates and deadlines.", kind: "official" },
     { id: "RESOURCE-ADVISING", title: "Academic Advising", url: "https://advising.stanford.edu/", note: "Official advising guidance, WAYS, and declaring a major.", kind: "official" },
     { id: "RESOURCE-CARTA", title: "Carta", url: "https://carta-beta.stanford.edu/", note: "Stanford-internal planning tool with historical evaluations. Requires a SUNet login, which CourseContext never asks for.", kind: "community" },

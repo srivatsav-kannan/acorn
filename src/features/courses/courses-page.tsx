@@ -25,7 +25,7 @@ const humanEvidence = (id: string, claim: string, sourceUrl: string) => ({
   id,
   title: "Added by hand",
   claim,
-  sourceUrl: sourceUrl || "https://explorecourses.stanford.edu/",
+  sourceUrl: sourceUrl || "https://navigator.stanford.edu/classes",
   sourceTitle: "Student-provided reference",
   retrievedAt: new Date().toISOString(),
   classification: "student",
@@ -216,7 +216,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
             <label>Units<select value={courseForm.units} onChange={(event) => setCourseForm({ ...courseForm, units: event.target.value })}>{[1, 2, 3, 4, 5].map((units) => <option key={units} value={units}>{units}</option>)}</select></label>
           </div>
           <label>Description<textarea rows={2} value={courseForm.description} onChange={(event) => setCourseForm({ ...courseForm, description: event.target.value })} maxLength={400} /></label>
-          <label>Source URL<input value={courseForm.sourceUrl} onChange={(event) => setCourseForm({ ...courseForm, sourceUrl: event.target.value })} placeholder="https://explorecourses.stanford.edu/…" /></label>
+          <label>Source URL<input value={courseForm.sourceUrl} onChange={(event) => setCourseForm({ ...courseForm, sourceUrl: event.target.value })} placeholder="https://navigator.stanford.edu/classes…" /></label>
           <p className="add-form-note">Hand-added courses carry an unverified banner until an agent or you confirm them against the catalog.</p>
           <button className="primary-button" type="submit">Add course</button>
         </form>}
