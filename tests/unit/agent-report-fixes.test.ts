@@ -366,6 +366,59 @@ describe("codex round three findings", () => {
   })
 })
 
+describe("codex round four findings", () => {
+  const referenceEvidence = { id: "EVIDENCE-R4", title: "Official ref", classification: "official", claim: "Official reference.", sourceUrl: "https://example.edu/ref", sourceTitle: "Catalog", retrievedAt: "2026-08-29T00:00:00Z", confidence: 1, status: "current" }
+
+  it("declares every edit_plan operation type with examples", () => {
+    const tools = buildTools(new MemoryWorkspaceRepository(buildFixture()))
+    const editPlan = findTool(tools, "edit_plan")
+    const operations = editPlan.inputSchema.properties?.operations as { items?: { properties?: { type?: { enum?: string[] } } } }
+    const declared = operations.items?.properties?.type?.enum ?? []
+    for (const op of ["add_course", "remove_course", "select_section", "set_status", "set_units", "add_commitment", "remove_commitment", "create_scenario", "delete_scenario", "rename_scenario", "set_active_scenario", "set_unit_limit"]) {
+      expect(declared).toContain(op)
+    }
+    expect(editPlan.examples.length).toBeGreaterThan(0)
+  })
+
+  it("archives agent evidence and its source card through extend_reference remove", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const saved = await findTool(tools, "save_research").execute({ expectedVersion: 1, idempotencyKey: "EV-ADD", evidence: referenceEvidence })
+    expect(saved).toMatchObject({ ok: true })
+    const archived = await findTool(tools, "extend_reference").execute({ expectedVersion: 2, idempotencyKey: "EV-ARCHIVE", remove: { kind: "evidence", id: "EVIDENCE-R4" } })
+    expect(archived).toMatchObject({ ok: true })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.evidence.find((item) => item.id === "EVIDENCE-R4")?.status).toBe("superseded")
+    const card = workspace.contextItems.find((item) => item.sourceEvidenceIds?.includes("EVIDENCE-R4"))
+    expect(card?.archived).toBe(true)
+    const system = workspace.evidence.find((item) => item.addedBy === "system")
+    if (system) {
+      const refused = await findTool(tools, "extend_reference").execute({ expectedVersion: 3, idempotencyKey: "EV-SYS", remove: { kind: "evidence", id: system.id } })
+      expect(refused).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    }
+  })
+
+  it("explains that shipped catalog courses cannot be removed", async () => {
+    const tools = buildTools(new MemoryWorkspaceRepository(buildFixture()))
+    const refused = await findTool(tools, "extend_reference").execute({ expectedVersion: 1, idempotencyKey: "SHIP-1", remove: { kind: "course", id: "COURSE-CS-106B" } })
+    expect(refused).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(String(refused.message)).toMatch(/Shipped institutional courses/)
+  })
+
+  it("labels source-backed catalog corrections separately from unverified additions", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const added = await findTool(tools, "extend_reference").execute({ expectedVersion: 1, idempotencyKey: "VER-1", course: { code: "CS 44N", title: "Great Ideas in Computer Science" }, evidence: referenceEvidence })
+    expect(added).toMatchObject({ ok: true })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    workspace.referenceOverlay!.courses.push({ ...workspace.referenceOverlay!.courses[0], id: "COURSE-HAND-ADDED", code: "CS 998", title: "Hand-added", evidenceIds: [] })
+    const exported = exportBlocks(workspace, buildFixture().catalog, [], "courses", new Date("2026-08-29T12:00:00Z")).join("\n")
+    expect(exported).toContain("### Source-backed catalog additions and corrections")
+    expect(exported).toMatch(/Source-backed[\s\S]*CS 44N/)
+    expect(exported).toMatch(/Unverified catalog additions[\s\S]*CS 998/)
+  })
+})
+
 describe("search sufficiency", () => {
   it("flags a missing program reference instead of claiming sufficiency", () => {
     const { workspace, catalog } = buildFixture()

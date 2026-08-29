@@ -27,6 +27,7 @@ export type Course = {
   offeredSeasons?: string
   sourceUrl?: string
   catalogYear?: string
+  evidenceIds?: string[]
 }
 
 export type Section = {

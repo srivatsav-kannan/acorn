@@ -70,7 +70,17 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
         blocks.push([`### Notes on ${code(courseId)} \`${courseId}\``, ...notes.map((note) => `- (${note.author}) ${note.text} \`${note.id}\``)].join("\n"))
       }
       const custom = workspace.referenceOverlay?.courses ?? []
-      if (custom.length) blocks.push([`### Unverified catalog additions`, ...custom.map((course) => `- ${course.code}: ${course.title} \`${course.id}\``)].join("\n"))
+      if (custom.length) {
+        const evidenceById = new Map(workspace.evidence.map((item) => [item.id, item]))
+        const sourceBacked = (course: { evidenceIds?: string[] }) => (course.evidenceIds ?? []).some((id) => {
+          const evidence = evidenceById.get(id)
+          return evidence?.classification === "official" && evidence.status === "current"
+        })
+        const verified = custom.filter(sourceBacked)
+        const unverified = custom.filter((course) => !sourceBacked(course))
+        if (verified.length) blocks.push([`### Source-backed catalog additions and corrections`, ...verified.map((course) => `- ${course.code}: ${course.title} \`${course.id}\``)].join("\n"))
+        if (unverified.length) blocks.push([`### Unverified catalog additions`, ...unverified.map((course) => `- ${course.code}: ${course.title} \`${course.id}\``)].join("\n"))
+      }
     }
     if (current === "clubs") {
       const interested = new Set(workspace.interestedOpportunityIds ?? [])

@@ -339,6 +339,9 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         course = validateOverlayCourse(command.course ?? {})
       } catch (error) { throw commandError((error as Error).message) }
       if (!evidence.id) throw commandError("Reference evidence needs a stable ID")
+      // The overlay entry remembers which evidence backs it, so exports and
+      // views can distinguish a source-backed correction from a bare claim.
+      course.evidenceIds = [evidence.id]
       const overlay = workspace.referenceOverlay ?? emptyOverlay()
       workspace.referenceOverlay = overlay
       const courseIndex = overlay.courses.findIndex((item) => item.id === course.id)
@@ -417,6 +420,22 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       const [removed] = overlay.opportunities.splice(index, 1)
       workspace.referenceOverlay = overlay
       changed.push({ type: "reference_opportunity", id: removed.id })
+    } else if (command.type === "archive_evidence") {
+      const evidenceId = String(command.evidenceId ?? "").trim()
+      const evidence = workspace.evidence.find((item) => item.id === evidenceId)
+      if (!evidence) throw commandError("Evidence not found in this workspace")
+      if (evidence.addedBy === "system") throw commandError("Shipped institutional evidence cannot be archived")
+      // Provenance survives: the record is marked superseded and its Library
+      // source card is archived, never deleted.
+      evidence.status = "superseded"
+      changed.push({ type: "evidence", id: evidence.id })
+      for (const item of workspace.contextItems) {
+        if (item.sourceEvidenceIds?.includes(evidence.id) && !item.archived) {
+          item.archived = true
+          item.updatedAt = new Date().toISOString()
+          changed.push({ type: "context_item", id: item.id })
+        }
+      }
     } else if (command.type === "remove_reference_course") {
       const overlay = workspace.referenceOverlay ?? emptyOverlay()
       const index = overlay.courses.findIndex((item) => item.id === command.courseId)

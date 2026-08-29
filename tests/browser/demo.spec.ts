@@ -138,6 +138,7 @@ test("timed events carry descriptions and re-express in other timezones", async 
   await expect(page.locator(".calendar-grid").getByText(/15:00 CURIS interview/).first()).toBeVisible()
   await page.getByLabel("Times shown in").selectOption("America/New_York")
   await expect(page.locator(".calendar-grid").getByText(/18:00 CURIS interview/).first()).toBeVisible()
+  await expect(page.locator(".side-event-list").getByText(/18:00/).first()).toBeVisible()
   await page.locator(".calendar-grid").getByRole("button", { name: /18:00 CURIS interview/ }).first().click()
   await expect(page.locator(".inspector-panel").getByText(/recorded in America\/Los_Angeles|shown in Eastern/).first()).toBeVisible()
   await page.reload()

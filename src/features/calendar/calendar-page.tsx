@@ -98,7 +98,16 @@ export const CalendarPage = () => {
     setTodoDetail("")
   }
 
-  const upcomingEvents = useMemo(() => (value.workspace.events ?? []).slice().sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "").localeCompare(b.start ?? "")), [value.workspace.events])
+  // The sidebar shows the same display timezone the grid does; a timed event
+  // recorded in another zone is converted, so both surfaces agree.
+  const upcomingEvents = useMemo(() => (value.workspace.events ?? []).map((event) => {
+    if (!event.start) return event
+    const homeZone = event.timezone ?? CAMPUS_TIMEZONE
+    if (homeZone === displayTimezone) return event
+    const converted = convertZonedTime(event.date, event.start, homeZone, displayTimezone)
+    const convertedEnd = event.end ? convertZonedTime(event.date, event.end, homeZone, displayTimezone) : undefined
+    return { ...event, date: converted.date, start: converted.time, end: convertedEnd?.time }
+  }).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "").localeCompare(b.start ?? "")), [value.workspace.events, displayTimezone])
   const addEvent = async () => {
     if (!eventForm.title.trim() || !eventForm.date) return
     await value.onCommand({ type: "manage_event", action: "add", event: { title: eventForm.title.trim(), date: eventForm.date, start: eventForm.start || undefined, end: eventForm.start && eventForm.end ? eventForm.end : undefined, timezone: eventForm.timezone !== CAMPUS_TIMEZONE ? eventForm.timezone : undefined, description: eventForm.description.trim() || undefined } })

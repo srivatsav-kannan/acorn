@@ -262,9 +262,32 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "edit_plan",
       description: "Apply an atomic semantic edit to a plan scenario and return a receipt. Pass termId instead of planId to plan a future term. A plan for that term is created when missing, so a four or five year degree map builds term by term.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), planId: field("string", "Stable plan ID"), termId: field("string", "Term ID such as TERM-2027-WINTER, creates the term plan when missing"), scenarioId: field("string", "Stable scenario ID, defaults to the term's active scenario"), operations: field("array", "Atomic plan operations") }, ["expectedVersion", "idempotencyKey", "operations"]),
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), planId: field("string", "Stable plan ID"), termId: field("string", "Term ID such as TERM-2027-WINTER, creates the term plan when missing"), scenarioId: field("string", "Stable scenario ID, defaults to the term's active scenario"), operations: {
+        type: "array",
+        description: "Atomic operations, each an object with a type field and that type's payload; see items and examples",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["add_course", "remove_course", "select_section", "set_status", "set_units", "add_commitment", "remove_commitment", "create_scenario", "delete_scenario", "rename_scenario", "set_active_scenario", "set_unit_limit"], description: "Operation kind" },
+            planCourse: field("object", "add_course: {id, courseId, sectionId, units, status: active or backup}"),
+            planCourseId: field("string", "remove_course, select_section, set_status, and set_units name the plan course this way"),
+            sectionId: field("string", "select_section: the section to switch to"),
+            status: { type: "string", enum: ["active", "backup"], description: "set_status" },
+            units: field("number", "set_units: integer units for a variable-unit course"),
+            commitment: field("object", "add_commitment: {id, title, meetings: [{days, start, end}]}"),
+            commitmentId: field("string", "remove_commitment"),
+            scenario: field("object", "create_scenario: {id, name, courses: []}; activate it separately"),
+            name: field("string", "rename_scenario"),
+            unitLimit: field("number", "set_unit_limit: 1 to 30")
+          },
+          required: ["type"]
+        }
+      } }, ["expectedVersion", "idempotencyKey", "operations"]),
       annotations: annotations(false),
-      examples: [],
+      examples: [
+        { planId: "PLAN-FROM-GET-PLANNING-CONTEXT", operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-CS-106A", courseId: "COURSE-CS-106A", sectionId: "SECTION-CS-106A-01", units: 5, status: "active" } }] },
+        { planId: "PLAN-FROM-GET-PLANNING-CONTEXT", scenarioId: "SCENARIO-ALT", operations: [{ type: "set_active_scenario" }] }
+      ],
       execute: async (input) => mutate(input, { type: "edit_plan", planId: input.planId, termId: input.termId, scenarioId: input.scenarioId, operations: input.operations })
     },
     {
@@ -341,9 +364,9 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         remove: {
           type: "object",
           additionalProperties: false,
-          description: "Remove an agent-added reference entry by ID; shipped entries cannot be removed",
+          description: "Remove an agent-added reference entry by ID, or archive an evidence record and its source card; shipped entries cannot be removed",
           properties: {
-            kind: { type: "string", enum: ["course", "program", "opportunity"], description: "What to remove" },
+            kind: { type: "string", enum: ["course", "program", "opportunity", "evidence"], description: "What to remove; evidence is archived as superseded, never deleted" },
             id: field("string", "The entry's stable ID")
           },
           required: ["kind", "id"]
@@ -357,9 +380,24 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         if (provided !== 1) return { ok: false, code: "COMMAND_INVALID", message: "Pass exactly one of course, program, opportunity, or remove per call." }
         if (input.remove) {
           if (input.remove.kind === "program") return mutate(input, { type: "remove_reference_program", programId: input.remove.id })
-          if (input.remove.kind === "opportunity") return mutate(input, { type: "remove_reference_opportunity", opportunityId: input.remove.id })
-          if (input.remove.kind === "course") return mutate(input, { type: "remove_reference_course", courseId: input.remove.id })
-          return { ok: false, code: "COMMAND_INVALID", message: "remove.kind must be course, program, or opportunity." }
+          if (input.remove.kind === "evidence") return mutate(input, { type: "archive_evidence", evidenceId: input.remove.id })
+          if (input.remove.kind === "opportunity" || input.remove.kind === "course") {
+            // A shipped entry is absent from the overlay, so without this
+            // check the removal fails with a misleading "not found" even
+            // though the entry is plainly visible in the catalog.
+            const value = await workspace()
+            const overlay = value.referenceOverlay
+            const inOverlay = input.remove.kind === "course" ? (overlay?.courses ?? []).some((item) => item.id === input.remove.id) : (overlay?.opportunities ?? []).some((item) => item.id === input.remove.id)
+            if (!inOverlay) {
+              const shipped = input.remove.kind === "course"
+                ? (await catalog()).courses.some((item) => item.id === input.remove.id)
+                : institutionForWorkspace(value).buildOpportunities().some((item) => item.id === input.remove.id)
+              if (shipped) return { ok: false, code: "COMMAND_INVALID", message: `Shipped institutional ${input.remove.kind === "course" ? "courses" : "listings"} cannot be removed; only agent-added entries can be.` }
+            }
+            if (input.remove.kind === "opportunity") return mutate(input, { type: "remove_reference_opportunity", opportunityId: input.remove.id })
+            return mutate(input, { type: "remove_reference_course", courseId: input.remove.id })
+          }
+          return { ok: false, code: "COMMAND_INVALID", message: "remove.kind must be course, program, opportunity, or evidence." }
         }
         if (!input.evidence) return { ok: false, code: "COMMAND_INVALID", message: "Adding or correcting reference always carries a classified evidence source." }
         if (input.program) return mutate(input, { type: "add_reference_program", program: input.program, evidence: input.evidence })
