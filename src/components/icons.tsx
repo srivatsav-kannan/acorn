@@ -82,3 +82,9 @@ export const AcornMark = (props: SVGProps<SVGSVGElement>) => <svg width={22} hei
   <path d="M4.3 9.6C4.3 5.9 7.8 3.5 12 3.5s7.7 2.4 7.7 6.1c0 .8-.6 1.4-1.4 1.4H5.7c-.8 0-1.4-.6-1.4-1.4Z" fill="var(--acorn-cap, #6b4423)" />
   <path d="M6 11h12c-.2 5-2.5 8.6-6 10.7C8.5 19.6 6.2 16 6 11Z" fill="var(--acorn-nut, #cf9046)" />
 </svg>
+
+// The squirrel-and-acorn mark as a background-free image, so it sits directly
+// on any surface, the cardinal topbar included, with no cream box behind it.
+export const AcornSquirrelMark = ({ className }: { className?: string }) =>
+  // eslint-disable-next-line @next/next/no-img-element
+  <img className={className} src="/acorn-squirrel-mark.png" alt="" width={23} height={30} />

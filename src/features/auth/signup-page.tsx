@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { AcornMark } from "@/components/icons"
+import { AcornSquirrelMark } from "@/components/icons"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, type FormEvent } from "react"
 import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
@@ -73,7 +73,7 @@ export const SignupPage = () => {
   }
 
   return <main className="auth-page">
-    <Link className="wordmark auth-wordmark" href="/"><AcornMark className="wordmark-acorn" />Acorn</Link>
+    <Link className="wordmark auth-wordmark" href="/"><AcornSquirrelMark className="wordmark-acorn" />Acorn</Link>
     <section className="auth-card">
       <header>
         <h1>Create your account</h1>

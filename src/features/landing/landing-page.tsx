@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { AcornMark } from "@/components/icons"
+import { AcornSquirrelMark } from "@/components/icons"
 import { Reveal } from "@/components/reveal"
 import { buildStanfordCatalog, stanfordCatalogMeta } from "@/data/institutions/stanford"
 import { listInstitutionChoices } from "@/data/institutions/registry"
@@ -11,6 +11,7 @@ const readTools: Array<[string, string]> = [
   ["search_courses", "Full catalog search with section times."],
   ["get_plan", "Scenarios, courses, and commitments for any term."],
   ["check_plan", "Deterministic conflict and prerequisite checks."],
+  ["suggest_sections", "Ranked section assignments that clear every constraint."],
   ["get_program_progress", "Requirement-by-requirement degree evaluation."]
 ]
 
@@ -51,7 +52,7 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
 
   return <main className="public-page">
     <header className="public-header">
-      <Link className="wordmark" href="/"><AcornMark className="wordmark-acorn" />Acorn</Link>
+      <Link className="wordmark" href="/"><AcornSquirrelMark className="wordmark-acorn" />Acorn</Link>
       <nav aria-label="Public">
         <a href="#premise">How it works</a>
         <a href="#agents">For agents</a>
@@ -111,7 +112,7 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
 
     <Reveal><section id="agents" className="webmcp-band">
       <div>
-        <h2>Agents work here through twenty-one real tools.</h2>
+        <h2>Agents work here through twenty-two real tools.</h2>
         <p>Acorn registers its planning tools directly in the page through WebMCP, so an agent working beside you can search your saved context, check a plan against the engine, file research with its sources, and extend the institutional reference when something is missing. Because those tools run through the same command path as your own clicks, every agent edit lands in the ledger with attribution and an undo.</p>
         <p>Read tools carry a read-only annotation, and write tools require the workspace version they started from, so an agent holding stale state receives a clean conflict and retries with fresh context.</p>
       </div>

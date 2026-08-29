@@ -9,7 +9,7 @@ import { searchWorkspace } from "@/domain/search"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { parseTermId, termLabel } from "@/domain/timeline"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
-import { AcornMark, ExploreFill, NoteFill, PlanFill, ProfileFill, SearchIcon, TogetherFill } from "@/components/icons"
+import { AcornSquirrelMark, ExploreFill, NoteFill, PlanFill, ProfileFill, SearchIcon, TogetherFill } from "@/components/icons"
 
 // One top bar, four tabs, and the tab you are on is unmistakably lit.
 const navigation = [
@@ -75,7 +75,7 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
   return <div className="app-frame">
     <a className="skip-link" href="#workspace-content">Skip to workspace</a>
     <header className="topbar">
-      <Link className="wordmark" href="/app" aria-label="Acorn workspace"><AcornMark className="wordmark-acorn" />Acorn</Link>
+      <Link className="wordmark" href="/app" aria-label="Acorn workspace"><AcornSquirrelMark className="wordmark-acorn" />Acorn</Link>
       <nav className="topbar-tabs" aria-label="Primary">
         {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "topbar-tab active" : "topbar-tab"} href={href} aria-current={activeKey === key ? "page" : undefined}>{name}</Link>)}
       </nav>
