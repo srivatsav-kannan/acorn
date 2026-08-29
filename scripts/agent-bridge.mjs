@@ -87,10 +87,12 @@ if (await page.locator("#email").count()) {
   await page.waitForLoadState("networkidle").catch(() => undefined)
   let signedIn = false
   for (let attempt = 0; attempt < 4 && !signedIn; attempt++) {
-    await page.fill("#email", email)
-    await page.fill("#password", password)
-    await page.click("button[type=submit]")
-    signedIn = await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 15000 }).then(() => true).catch(() => false)
+    // A slow auth round trip leaves the submit button disabled on
+    // "Logging in…"; retrying must wait it out, never crash on the click.
+    await page.fill("#email", email).catch(() => undefined)
+    await page.fill("#password", password).catch(() => undefined)
+    await page.click("button[type=submit]", { timeout: 5000 }).catch(() => undefined)
+    signedIn = await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 30000 }).then(() => true).catch(() => false)
     if (!signedIn) console.log(`Login attempt ${attempt + 1} did not leave the login page, retrying`)
   }
   if (!signedIn) {
