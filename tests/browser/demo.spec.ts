@@ -15,6 +15,14 @@ test("public landing explains the product and routes into the account flow", asy
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible()
 })
 
+test("a guessed workspace path lands on the workspace, never a bare 404", async ({ page }) => {
+  await page.goto("/demo")
+  await expect(page).toHaveURL(/\/app/)
+  await page.goto("/app/scratchpad")
+  await expect(page).toHaveURL(/\/app$/)
+  await expect(page.getByRole("banner").getByText("Autumn 2026")).toBeVisible()
+})
+
 test("the demo workspace exposes the four tabs and the front-door return", async ({ page }) => {
   await page.goto("/demo")
   await expect(page).toHaveURL(/\/app/)

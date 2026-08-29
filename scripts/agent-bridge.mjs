@@ -167,8 +167,14 @@ const server = createServer(async (request, response) => {
       const { path = "/app" } = await readBody(request)
       const destination = new URL(path, appUrl).toString()
       await page.goto(destination, { waitUntil: "domcontentloaded" })
-      await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 60000 })
-      return respond(response, 200, { ok: true, url: page.url() })
+      const registered = await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 20000 }).then(() => true).catch(() => false)
+      if (registered) return respond(response, 200, { ok: true, url: page.url() })
+      // The destination rendered without a tool surface (a signed-out page or
+      // a path outside the workspace). Recover to the workspace instead of
+      // stranding every later /call on an empty registry.
+      await page.goto(appUrl, { waitUntil: "domcontentloaded" })
+      const recovered = await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 30000 }).then(() => true).catch(() => false)
+      return respond(response, recovered ? 200 : 502, { ok: false, recovered, url: page.url(), error: `No tools registered at ${destination}; ${recovered ? "returned to the workspace, which is serving tools again" : "recovery to the workspace also found no tools"}.` })
     }
     if (request.method === "POST" && request.url === "/screenshot") {
       const { path = "agent-bridge.png" } = await readBody(request)
