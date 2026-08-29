@@ -68,11 +68,19 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   if (programs.length) groups.push({ type: "programs", items: programs.slice(0, 6).map((program) => ({ id: program.id, title: program.name, summary: program.credential })) })
   const matchedOpportunities = opportunities.filter((item) => matches(`${item.name} ${item.summary} ${item.tags.join(" ")}`))
   if (matchedOpportunities.length) groups.push({ type: "opportunities", items: matchedOpportunities.slice(0, 6).map((item) => ({ id: item.id, title: item.name, summary: brief(item.summary) })) })
-  const total = groups.reduce((sum, group) => sum + group.items.length, 0)
+  // Sufficiency means the saved workspace can answer this question, so only
+  // durable context counts toward it. Catalog courses and the opportunity
+  // directory match almost any academic phrase and used to mask real gaps.
+  const durableTypes = new Set(["people", "library", "sources", "programs"])
+  const durableTotal = groups.filter((group) => durableTypes.has(group.type)).reduce((sum, group) => sum + group.items.length, 0)
+  const programSeeking = /\b(program|degree|major|minor|master|masters|ms|mscs|phd|coterm|coterminal|requirements?)\b/.test(normalized)
+  const gaps: string[] = []
+  if (durableTotal === 0) gaps.push(`No durable workspace context strongly matches “${query}”. Research it and save the findings with save_research.`)
+  if (programSeeking && !groups.some((group) => group.type === "programs")) gaps.push(`No program reference in this workspace matches “${query}”. If the program is real, add it with extend_reference from an official source.`)
   return {
     query,
-    sufficient: total > 0,
+    sufficient: gaps.length === 0,
     groups,
-    gaps: total > 0 ? [] : [`No durable workspace context strongly matches “${query}”.`]
+    gaps
   }
 }

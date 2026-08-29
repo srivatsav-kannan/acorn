@@ -5,7 +5,7 @@ import { applyAcademicHistory, validateAcademicHistoryPatch } from "@/domain/his
 import { emptyOverlay, validateOpportunity, validateOverlayCourse, validateOverlaySection, validateReferenceProgram } from "@/domain/reference"
 import { assertSafeExternalUrl } from "@/domain/security"
 import { isValidTimezone } from "@/domain/timezone"
-import { compareTerms, parseTermId, termLabel } from "@/domain/timeline"
+import { compareTerms, parseTermId, supportsTimeline, termLabel } from "@/domain/timeline"
 import { validateSavedView } from "@/domain/views"
 import type { ActionReceipt, Actor, ChangedEntity, ContextItem, Preference, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository, RepositoryError } from "@/store/memory-repository"
@@ -223,7 +223,14 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       changed.push({ type: "preference", id: removed.id })
     } else if (command.type === "update_profile") {
       const patch = command.patch as Record<string, unknown>
-      if (typeof patch.name === "string" && patch.name.trim()) workspace.profile.name = patch.name.trim().slice(0, 80)
+      if (typeof patch.name === "string" && patch.name.trim()) {
+        workspace.profile.name = patch.name.trim().slice(0, 80)
+        // The workspace title carries the student's first name, so a rename
+        // must not leave a previous owner's name on every export header.
+        const firstName = workspace.profile.name.split(/\s+/)[0]
+        const possessive = workspace.title.indexOf("'s ")
+        workspace.title = `${firstName}'s ${possessive >= 0 ? workspace.title.slice(possessive + 3) : workspace.title}`
+      }
       if (typeof patch.summary === "string") {
         workspace.profile.summary = patch.summary.trim().slice(0, 1200)
         const goal = workspace.contextItems.find((item) => item.type === "goal" && !item.archived)
@@ -234,7 +241,13 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
           changed.push({ type: "context_item", id: goal.id })
         }
       }
-      if (typeof patch.classYear === "string") workspace.profile.classYear = patch.classYear.trim().slice(0, 30) || undefined
+      if (typeof patch.classYear === "string") {
+        // With a structured timeline, standing is computed from the entry and
+        // graduation dates, so a free-form class year would let the profile
+        // contradict the map it sits next to.
+        if (patch.classYear.trim() && supportsTimeline(workspace)) throw commandError("Class standing is derived from the entry and graduation dates on this profile. Change those dates on the Profile page instead of setting a class year.")
+        workspace.profile.classYear = patch.classYear.trim().slice(0, 30) || undefined
+      }
       if (typeof patch.recoveryPhone === "string") workspace.profile.recoveryPhone = patch.recoveryPhone.trim().slice(0, 24) || undefined
       if (typeof patch.earliestStart === "string" && /^\d{2}:\d{2}$/.test(patch.earliestStart)) workspace.profile.earliestStart = patch.earliestStart
       if (typeof patch.latestEnd === "string" && /^\d{2}:\d{2}$/.test(patch.latestEnd)) workspace.profile.latestEnd = patch.latestEnd
@@ -245,6 +258,9 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       let patch
       try { patch = validateAcademicHistoryPatch(command.patch ?? {}) }
       catch (error) { throw commandError((error as Error).message) }
+      // Same rule as update_profile: with a structured timeline the standing
+      // is computed, and a stored class year would contradict it.
+      if (patch.classYear && supportsTimeline(workspace)) throw commandError("Class standing is derived from the entry and graduation dates on this profile. Change those dates on the Profile page instead of setting a class year.")
       applyAcademicHistory(workspace.profile, patch)
       changed.push({ type: "student_profile", id: workspace.profile.id })
     } else if (command.type === "set_completed_courses") {

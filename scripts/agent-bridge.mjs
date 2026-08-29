@@ -100,7 +100,7 @@ if (await page.locator("#email").count()) {
   }
 }
 
-await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 120000 }).catch(async (error) => {
+await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 120000 }).catch(async () => {
   console.error(`No tools registered. Current URL: ${page.url()}`)
   console.error(`Page says: ${(await page.locator("body").innerText().catch(() => "")).slice(0, 300)}`)
   await browser.close()

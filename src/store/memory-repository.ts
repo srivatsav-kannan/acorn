@@ -26,6 +26,14 @@ export class MemoryWorkspaceRepository {
 
   setNow(now: () => Date) { this.now = now }
 
+  // Swap a workspace's state in place, keeping this repository instance and
+  // every closure holding it valid. Registered WebMCP tools capture the
+  // repository once, so recovery from a failed commit must never construct a
+  // replacement repository or those tools keep writing into an orphan.
+  replaceWorkspace(workspace: WorkspaceState) {
+    this.workspaces.set(workspace.id, structuredClone(workspace))
+  }
+
   async getWorkspace(workspaceId: string, userId: string) {
     const workspace = this.workspaces.get(workspaceId)
     if (!workspace || workspace.ownerUserId !== userId) throw new RepositoryError("FORBIDDEN", "You do not have access to this workspace")

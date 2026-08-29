@@ -24,7 +24,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       blocks.push([
         `# ${workspace.title}`,
         `Student: ${profile.name || "unnamed"}. Institution: ${workspace.institution}. Current term: ${termLabel(workspace.currentTermId)}.`,
-        timeline ? `Timeline: entered ${termLabel(timeline.entryTermId)}, graduating ${termLabel(timeline.expectedGraduationTermId)}, objective ${timeline.degree}. Standing now: ${profile.classYear || standingForTerm(timeline, workspace.currentTermId)}.` : "No structured timeline; this is a custom institution.",
+        timeline ? `Timeline: entered ${termLabel(timeline.entryTermId)}, graduating ${termLabel(timeline.expectedGraduationTermId)}, objective ${timeline.degree}. Standing now: ${standingForTerm(timeline, workspace.currentTermId)}.` : `No structured timeline; this is a custom institution.${profile.classYear ? ` Reported standing: ${profile.classYear}.` : ""}`,
         `Planning window: classes between ${profile.earliestStart} and ${profile.latestEnd}; protected days: ${profile.excludedDays.join(", ") || "none"}.`
       ].join("\n"))
     }
@@ -105,8 +105,9 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
     }
     if (current === "history") {
       const completed = workspace.profile.completedCourseIds.map((id) => code(id))
-      const credits = (workspace.profile.apCredits ?? []).map((credit) => `- ${credit.exam}${credit.score ? `, score ${credit.score}` : ""}${credit.unitsGranted ? `, ${credit.unitsGranted} units` : ""}`)
-      blocks.push([`## Academic history`, completed.length ? `Completed: ${completed.join(", ")}.` : "No completed courses recorded.", ...(credits.length ? ["AP credit:", ...credits] : ["No AP credit recorded."])].join("\n"))
+      const creditKind = (credit: { kind?: string, institution?: string }) => credit.kind === "ib" ? "IB" : credit.kind === "college" ? credit.institution || "College course" : "AP"
+      const credits = (workspace.profile.apCredits ?? []).map((credit) => `- ${creditKind(credit)}: ${credit.exam}${credit.score ? `, score ${credit.score}` : ""}${credit.unitsGranted ? `, ${credit.unitsGranted} units granted` : ""}`)
+      blocks.push([`## Academic history`, completed.length ? `Completed: ${completed.join(", ")}.` : "No completed courses recorded.", ...(credits.length ? ["External credit (AP, IB, and college coursework):", ...credits] : ["No external credit recorded."])].join("\n"))
     }
   }
   return blocks

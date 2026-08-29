@@ -39,17 +39,19 @@ describe("academic history", () => {
 
   it("lets an agent record structured history through the shared command, visibly and undoably", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())
+    await expect(executeCommand(repository, envelope({
+      type: "update_academic_history",
+      patch: { classYear: "Class of 2030" }
+    }, 1, "HIST-GUARD"))).rejects.toThrow(/derived from the entry and graduation dates/)
     const receipt = await executeCommand(repository, envelope({
       type: "update_academic_history",
       patch: {
-        classYear: "Junior",
         completedCourses: [{ courseId: "COURSE-CS-106A", grade: "A" }, { courseId: "COURSE-MATH-19" }],
         apCredits: [{ exam: "AP Calculus BC", score: 5, unitsGranted: 10, satisfiesCourseIds: ["COURSE-MATH-21"] }]
       }
     }))
     expect(receipt).toMatchObject({ ok: true, undoAvailable: true })
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
-    expect(workspace.profile.classYear).toBe("Junior")
     expect(workspace.profile.completedCourseIds).toEqual(["COURSE-CS-106A", "COURSE-MATH-19"])
     expect(workspace.profile.courseGrades).toEqual({ "COURSE-CS-106A": "A" })
     expect(workspace.profile.apCredits).toHaveLength(1)

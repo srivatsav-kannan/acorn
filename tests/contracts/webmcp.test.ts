@@ -132,7 +132,7 @@ describe("WebMCP manifest", () => {
     const { tools } = setup()
     const result = await tools.find((tool) => tool.name === "get_planning_context")!.execute({})
     expect(result).toMatchObject({ currentPlanId: "PLAN-AUT26", activeScenarioId: "SCENARIO-PRIMARY" })
-    expect(result.workflow).toContain("Discover current plan and scenario IDs before editing")
+    expect(result.workflow).toContain("Discover plan and scenario IDs before editing")
   })
 
   it("returns stable IDs, versions, evidence, and visible-change receipts", async () => {
@@ -204,7 +204,10 @@ describe("structured context and reference tools", () => {
   it("accepts academic history through update_student_context, one section per call", async () => {
     const { tools } = setup()
     const tool = tools.find((candidate) => candidate.name === "update_student_context")!
-    const history = await tool.execute({ expectedVersion: 1, idempotencyKey: "HISTORY-1", academicHistory: { classYear: "Sophomore", apCredits: [{ exam: "AP Calculus BC", score: 5, satisfiesCourseIds: ["COURSE-MATH-21"] }] } })
+    const guarded = await tool.execute({ expectedVersion: 1, idempotencyKey: "HISTORY-0", academicHistory: { classYear: "Class of 2030" } })
+    expect(guarded).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(String((guarded as { message?: string }).message)).toMatch(/derived from the entry and graduation dates/)
+    const history = await tool.execute({ expectedVersion: 1, idempotencyKey: "HISTORY-1", academicHistory: { apCredits: [{ exam: "AP Calculus BC", score: 5, satisfiesCourseIds: ["COURSE-MATH-21"] }] } })
     expect(history).toMatchObject({ ok: true })
     const both = await tool.execute({ expectedVersion: 2, idempotencyKey: "HISTORY-2", academicHistory: { classYear: "Junior" }, preferences: [{ id: "PREFERENCE-X", label: "X", strength: "soft", value: true }] })
     expect(both).toMatchObject({ ok: false, code: "ONE_SECTION_PER_CALL" })
@@ -214,13 +217,15 @@ describe("structured context and reference tools", () => {
     expect(named).toMatchObject({ ok: true })
   })
 
-  it("lets an agent set standing and the planning window through the profile section", async () => {
+  it("derives standing from the timeline and still takes the planning window through the profile section", async () => {
     const { repository, tools } = setup()
     const tool = tools.find((candidate) => candidate.name === "update_student_context")!
-    const result = await tool.execute({ expectedVersion: 1, idempotencyKey: "WINDOW-1", profile: { classStanding: "Coterm", earliestStart: "10:00", latestEnd: "17:30", excludedDays: ["fri", "sun"] } })
+    const standing = await tool.execute({ expectedVersion: 1, idempotencyKey: "WINDOW-0", profile: { classStanding: "Coterm" } })
+    expect(standing).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    const result = await tool.execute({ expectedVersion: 1, idempotencyKey: "WINDOW-1", profile: { earliestStart: "10:00", latestEnd: "17:30", excludedDays: ["fri", "sun"] } })
     expect(result).toMatchObject({ ok: true })
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
-    expect(workspace.profile).toMatchObject({ classYear: "Coterm", earliestStart: "10:00", latestEnd: "17:30", excludedDays: ["fri", "sun"] })
+    expect(workspace.profile).toMatchObject({ earliestStart: "10:00", latestEnd: "17:30", excludedDays: ["fri", "sun"] })
   })
 
   it("adds a program through extend_reference and rejects ambiguous payloads", async () => {

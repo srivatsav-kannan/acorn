@@ -4,7 +4,7 @@ import { evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan } from "@/domain/planner"
 import { mergedCatalogFor, mergedOpportunities } from "@/domain/reference"
-import { supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
+import { standingForTerm, supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateRequirement } from "@/domain/requirements"
 import { searchCourses, searchWorkspace } from "@/domain/search"
@@ -27,6 +27,9 @@ type Setup = {
   session: { userId: string, workspaceId: string, actor: Actor }
   now: () => Date
   onWorkspaceChanged?: (workspace: WorkspaceState, expectedVersion: number, idempotencyKey: string) => Promise<void>
+  // Serializes each mutation against every other mutation in the session,
+  // including UI clicks, so concurrent tool calls cannot race their commits.
+  runExclusive?: <T>(task: () => Promise<T>) => Promise<T>
 }
 
 const schema = (properties: JsonSchema["properties"] = {}, required: string[] = []): JsonSchema => ({ type: "object", additionalProperties: false, properties, required })
@@ -52,10 +55,12 @@ const evidenceField = {
   required: ["id", "title", "claim", "sourceUrl", "sourceTitle", "retrievedAt", "classification", "confidence", "status"]
 }
 
-export const createCourseContextTools = ({ repository, session, now, onWorkspaceChanged }: Setup): Tool[] => {
+export const createCourseContextTools = ({ repository, session, now, onWorkspaceChanged, runExclusive }: Setup): Tool[] => {
   const workspace = () => repository.getWorkspace(session.workspaceId, session.userId)
   const catalog = async () => mergedCatalogFor(await workspace(), repository.catalog)
-  const mutate = async (input: any, command: Record<string, unknown>) => {
+  const gate = runExclusive ?? (<T,>(task: () => Promise<T>) => task())
+  const mutate = (input: any, command: Record<string, unknown>) => gate(async () => {
+    let applied: { receiptId: string } | null = null
     try {
       const result = await executeCommand(repository, {
         actor: session.actor,
@@ -65,13 +70,25 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         idempotencyKey: input.idempotencyKey,
         command
       })
-      if (result.ok && onWorkspaceChanged) await onWorkspaceChanged(await workspace(), input.expectedVersion, input.idempotencyKey)
+      if (!result.ok) return result
+      applied = result
+      if (onWorkspaceChanged) await onWorkspaceChanged(await workspace(), input.expectedVersion, input.idempotencyKey)
       return result
     } catch (error) {
-      const code = (error as { code?: string }).code ?? "COMMAND_FAILED"
-      return { ok: false, code, retryable: code === "VERSION_CONFLICT", message: (error as Error).message }
+      const code = (error as { code?: string }).code ?? (applied ? "COMMIT_FAILED" : "COMMAND_FAILED")
+      if (applied) {
+        // The command ran locally but the durable commit did not confirm, and
+        // the provider has already reloaded server truth over this repository.
+        // A commit that actually landed carries its receipt in that reloaded
+        // state, so answer with the real outcome instead of a false failure.
+        const reloaded = await workspace().catch(() => null)
+        const receipt = reloaded?.receipts.find((item) => item.receiptId === applied?.receiptId)
+        if (receipt) return structuredClone(receipt)
+      }
+      const retryable = code === "VERSION_CONFLICT" || code === "COMMIT_TIMEOUT" || code === "COMMIT_FAILED"
+      return { ok: false, code, retryable, message: (error as Error).message }
     }
-  }
+  })
 
   return [
     {
@@ -96,7 +113,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const currentPlan = value.plans.find((plan) => plan.termId === value.currentTermId) ?? value.plans[0]
         const custom = value.institutionId === "INSTITUTION-CUSTOM"
         const timeline = supportsTimeline(value) ? timelineFor(value.profile, now()) : null
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, apCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once for a fresh session", "Search the workspace before external research", "Discover current plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties.slice(0, 3).map((item) => ({ id: item.id, question: item.question.slice(0, 90), status: item.status })) }
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Shipped reference is a sample. Fill gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once for a fresh session", "Search the workspace before external research", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after every plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd } }, uncertainties: value.uncertainties.slice(0, 3).map((item) => ({ id: item.id, question: item.question.slice(0, 80), status: item.status })) }
       }
     },
     {
@@ -191,7 +208,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           properties: {
             preferredName: field("string", "The name the student goes by"),
             goal: field("string", "What the student wants help figuring out, in their own words"),
-            classStanding: field("string", "Class standing such as Sophomore or Coterm; omit to keep the timeline-derived value"),
+            classStanding: field("string", "Only for custom institutions without a computed timeline. With a timeline, standing is derived from the profile's entry and graduation dates and this field is rejected"),
             earliestStart: field("string", "Earliest acceptable class start, 24h HH:MM"),
             latestEnd: field("string", "Latest acceptable class end, 24h HH:MM"),
             excludedDays: { type: "array", description: "Days to keep meeting-free, e.g. [\"fri\"]", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] } }
@@ -202,7 +219,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           additionalProperties: false,
           description: "Structured academic history. Provided lists replace the stored lists.",
           properties: {
-            classYear: field("string", "Class standing or expected graduation year"),
+            classYear: field("string", "Only for custom institutions without a computed timeline; rejected when standing is derived from the profile dates"),
             completedCourses: field("array", "Complete list of completed courses as {courseId, grade?}"),
             apCredits: field("array", "Complete list of credits as {exam, score?, unitsGranted?, satisfiesCourseIds?}. satisfiesCourseIds count as completed in checks.")
           }

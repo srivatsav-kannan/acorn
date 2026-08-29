@@ -31,6 +31,16 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 const demoStorageKey = "course-context-demo-v1"
 const localStorageKey = "course-context-local-v1"
 
+// Commit failures carry a machine-readable code so WebMCP tools can tell an
+// agent whether a retry with the same idempotency key is safe.
+class CommitError extends Error {
+  code: string
+  constructor(code: string, message: string) {
+    super(message)
+    this.code = code
+  }
+}
+
 export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, userEmail = "", catalog, isDemoAccount = false, localAccount = false }: { children: ReactNode, mode: "fixture" | "account", initialWorkspace?: WorkspaceState, userId?: string, userEmail?: string, catalog?: Catalog, isDemoAccount?: boolean, localAccount?: boolean }) => {
   const router = useRouter()
   const [initial] = useState(() => {
@@ -43,7 +53,10 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
   const storageKey = localAccount ? localStorageKey : demoStorageKey
   const [booted, setBooted] = useState(mode === "account" || !localAccount)
   const [workspace, setWorkspace] = useState(initial.workspace)
-  const [repository, setRepository] = useState(() => new MemoryWorkspaceRepository(initial))
+  // One repository for the whole session. Registered WebMCP tools close over
+  // it, so recovery paths swap its contents with replaceWorkspace instead of
+  // constructing a replacement the tools would never see.
+  const [repository] = useState(() => new MemoryWorkspaceRepository(initial))
   const [saveState, setSaveState] = useState<WorkspaceContextValue["saveState"]>("idle")
   const [message, setMessage] = useState<WorkspaceContextValue["message"]>(null)
   const counter = useRef(0)
@@ -63,7 +76,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
         const next = { workspace: materializeLegacyResearch(JSON.parse(stored) as WorkspaceState), catalog: initial.catalog }
         localStorage.setItem(localStorageKey, JSON.stringify(next.workspace))
         const timeout = window.setTimeout(() => {
-          setRepository(new MemoryWorkspaceRepository(next))
+          repository.replaceWorkspace(next.workspace)
           setWorkspace(next.workspace)
           setBooted(true)
         }, 0)
@@ -89,14 +102,14 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       const next = { workspace: materializeLegacyResearch(JSON.parse(stored) as WorkspaceState), catalog: initial.catalog }
       localStorage.setItem(demoStorageKey, JSON.stringify(next.workspace))
       const timeout = window.setTimeout(() => {
-        setRepository(new MemoryWorkspaceRepository(next))
+        repository.replaceWorkspace(next.workspace)
         setWorkspace(next.workspace)
       }, 0)
       return () => window.clearTimeout(timeout)
     } catch {
       localStorage.removeItem(demoStorageKey)
     }
-  }, [initial.catalog, mode, localAccount, router])
+  }, [initial.catalog, mode, localAccount, repository, router])
 
   const refresh = useCallback(async () => {
     const next = await repository.getWorkspace(workspace.id, ownerUserId)
@@ -106,13 +119,21 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
   }, [mode, ownerUserId, repository, storageKey, workspace.id])
 
   const restoreRemote = useCallback(async () => {
-    const response = await fetch("/api/workspace", { cache: "no-store" })
-    if (!response.ok) throw new Error("Could not reload the workspace")
-    const payload = await response.json() as { workspace: WorkspaceState }
-    const nextFixture = { workspace: payload.workspace, catalog: initial.catalog }
-    setRepository(new MemoryWorkspaceRepository(nextFixture))
-    setWorkspace(payload.workspace)
-  }, [initial.catalog])
+    // Two attempts, because this runs exactly when something already failed
+    // and a stale in-memory workspace is worse than a short extra wait.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch("/api/workspace", { cache: "no-store", signal: AbortSignal.timeout(10000) })
+        if (!response.ok) throw new Error(`Reload failed with status ${response.status}`)
+        const payload = await response.json() as { workspace: WorkspaceState }
+        repository.replaceWorkspace(payload.workspace)
+        setWorkspace(payload.workspace)
+        return
+      } catch (error) {
+        if (attempt === 1) throw new CommitError("RELOAD_FAILED", `The workspace could not be reloaded from the server, so local state may be stale. Reload the page before continuing. (${(error as Error).message})`)
+      }
+    }
+  }, [repository])
 
   const persistWorkspace = useCallback(async (next: WorkspaceState, expectedVersion: number, idempotencyKey: string) => {
     if (mode === "fixture") {
@@ -120,11 +141,20 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       setWorkspace(next)
       return
     }
-    const response = await fetch("/api/workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedVersion, workspace: next, idempotencyKey }) })
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({ message: "The change could not be saved." })) as { message?: string }
+    let response: Response
+    try {
+      response = await fetch("/api/workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedVersion, workspace: next, idempotencyKey }), signal: AbortSignal.timeout(12000) })
+    } catch (error) {
+      // The commit outcome is unknown: the request may or may not have landed.
+      // Reloading server truth resolves it either way, because a landed commit
+      // carries its receipt inside the reloaded workspace.
       await restoreRemote()
-      throw new Error(payload.message ?? "The change could not be saved.")
+      throw new CommitError("COMMIT_TIMEOUT", `The save did not confirm in time and the workspace was reloaded from the server. Retry with the same idempotency key; a landed commit will return its original receipt. (${(error as Error).message})`)
+    }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({})) as { code?: string, message?: string }
+      await restoreRemote()
+      throw new CommitError(payload.code ?? "COMMIT_FAILED", payload.message ?? "The change could not be saved.")
     }
     setWorkspace(next)
   }, [mode, restoreRemote, storageKey])
@@ -147,14 +177,17 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     }
   }
 
-  // Rapid interactions (checking three todos in a row) serialize here, so
-  // each command sees the version the previous one produced instead of
-  // racing into a conflict.
-  const onCommand = (command: Record<string, unknown>) => {
-    const task = commandQueue.current.then(() => runCommand(command))
-    commandQueue.current = task.catch(() => undefined)
-    return task
-  }
+  // Every mutation in the session serializes through this one gate: rapid UI
+  // interactions, and just as importantly agent tool calls, which used to
+  // bypass it and race their commits into version conflicts. Each entrant
+  // sees the state the previous one produced.
+  const runExclusive = useCallback(<T,>(task: () => Promise<T>): Promise<T> => {
+    const run = commandQueue.current.then(task)
+    commandQueue.current = run.catch(() => undefined)
+    return run
+  }, [])
+
+  const onCommand = (command: Record<string, unknown>) => runExclusive(() => runCommand(command))
 
   const undo = async (receiptId: string) => {
     await onCommand({ type: "undo_action", receiptId })
@@ -196,6 +229,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       repository,
       session: { userId: ownerUserId, workspaceId: workspace.id, actor: { type: "agent", id: "AGENT-WEBMCP" } },
       now: () => new Date(),
+      runExclusive,
       onWorkspaceChanged: async (next, expectedVersion, idempotencyKey) => {
         setSaveState("saving")
         try {
@@ -210,7 +244,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       }
     })
     return registerWebMcpTools(markedDocument, tools)
-  }, [ownerUserId, persistWorkspace, repository, workspace.id])
+  }, [ownerUserId, persistWorkspace, repository, runExclusive, workspace.id])
 
   // The merge only reads the overlay, so recomputing it on every command
   // (against fifteen thousand imported courses) was pure waste.

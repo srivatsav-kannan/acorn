@@ -163,7 +163,7 @@ describe("export empty and custom branches", () => {
     expect(blocks).toContain("Nothing marked interested yet.")
     expect(blocks).toContain("No priorities recorded.")
     expect(blocks).toContain("No completed courses recorded.")
-    expect(blocks).toContain("No AP credit recorded.")
+    expect(blocks).toContain("No external credit recorded.")
     const custom = buildPersonalWorkspace({ userId: "USER-C", email: "c@example.com", name: "Dana", institutionId: CUSTOM_INSTITUTION_ID, customInstitutionName: "Wherever University" })
     const customBlocks = exportBlocks(custom, { courses: [], sections: [] }, [], "profile", new Date("2026-09-01T12:00:00Z")).join("\n\n")
     expect(customBlocks).toContain("custom institution")
