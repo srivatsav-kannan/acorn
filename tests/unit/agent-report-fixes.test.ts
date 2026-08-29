@@ -81,6 +81,20 @@ describe("agent mutation durability", () => {
     expect(after.todos.filter((todo) => todo.title === "Retried todo")).toHaveLength(1)
   })
 
+  it("never vouches for an unconfirmed write when even the reload of server truth failed", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository, {
+      onWorkspaceChanged: async () => {
+        // Neither the commit nor the reload succeeded, so the repository is
+        // left holding the locally applied, unconfirmed state.
+        throw Object.assign(new Error("The workspace could not be reloaded from the server."), { code: "RELOAD_FAILED" })
+      }
+    })
+    const manageTodo = findTool(tools, "manage_todo")
+    const result = await manageTodo.execute({ expectedVersion: 1, idempotencyKey: "DARK-1", action: "add", todo: { title: "Unknown fate" } })
+    expect(result).toMatchObject({ ok: false, code: "RELOAD_FAILED", retryable: false })
+  })
+
   it("returns the original receipt when a timed-out commit actually landed", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())
     const tools = buildTools(repository, {

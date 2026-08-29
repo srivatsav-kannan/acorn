@@ -80,11 +80,13 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       return result
     } catch (error) {
       const code = (error as { code?: string }).code ?? (applied ? "COMMIT_FAILED" : "COMMAND_FAILED")
-      if (applied) {
-        // The command ran locally but the durable commit did not confirm, and
-        // the provider has already reloaded server truth over this repository.
-        // A commit that actually landed carries its receipt in that reloaded
-        // state, so answer with the real outcome instead of a false failure.
+      // After a failed commit the provider reloads server truth over this
+      // repository, and a commit that actually landed carries its receipt in
+      // the reloaded state, so answer with the real outcome instead of a
+      // false failure. When the reload itself failed the repository still
+      // holds the unconfirmed local state, and reading a receipt out of it
+      // would vouch for a write the server may never have seen.
+      if (applied && code !== "RELOAD_FAILED") {
         const reloaded = await workspace().catch(() => null)
         const receipt = reloaded?.receipts.find((item) => item.receiptId === applied?.receiptId)
         if (receipt) return structuredClone(receipt)
