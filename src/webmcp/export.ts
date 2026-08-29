@@ -36,7 +36,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       const standing = workspace.contextItems.filter((item) => !item.archived && item.type === "goal").map((item) => {
         const structured = goalContentOf(item)
         if (!structured) return `- ${item.title}${item.summary ? `: ${item.summary}` : ""} \`${item.id}\``
-        const milestones = structured.milestones.map((milestone) => `  - [${milestone.done ? "x" : " "}] ${milestone.title}${milestone.due ? ` (due ${milestone.due})` : ""}`)
+        const milestones = structured.milestones.map((milestone) => `  - [${milestone.done ? "x" : " "}] ${milestone.title}${milestone.due ? ` (due ${milestone.due})` : ""} \`${milestone.id}\``)
         const links = [...structured.courseIds.map((id) => code(id)), ...structured.opportunityIds].join(", ")
         return [`- ${item.title} (${structured.status}${structured.targetDate ? `, target ${structured.targetDate}` : ""}) \`${item.id}\``, ...milestones, ...(links ? [`  Linked: ${links}`] : [])].join("\n")
       })

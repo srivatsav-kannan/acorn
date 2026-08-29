@@ -135,6 +135,41 @@ describe("goal edge cases", () => {
     expect(uncheck).toMatchObject({ ok: true })
   })
 
+  it("removes a goal with its linked todos, and reports every change", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const goalTool = findTool(tools, "manage_goal")
+    await goalTool.execute({ expectedVersion: 1, idempotencyKey: "R-1", action: "upsert", goal: { id: "GOAL-GONE", title: "Disposable", milestones: [{ id: "MILESTONE-GONE-1", title: "Dated", due: "2026-10-01" }, { id: "MILESTONE-GONE-2", title: "Undated" }] } })
+    let workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const todoId = goalContentOf(workspace.contextItems.find((item) => item.id === "GOAL-GONE")!)!.milestones[0].todoId!
+    const trimmed = await goalTool.execute({ expectedVersion: 2, idempotencyKey: "R-2", action: "upsert", goal: { id: "GOAL-GONE", title: "Disposable", milestones: [{ id: "MILESTONE-GONE-2", title: "Undated" }] } })
+    expect((trimmed.changed as Array<{ type: string, id: string }>).some((entry) => entry.type === "todo" && entry.id === todoId)).toBe(true)
+    await goalTool.execute({ expectedVersion: 3, idempotencyKey: "R-3", action: "upsert", goal: { id: "GOAL-GONE", title: "Disposable", milestones: [{ id: "MILESTONE-GONE-1", title: "Dated", due: "2026-10-01" }] } })
+    workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const secondTodoId = goalContentOf(workspace.contextItems.find((item) => item.id === "GOAL-GONE")!)!.milestones[0].todoId!
+    const removed = await goalTool.execute({ expectedVersion: 4, idempotencyKey: "R-4", action: "remove", goalId: "GOAL-GONE" })
+    expect(removed).toMatchObject({ ok: true })
+    expect((removed.changed as Array<{ type: string, id: string }>).some((entry) => entry.type === "todo" && entry.id === secondTodoId)).toBe(true)
+    workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.contextItems.some((item) => item.id === "GOAL-GONE")).toBe(false)
+    expect(workspace.todos.some((todo) => todo.id === secondTodoId)).toBe(false)
+    const missing = await goalTool.execute({ expectedVersion: 5, idempotencyKey: "R-5", action: "remove", goalId: "GOAL-GONE" })
+    expect(missing).toMatchObject({ ok: false })
+  })
+
+  it("publishes discoverable milestone ids and protected windows to agents", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    await findTool(tools, "manage_goal").execute({ expectedVersion: 1, idempotencyKey: "D-1", action: "upsert", goal: { id: "GOAL-DISC", title: "Discoverable", milestones: [{ title: "Step" }] } })
+    await findTool(tools, "update_student_context").execute({ expectedVersion: 2, idempotencyKey: "D-2", profile: { protectedWindows: [{ days: ["fri"], start: "13:00", end: "18:00", label: "Fridays" }] } })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const goals = exportBlocks(workspace, buildFixture().catalog, [], "goals", new Date("2026-08-29T12:00:00Z")).join("\n")
+    expect(goals).toContain("`MILESTONE-DISC-1`")
+    const context = await findTool(tools, "get_planning_context").execute({}) as { goals?: Array<{ nextId: string | null }>, profile: { constraints: { protectedWindows?: string[] } } }
+    expect(context.goals?.[0]?.nextId).toBe("MILESTONE-DISC-1")
+    expect(context.profile.constraints.protectedWindows?.[0]).toContain("Fridays fri 13:00-18:00")
+  })
+
   it("rejects oversized and malformed protected windows", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())
     const tools = buildTools(repository)

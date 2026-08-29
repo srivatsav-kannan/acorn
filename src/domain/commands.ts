@@ -569,6 +569,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         if (!milestone.due) {
           if (milestone.todoId) {
             workspace.todos = workspace.todos.filter((todo) => todo.id !== milestone.todoId)
+            changed.push({ type: "todo", id: milestone.todoId })
             milestone.todoId = undefined
           }
           return
@@ -611,6 +612,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         // Milestones dropped in this upsert take their linked todos with them.
         for (const gone of previous.filter((item) => item.todoId && !milestones.some((kept: { id: string }) => kept.id === item.id))) {
           workspace.todos = workspace.todos.filter((todo) => todo.id !== gone.todoId)
+          changed.push({ type: "todo", id: gone.todoId! })
         }
         for (const milestone of milestones) syncMilestoneTodo(title, milestone)
         const status = ["active", "achieved", "dropped"].includes(String(input.status)) ? input.status : "active"
@@ -649,7 +651,18 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         ;(item.content as { status?: string }).status = String(command.status)
         item.updatedAt = new Date().toISOString()
         changed.push({ type: "goal", id: item.id })
-      } else throw commandError("Goal action must be upsert, toggle_milestone, or set_status")
+      } else if (action === "remove") {
+        const item = goalItems().find((candidate) => candidate.id === command.goalId)
+        if (!item) throw commandError("Goal not found")
+        for (const milestone of ((item.content as { milestones?: Array<{ todoId?: string }> }).milestones ?? [])) {
+          if (milestone.todoId) {
+            workspace.todos = workspace.todos.filter((todo) => todo.id !== milestone.todoId)
+            changed.push({ type: "todo", id: milestone.todoId })
+          }
+        }
+        workspace.contextItems = workspace.contextItems.filter((candidate) => candidate.id !== item.id)
+        changed.push({ type: "goal", id: item.id })
+      } else throw commandError("Goal action must be upsert, toggle_milestone, set_status, or remove")
     } else if (command.type === "set_course_interest") {
       const courseId = String(command.courseId ?? "").trim()
       if (!courseId) throw commandError("A course ID is required")

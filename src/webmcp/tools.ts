@@ -139,8 +139,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         }
         const expired = value.evidence.filter((item) => item.status === "current" && item.expiresAt && new Date(item.expiresAt) <= now()).length
         if (expired) warnings.push(`${expired} evidence record${expired === 1 ? "" : "s"} passed expiry while still marked current; refresh or archive them.`)
-        const goals = structuredGoals(value).filter((entry) => entry.goal.status === "active").slice(0, 2).map((entry) => ({ id: entry.item.id, title: entry.item.title.slice(0, 60), next: nextMilestone(entry.goal)?.title.slice(0, 40) ?? null }))
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Fill reference gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once per session", "Search the workspace before researching", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after each plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd, transitionBufferMinutes: value.profile.transitionBufferMinutes ?? 0 } }, uncertainties: value.uncertainties.slice(0, 2).map((item) => ({ id: item.id, question: item.question.slice(0, 60), status: item.status })), ...(goals.length ? { goals } : {}), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
+        const goals = structuredGoals(value).filter((entry) => entry.goal.status === "active").slice(0, 2).map((entry) => { const next = nextMilestone(entry.goal); return { id: entry.item.id, title: entry.item.title.slice(0, 60), next: next?.title.slice(0, 40) ?? null, nextId: next?.id ?? null } })
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Fill reference gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once per session", "Search the workspace before researching", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after each plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd, transitionBufferMinutes: value.profile.transitionBufferMinutes ?? 0, ...(value.profile.protectedWindows?.length ? { protectedWindows: value.profile.protectedWindows.map((window) => `${window.label} ${window.days.join("/")} ${window.start}-${window.end}`) } : {}) } }, uncertainties: value.uncertainties.slice(0, 2).map((item) => ({ id: item.id, question: item.question.slice(0, 60), status: item.status })), ...(goals.length ? { goals } : {}), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
       }
     },
     {
@@ -272,7 +272,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             latestEnd: field("string", "Latest acceptable class end, 24h HH:MM"),
             excludedDays: { type: "array", description: "Days to keep meeting-free, e.g. [\"fri\"]", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] } },
             transitionBufferMinutes: field("number", "Minimum passing minutes between classes, 0 to 120; tighter gaps raise a warning in check_plan"),
-            protectedWindows: field("array", "Up to four of {days, start, end, label}; check_plan warns when a section overlaps one")
+            protectedWindows: { type: "array", description: "Up to four windows; check_plan warns when a section overlaps one", items: { type: "object", additionalProperties: false, properties: { id: { type: "string", description: "Stable ID; defaults by position" }, days: { type: "array", items: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }, description: "Days the window covers" }, start: { type: "string", description: "24h HH:MM" }, end: { type: "string", description: "24h HH:MM, after start" }, label: { type: "string", description: "Shown in warnings, 60 characters at most" } }, required: ["days", "start", "end"] } }
           }
         },
         academicHistory: {
@@ -519,7 +519,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "set_interest",
-      description: "Mark or unmark a course or a club as interesting. Interested clubs put their deadlines on the calendar; interested courses stay visible in the tracker until they are planned. Keep the reasoning or an intended term with annotate_course.",
+      description: "Mark or unmark a course or a club as interesting. Interested clubs put their deadlines on the calendar; interested courses stay visible in the tracker until they are planned. Record an intended term with intendedTermId; keep free-form reasoning with annotate_course.",
       inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), kind: { type: "string", enum: ["course", "club"], description: "What the ID refers to" }, id: field("string", "Course ID or opportunity ID"), interested: field("boolean", "True to mark, false to clear"), intendedTermId: field("string", "Optional term this interest aims at, such as TERM-2027-WINTER; courses only") }, ["expectedVersion", "idempotencyKey", "kind", "id", "interested"]),
       annotations: annotations(false),
       examples: [],
@@ -563,7 +563,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       inputSchema: schema({
         expectedVersion: field("number", "Current workspace version"),
         idempotencyKey: field("string", "Unique retry-safe operation key"),
-        action: { type: "string", enum: ["upsert", "toggle_milestone", "set_status"], description: "What to do" },
+        action: { type: "string", enum: ["upsert", "toggle_milestone", "set_status", "remove"], description: "What to do; remove deletes a goal and its linked todos" },
         goal: {
           type: "object",
           additionalProperties: false,
@@ -581,7 +581,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           },
           required: ["title"]
         },
-        goalId: field("string", "For toggle_milestone and set_status"),
+        goalId: field("string", "For toggle_milestone, set_status, and remove"),
         milestoneId: field("string", "For toggle_milestone"),
         done: field("boolean", "For toggle_milestone; defaults to true"),
         status: { type: "string", enum: ["active", "achieved", "dropped"], description: "For set_status" }
