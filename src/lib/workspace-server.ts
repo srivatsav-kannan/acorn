@@ -10,6 +10,18 @@ export type WorkspaceRecord = {
 }
 
 export const loadWorkspaceRecordForUser = async (client: SupabaseClient, userId: string): Promise<WorkspaceRecord | null> => {
+  try {
+    return await loadWorkspaceRecordOnce(client, userId)
+  } catch {
+    // One transient database hiccup, a pool timeout or a rejected token
+    // during a platform blip, should cost one short retry, not a dead error
+    // page in front of a signed-in student.
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 800))
+    return loadWorkspaceRecordOnce(client, userId)
+  }
+}
+
+const loadWorkspaceRecordOnce = async (client: SupabaseClient, userId: string): Promise<WorkspaceRecord | null> => {
   const membership = await client.from("workspace_memberships").select("workspace_id").eq("user_id", userId).order("created_at", { ascending: true }).limit(1).maybeSingle()
   if (membership.error) throw membership.error
   if (!membership.data?.workspace_id) return null

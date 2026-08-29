@@ -3,6 +3,7 @@ import { executeCommand } from "@/domain/commands"
 import { activeCourses, evaluateDegreePlan } from "@/domain/degree-plan"
 import { effectiveCompletedCourseIds } from "@/domain/history"
 import { checkPlan, meetingComponent } from "@/domain/planner"
+import { suggestSections } from "@/domain/scheduler"
 import { mergedCatalogFor, mergedOpportunities } from "@/domain/reference"
 import { nextMilestone, structuredGoals } from "@/domain/goals"
 import { standingForTerm, supportsTimeline, termSequence, timelineFor } from "@/domain/timeline"
@@ -190,7 +191,22 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios.find((item) => item.id === plan?.activeScenarioId) ?? plan?.scenarios[0]
         const merged = mergedCatalogFor(value, repository.catalog)
         const degree = supportsTimeline(value) ? evaluateDegreePlan(value, merged, now()) : null
-        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { planUnits: selected ? selected.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) : 0, projected: degree.projectedUnits, required: degree.requiredUnits, note: "planUnits is this scenario alone; projected adds completed courses and external credit toward the degree total." } : null }
+        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, activities: value.activities, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { planUnits: selected ? selected.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) : 0, projected: degree.projectedUnits, required: degree.requiredUnits, note: "planUnits is this scenario alone; projected adds completed courses and external credit toward the degree total." } : null }
+      }
+    },
+    {
+      name: "suggest_sections",
+      description: "Generate complete section assignments for a scenario's active courses. Every option clears hard schedule constraints, protected windows, transition buffers, commitments, and scheduled activities included, and options rank by fewest warnings, fewest campus days, then least idle time between classes. Assignments come only from stored sections; standingIssues lists problems no section choice can fix. Apply a choice with edit_plan select_section.",
+      inputSchema: schema({ planId: field("string", "Stable plan ID; defaults to the current plan"), scenarioId: field("string", "Scenario to schedule; defaults to the active scenario"), limit: field("number", "Options to return, 1 to 5, default 3") }),
+      annotations: annotations(true),
+      examples: [{ scenarioId: "Use a scenario ID returned by get_plan" }],
+      execute: async ({ planId, scenarioId, limit }: { planId?: string, scenarioId?: string, limit?: number }) => {
+        const value = await workspace()
+        const plan = value.plans.find((item) => item.id === planId) ?? value.plans[0]
+        const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios.find((item) => item.id === plan?.activeScenarioId) ?? plan?.scenarios[0]
+        if (!plan || !selected) return { ok: false, code: "COMMAND_INVALID", message: "No plan scenario exists to schedule; create one with edit_plan." }
+        const merged = mergedCatalogFor(value, repository.catalog)
+        return { workspaceVersion: value.version, planId: plan.id, scenarioId: selected.id, termId: plan.termId, ...suggestSections({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, activities: value.activities, now: now(), termId: plan.termId, limit }) }
       }
     },
     {

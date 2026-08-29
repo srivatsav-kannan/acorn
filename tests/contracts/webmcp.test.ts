@@ -10,6 +10,7 @@ const expectedNames = [
   "search_courses",
   "get_plan",
   "check_plan",
+  "suggest_sections",
   "get_program_progress",
   "save_research",
   "save_workspace_item",
@@ -61,7 +62,7 @@ describe("WebMCP manifest", () => {
 
   it("annotates reads, writes, and untrusted research accurately", () => {
     const { tools } = setup()
-    const readNames = [...expectedNames.slice(0, 6), "export_context"]
+    const readNames = [...expectedNames.slice(0, 7), "export_context"]
     expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(readNames)
     expect(tools.find((tool) => tool.name === "save_research")?.annotations.untrustedContentHint).toBe(true)
     expect(tools.find((tool) => tool.name === "ingest_context")?.annotations.untrustedContentHint).toBe(true)

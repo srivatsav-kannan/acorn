@@ -1,6 +1,6 @@
 import { isEvidenceStale } from "@/domain/evidence"
 import { effectiveCompletedCourseIds } from "@/domain/history"
-import type { Catalog, Evidence, Meeting, PlanScenario, StudentProfile } from "@/domain/types"
+import type { Activity, Catalog, Evidence, Meeting, PlanScenario, StudentProfile } from "@/domain/types"
 
 export type PlanCheckCode = "UNIT_LIMIT" | "DUPLICATE_COURSE" | "MEETING_CONFLICT" | "COMMITMENT_CONFLICT" | "MISSING_SECTION" | "NOT_OFFERED" | "PREREQUISITE_MISSING" | "PREREQUISITE_UNCERTAIN" | "FINAL_CONFLICT" | "DAY_CONSTRAINT" | "TIME_CONSTRAINT" | "TRANSITION_BUFFER" | "PROTECTED_TIME" | "STALE_EVIDENCE"
 
@@ -32,7 +32,7 @@ export const meetingsOverlap = (a: Meeting, b: Meeting) => a.days.some((day) => 
 
 const finalsOverlap = (a?: { start: string, end: string }, b?: { start: string, end: string }) => Boolean(a && b && new Date(a.start) < new Date(b.end) && new Date(b.start) < new Date(a.end))
 
-export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = "TERM-2026-AUTUMN" }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], now: Date, termId?: string }): PlanCheck[] => {
+export const checkPlan = ({ scenario, catalog, profile, evidence, activities, now, termId = "TERM-2026-AUTUMN" }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], activities?: Activity[], now: Date, termId?: string }): PlanCheck[] => {
   const checks: PlanCheck[] = []
   let sequence = 0
   const add = (code: PlanCheckCode, severity: "error" | "warning", affectedIds: string[], message: string, suggestedRepairs: string[], evidenceIds: string[] = [], alternative?: { sectionId: string, meets: string }) => {
@@ -40,6 +40,15 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
     const repairs = alternative ? [`Switch to ${alternative.sectionId}, ${alternative.meets}`, ...suggestedRepairs] : suggestedRepairs
     checks.push({ id: `CHECK-${code}-${String(sequence).padStart(2, "0")}`, code, severity, deterministic: true, affectedIds, evidenceIds, message, suggestedRepairs: repairs, ...(alternative ? { alternative } : {}) })
   }
+  // A scheduled activity is a scheduling constraint exactly like a scenario
+  // commitment; students should never have to duplicate one into the plan
+  // for the checks to notice it.
+  const activityBlocks = (activities ?? []).filter((activity) => activity.schedule).map((activity) => ({
+    id: activity.id,
+    title: `${activity.name} (activity)`,
+    meetings: [{ days: activity.schedule!.days, start: activity.schedule!.start, end: activity.schedule!.end, timezone: "America/Los_Angeles", type: "commitment" as const }]
+  }))
+  const commitmentBlocks = [...scenario.commitments, ...activityBlocks]
   const active = scenario.courses.filter((item) => item.status === "active")
   const totalUnits = active.reduce((sum, item) => sum + item.units, 0)
   if (totalUnits > scenario.unitLimit) add("UNIT_LIMIT", "error", active.map((item) => item.id), `${totalUnits} units exceed the ${scenario.unitLimit} unit scenario limit.`, ["Move a course to backups", "Reduce variable units"])
@@ -66,7 +75,7 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
       for (const window of profile.protectedWindows ?? []) {
         if (one.days.some((day) => window.days.includes(day)) && minutes(one.start) < minutes(window.end) && minutes(window.start) < minutes(one.end)) return false
       }
-      for (const commitment of scenario.commitments) if (commitment.meetings.some((two) => meetingsOverlap(one, two))) return false
+      for (const commitment of commitmentBlocks) if (commitment.meetings.some((two) => meetingsOverlap(one, two))) return false
     }
     for (const other of selected) {
       if (other.item.id === replacingItemId || !other.section) continue
@@ -141,7 +150,7 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
     }
   }
 
-  for (const entry of selected) for (const commitment of scenario.commitments) {
+  for (const entry of selected) for (const commitment of commitmentBlocks) {
     if (entry.section?.meetings.some((one) => commitment.meetings.some((two) => meetingsOverlap(one, two)))) add("COMMITMENT_CONFLICT", "error", [entry.item.id, commitment.id], `A course conflicts with ${commitment.title}.`, ["Choose another section", "Move the commitment"], [], alternativeFor(entry))
   }
   return checks

@@ -78,7 +78,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
   const plan = planForTerm(workspace, planTermId)
   const scenario = plan?.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan?.scenarios[0]
   const plannedUnits = scenario?.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) ?? 0
-  const checks = useMemo(() => plan && scenario ? checkPlan({ scenario, catalog: value.catalog, profile: workspace.profile, evidence: workspace.evidence, now: new Date(), termId: plan.termId }).slice(0, 3) : [], [plan, scenario, value.catalog, workspace.profile, workspace.evidence])
+  const checks = useMemo(() => plan && scenario ? checkPlan({ scenario, catalog: value.catalog, profile: workspace.profile, evidence: workspace.evidence, activities: workspace.activities, now: new Date(), termId: plan.termId }).slice(0, 3) : [], [plan, scenario, value.catalog, workspace.profile, workspace.evidence, workspace.activities])
   const degree = useMemo(() => evaluateDegreePlan(workspace, value.catalog, new Date()), [workspace, value.catalog])
 
   const planCourse = (course: Course) => value.onCommand({ type: "edit_plan", termId: planTermId, operations: [{ type: "add_course", planCourse: { id: `PLANCOURSE-${course.id.replace(/^COURSE-/, "")}-${planTermId.slice(5)}`, courseId: course.id, sectionId: value.catalog.sections.find((section) => section.courseId === course.id && section.termId === planTermId)?.id ?? null, units: course.maxUnits, status: "active" } }] })
