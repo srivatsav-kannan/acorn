@@ -139,6 +139,7 @@ input, select, textarea { accent-color: var(--cardinal); }
 .scratch-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .type-chip { padding: 3px 9px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--navy-soft); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .agent-chip { padding: 3px 9px; border: 1.5px solid var(--border); border-radius: 999px; background: var(--gold); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.undone-chip { padding: 3px 9px; border: 1.5px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-style: normal; }
 .scratch-card h3 { margin: 0 0 6px; font-size: 17.5px; }
 .scratch-card p { flex: 1; margin: 0 0 10px; color: #5a4536; font-size: 14px; line-height: 1.55; white-space: pre-line; }
 .scratch-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }

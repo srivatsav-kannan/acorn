@@ -26,7 +26,7 @@ export const ScratchpadPage = () => {
   const [editSummary, setEditSummary] = useState("")
   const [editTags, setEditTags] = useState("")
 
-  const items = useMemo(() => value.workspace.contextItems.filter((item) => !item.archived && item.type !== "goal").sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")), [value.workspace.contextItems])
+  const items = useMemo(() => value.workspace.contextItems.filter((item) => !item.archived).sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")), [value.workspace.contextItems])
   const allTags = useMemo(() => [...new Set(items.flatMap((item) => item.tags ?? []))].sort(), [items])
   const visible = items.filter((item) => {
     if (tagFilter && !(item.tags ?? []).includes(tagFilter)) return false

@@ -58,10 +58,10 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   const people = library.filter((item) => item.type === "person")
   const otherContext = library.filter((item) => item.type !== "person")
   if (people.length) groups.push({ type: "people", items: people.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary) })) })
-  if (otherContext.length) groups.push({ type: "library", items: otherContext.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary) })) })
+  if (otherContext.length) groups.push({ type: "library", items: otherContext.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary), url: (item.content as { sourceUrl?: string } | undefined)?.sourceUrl })) })
   const referencedEvidenceIds = new Set(workspace.contextItems.flatMap((item) => item.sourceEvidenceIds ?? []))
   const orphanedEvidence = workspace.evidence.filter((item) => !referencedEvidenceIds.has(item.id) && matches(`${item.title ?? ""} ${item.claim} ${item.sourceTitle}`))
-  if (orphanedEvidence.length) groups.push({ type: "sources", items: orphanedEvidence.slice(0, 6).map((item) => ({ id: item.id, title: item.title || item.sourceTitle, summary: brief(item.claim) })) })
+  if (orphanedEvidence.length) groups.push({ type: "sources", items: orphanedEvidence.slice(0, 6).map((item) => ({ id: item.id, title: item.title || item.sourceTitle, summary: brief(item.claim), url: item.sourceUrl })) })
   const courses = searchCourses(catalog, { query }).slice(0, 5)
   if (courses.length) groups.push({ type: "courses", items: courses.map(({ course }) => ({ id: course.id, title: `${course.code} · ${course.title}`, summary: brief(course.description) })) })
   const programs = workspace.programs.filter((program) => matches(`${program.name} ${program.credential}`))
@@ -89,6 +89,10 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
     if (!catalogCodes.has(normalize(codeText))) missingCodes.add(codeText)
   }
   for (const code of [...missingCodes].slice(0, 2)) gaps.push(`No catalog course matches ${code}. If it is real, add it with extend_reference from an official source.`)
+  // Club and organization questions padded with note matches used to claim
+  // sufficiency while the directory had nothing; name that gap.
+  const orgSeeking = /\b(club|clubs|association|intramural|hackathon|society|fraternity|sorority)\b/.test(normalized)
+  if (orgSeeking && !groups.some((group) => group.type === "opportunities")) gaps.push(`No club or program listing matches “${query}”. If it exists, add it with extend_reference as an opportunity, with an official source.`)
   return {
     query,
     sufficient: gaps.length === 0,

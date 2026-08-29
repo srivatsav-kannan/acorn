@@ -3,6 +3,8 @@ import { buildFixture } from "@/data/fixture"
 import { buildStanfordCatalog } from "@/data/institutions/stanford"
 import { buildIcs } from "@/domain/ics"
 import { checkPlan } from "@/domain/planner"
+import { searchWorkspace } from "@/domain/search"
+import { exportBlocks } from "@/webmcp/export"
 import { createCourseContextTools } from "@/webmcp/tools"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
@@ -125,6 +127,69 @@ describe("agent-readable schedule detail", () => {
     const cs106b = found.results.find((row) => row.code === "CS 106B")!
     expect(cs106b.sections[0].id).toBe("SECTION-CS-106B-01")
     expect(cs106b.sections[0].meets).toContain("mon/wed/fri 12:30 to 13:20")
+  })
+})
+
+describe("save_workspace_item as a real intake surface", () => {
+  it("rejects unknown fields loudly instead of burying their content", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const result = await findTool(tools, "save_workspace_item").execute({ expectedVersion: 1, idempotencyKey: "SW-1", item: { id: "GOAL-X", type: "goal", title: "Goal", body: "Long body that would vanish" } })
+    expect(result).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(String(result.message)).toContain("body")
+    expect(String(result.message)).toContain("text")
+  })
+
+  it("derives a summary from text and updates in place on ID reuse", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const save = findTool(tools, "save_workspace_item")
+    const created = await save.execute({ expectedVersion: 1, idempotencyKey: "SW-2", item: { id: "GOAL-CURIS", type: "goal", title: "Be ready for CURIS", text: "Steps: shortlist health-AI labs, talk to one professor, verify the timeline." } })
+    expect(created).toMatchObject({ ok: true, workspaceVersion: 2 })
+    let workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const stored = workspace.contextItems.find((item) => item.id === "GOAL-CURIS")!
+    expect(stored.summary).toContain("shortlist health-AI labs")
+    expect((stored.content as { text?: string }).text).toContain("verify the timeline")
+    const updated = await save.execute({ expectedVersion: 2, idempotencyKey: "SW-3", item: { id: "GOAL-CURIS", type: "goal", title: "Be ready for CURIS by winter", text: "Steps: shortlist labs by December, coffee chat in January." } })
+    expect(updated).toMatchObject({ ok: true, workspaceVersion: 3 })
+    workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.contextItems.filter((item) => item.id === "GOAL-CURIS")).toHaveLength(1)
+    expect(workspace.contextItems.find((item) => item.id === "GOAL-CURIS")!.title).toBe("Be ready for CURIS by winter")
+    const explicit = await save.execute({ expectedVersion: 3, idempotencyKey: "SW-2B", item: { id: "NOTE-EXPLICIT", type: "note", title: "Explicit content", summary: "Set directly", content: { text: "raw", sourceUrl: "https://navigator.stanford.edu/classes" }, tags: ["Health", "health"], collectionId: "COLLECTION-INBOX" } })
+    expect(explicit).toMatchObject({ ok: true })
+    workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const explicitStored = workspace.contextItems.find((item) => item.id === "NOTE-EXPLICIT")!
+    expect((explicitStored.content as { sourceUrl?: string }).sourceUrl).toContain("navigator")
+    expect(explicitStored.tags).toEqual(["health"])
+  })
+
+  it("keeps standing goals visible in the goals export and findable in search", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    await findTool(tools, "save_workspace_item").execute({ expectedVersion: 1, idempotencyKey: "SW-4", item: { id: "GOAL-CURIS", type: "goal", title: "Be ready for CURIS", text: "Shortlist health-AI labs and talk to one professor before winter." } })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    const goals = exportBlocks(workspace, buildFixture().catalog, [], "goals", new Date("2026-08-29T12:00:00Z")).join("\n")
+    expect(goals).toContain("Standing goals:")
+    expect(goals).toContain("Be ready for CURIS")
+    const found = searchWorkspace(workspace, buildFixture().catalog, "CURIS health-AI labs professor")
+    expect(found.groups.some((group) => group.type === "library" && group.items.some((item) => item.id === "GOAL-CURIS"))).toBe(true)
+  })
+})
+
+describe("organization search gaps and source urls", () => {
+  it("names the gap when a club query has no directory listing", () => {
+    const { workspace, catalog } = buildFixture()
+    const missing = searchWorkspace(workspace, catalog, "Tamil students association first meeting")
+    expect(missing.sufficient).toBe(false)
+    expect(missing.gaps.some((gap) => gap.includes("club or program listing"))).toBe(true)
+  })
+
+  it("exposes source urls through search results", () => {
+    const { workspace, catalog } = buildFixture()
+    const evidence = workspace.evidence.find((item) => item.sourceUrl)!
+    const found = searchWorkspace(workspace, catalog, evidence.claim.split(" ").slice(0, 4).join(" "))
+    const withUrl = found.groups.flatMap((group) => group.items as Array<{ url?: string }>).some((item) => typeof item.url === "string" && item.url.startsWith("http"))
+    expect(withUrl).toBe(true)
   })
 })
 

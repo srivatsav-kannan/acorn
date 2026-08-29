@@ -31,7 +31,8 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
     }
     if (current === "goals") {
       const preferences = workspace.profile.preferences.map((preference) => `- ${preference.strength === "hard" ? "Hard" : "Soft"}: ${preference.label} \`${preference.id}\``)
-      blocks.push([`## Goals`, workspace.profile.summary ? workspace.profile.summary : "No goal note recorded yet.", ...(preferences.length ? ["Priorities:", ...preferences] : ["No priorities recorded."])].join("\n"))
+      const standing = workspace.contextItems.filter((item) => !item.archived && item.type === "goal").map((item) => `- ${item.title}${item.summary ? `: ${item.summary}` : ""} \`${item.id}\``)
+      blocks.push([`## Goals`, workspace.profile.summary ? workspace.profile.summary : "No goal note recorded yet.", ...(preferences.length ? ["Priorities:", ...preferences] : ["No priorities recorded."]), ...(standing.length ? ["Standing goals:", ...standing] : [])].join("\n"))
     }
     if (current === "todos") {
       const open = (workspace.todos ?? []).filter((todo) => !todo.done)
@@ -46,7 +47,8 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       const items = workspace.contextItems.filter((item) => !item.archived)
       blocks.push(`## Scratchpad (${items.length} notes)`)
       for (const item of items) {
-        blocks.push([`### ${item.title} \`${item.id}\``, `${item.type}${item.tags?.length ? `, tags: ${item.tags.join(", ")}` : ""}, added by ${item.addedBy?.type ?? "human"}.`, item.summary].filter(Boolean).join("\n"))
+        const sourceUrl = (item.content as { sourceUrl?: string } | undefined)?.sourceUrl
+        blocks.push([`### ${item.title} \`${item.id}\``, `${item.type}${item.tags?.length ? `, tags: ${item.tags.join(", ")}` : ""}, added by ${item.addedBy?.type ?? "human"}.`, item.summary, sourceUrl ? `Source: ${sourceUrl}` : ""].filter(Boolean).join("\n"))
       }
     }
     if (current === "plans") {

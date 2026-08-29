@@ -211,11 +211,39 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "save_workspace_item",
-      description: "Save a visible note, task, person, club, link, decision, or other context item.",
-      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), item: field("object", "Visible workspace item") }, ["expectedVersion", "idempotencyKey", "item"]),
+      description: "Save or update a visible context item: a note, task, person, organization, decision, question, idea, link, or standing goal. Reusing an existing ID updates that item in place. Full content goes in text; summary is the one-line card gist and derives from text when omitted.",
+      inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), item: {
+        type: "object",
+        additionalProperties: false,
+        description: "The item to save; reuse an ID to update it",
+        properties: {
+          id: field("string", "Stable ID, for example NOTE-CURIS-READINESS"),
+          type: { type: "string", enum: ["note", "task", "person", "organization", "decision", "question", "idea", "link", "goal"], description: "What kind of item this is" },
+          title: field("string", "Card title"),
+          summary: field("string", "One-line gist shown on the card; derived from text when omitted"),
+          text: field("string", "The full content, kept and searchable"),
+          tags: field("array", "Short lowercase tags"),
+          collectionId: field("string", "Optional collection; defaults to the inbox")
+        },
+        required: ["id", "type", "title"]
+      } }, ["expectedVersion", "idempotencyKey", "item"]),
       annotations: annotations(false),
-      examples: [],
-      execute: async (input) => mutate(input, { type: "create_context_item", item: { ...input.item, content: input.item.content ?? { text: input.item.text ?? "" } } })
+      examples: [{ item: { id: "GOAL-CURIS-READY", type: "goal", title: "Be ready for CURIS", summary: "Shortlist health-AI labs by winter", text: "Steps: shortlist labs, talk to one professor, verify the timeline." } }],
+      execute: async (input) => {
+        const item = input.item ?? {}
+        // Silently storing unrecognized fields buries their content where no
+        // surface renders it, which reads as data loss. Reject them by name.
+        const allowedKeys = ["id", "type", "title", "summary", "text", "tags", "collectionId", "content"]
+        const unknown = Object.keys(item).filter((key) => !allowedKeys.includes(key))
+        if (unknown.length) return { ok: false, code: "COMMAND_INVALID", message: `Unknown item fields: ${unknown.join(", ")}. Allowed: id, type, title, summary, text, tags, collectionId.` }
+        const summary = typeof item.summary === "string" && item.summary.trim() ? item.summary : String(item.text ?? "").trim().slice(0, 140)
+        const content = item.content && typeof item.content === "object" ? item.content : { text: String(item.text ?? "") }
+        const value = await workspace()
+        if (item.id && value.contextItems.some((candidate) => candidate.id === item.id)) {
+          return mutate(input, { type: "update_context_item", itemId: item.id, title: item.title, summary, content, tags: item.tags, collectionId: item.collectionId })
+        }
+        return mutate(input, { type: "create_context_item", item: { id: item.id, type: item.type, title: item.title, summary, content, tags: item.tags, collectionId: item.collectionId ?? "COLLECTION-INBOX" } })
+      }
     },
     {
       name: "update_student_context",
@@ -482,7 +510,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "set_interest",
-      description: "Mark or unmark a course or a club as interesting. Interested clubs put their deadlines on the calendar; interested courses stay visible in the tracker until they are planned.",
+      description: "Mark or unmark a course or a club as interesting. Interested clubs put their deadlines on the calendar; interested courses stay visible in the tracker until they are planned. Keep the reasoning or an intended term with annotate_course.",
       inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), kind: { type: "string", enum: ["course", "club"], description: "What the ID refers to" }, id: field("string", "Course ID or opportunity ID"), interested: field("boolean", "True to mark, false to clear") }, ["expectedVersion", "idempotencyKey", "kind", "id", "interested"]),
       annotations: annotations(false),
       examples: [],
