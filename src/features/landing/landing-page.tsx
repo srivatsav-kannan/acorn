@@ -61,8 +61,10 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
     </header>
 
     <section className="hero">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="hero-mark" src="/acorn-squirrel.png" alt="The Acorn mark: a black squirrel hugging an acorn" width={132} height={132} />
       <h1>Plan every quarter to graduation in a workspace <em>your agent</em> shares.</h1>
-      <p className="hero-lead">Acorn keeps the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasoning behind each choice in one durable workspace. An agent working with you reads and edits that same workspace through twenty-one WebMCP tools, and each change it makes arrives attributed, inspectable, and reversible.</p>
+      <p className="hero-lead">Acorn keeps the complete {stanfordCatalogMeta.academicYear} Stanford catalog, your requirements, your history, and the reasoning behind each choice in one durable workspace. An agent working with you reads and edits that same workspace through twenty-two WebMCP tools, and each change it makes arrives attributed, inspectable, and reversible.</p>
       <div className="hero-actions">
         <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
         <a className="secondary-button" href="#agents">How agents work here</a>
