@@ -1,180 +1,79 @@
-# CourseContext
+# Acorn
 
-CourseContext is an agent-native academic planning workspace. It helps a student and an AI agent build a course plan together from personal goals, institutional requirements, live course information, and source-backed research.
+Acorn is an academic planning workspace for Stanford students that a student and their AI agent share. The page registers nineteen planning tools on `document.modelContext` through [WebMCP](https://openai.com/webmcp-challenge/), so an agent working in the browser reads and edits the same workspace the student sees. Every agent change runs through the same validated command path as a click in the interface, lands in the activity ledger with attribution, and can be undone.
 
-The first vertical is Stanford next-quarter planning for the [WebMCP Challenge](https://openai.com/webmcp-challenge/). The product is designed to generalize to other colleges after the Stanford workflow is proven.
+The app ships the complete 2026-2027 Stanford catalog, 15,587 courses across 256 departments imported from public ExploreCourses data, together with official registrar dates, degree timeline math, and a directory of clubs and research programs.
 
-## Product thesis
+## The workspace
 
-Course planning is not primarily a calendar problem. It is a context problem.
+Signing up asks for a name, an email, a password, and two dates: the autumn you entered Stanford and the spring you expect to graduate. Those two dates generate the full quarter map. Everything else is added inside, by the student or by their agent.
 
-The facts needed for one decision are scattered across course catalogs, degree-audit systems, department pages, advising guidance, syllabi, enrollment tools, and student experience. Existing planners help students search or arrange classes, but students still have to assemble the reasoning themselves.
+- **Scratchpad** is the context layer. It holds the degree objective, the current goal, and tagged notes that both the student and the agent write. It is the first thing an agent reads and the place where handed-over context lands.
+- **Calendar** shows official registrar dates for 2026-2027 with clearly flagged projections for later years, standalone events with start and end times in any IANA timezone, and todos with optional due times. A picker re-expresses the whole calendar in a chosen display timezone, and clicking any entry opens its summary in a pinned inspector.
+- **Courses** covers catalog search with section times, clubs, recurring activities, and academic history, including AP, IB, and college coursework with the units Stanford granted for each.
+- **Collaborate** shows the live connection status, the full tool table, and a copyable onboarding prompt for an agent's first session.
 
-CourseContext gives that reasoning a shared home:
+Persistence lives in Supabase behind the app's own signup and login forms, with row-level security, versioned snapshot commits, and immutable workspace history. Any account can reset its workspace back to onboarding from the profile page.
 
-- a student profile with goals, constraints, completed work, and preferences.
-- an evidence library with sources, retrieval dates, confidence, and provenance.
-- visual schedule scenarios that humans can directly manipulate.
-- a decision ledger explaining inclusions, risks, alternatives, and open questions.
-- a persistent Library for notes, links, tasks, people, clubs, ideas, questions, and scratch documents.
-- program and requirement views that show the effect of each plan.
-- WebMCP tools through which an agent can retrieve only the context it needs and update the same workspace the student sees.
+## How agents connect
 
-The product follows one parity rule: every safe planning and information-management action available to the agent must also be available through the human interface. Both paths call the same domain operation and produce the same visible state, validation, history, and undo behavior.
-
-## Why WebMCP
-
-Without WebMCP, an agent must repeatedly inspect pages, operate filters, click cards, and reconstruct application state. CourseContext instead exposes meaningful academic-planning operations from the web app itself.
-
-Implemented read tools:
+In a WebMCP-enabled browser, opening the workspace is the whole integration: the page registers its tools at mount and the Collaborate tab confirms the connection. The tool surface follows one parity rule, which is that every action an agent can take is also available in the interface, and both paths execute the same domain command with the same validation, receipt, and undo.
 
 ```text
-search_workspace
-get_planning_context
-search_courses
-get_plan
-check_plan
-get_program_progress
+Read   search_workspace, get_planning_context, search_courses, get_plan,
+       check_plan, get_program_progress, export_context
+
+Write  edit_plan, manage_todo, manage_event, manage_activity, set_interest,
+       annotate_course, ingest_context, save_research, save_workspace_item,
+       update_student_context, extend_reference, configure_view
 ```
 
-Implemented mutation tools:
+Write tools require the workspace version they started from, so an agent holding stale state receives a clean conflict instead of silently overwriting newer work. For bulk context transfer, `export_context` pages the entire workspace out as markdown in pages near five thousand characters, and `ingest_context` files context handed over from another assistant into the scratchpad.
 
-```text
-save_research
-save_workspace_item
-update_student_context
-edit_plan
-extend_reference
-configure_view
+## The terminal bridge
+
+For a browser that does not expose WebMCP yet, the repository includes a bridge that provides the same connection from a terminal:
+
+```bash
+node scripts/agent-bridge.mjs --url http://127.0.0.1:3000/app
 ```
 
-`extend_reference` is the door out of hardcoded institutional data. When the shipped reference pack lacks a course or a program, the student's agent adds it with an official source, including full requirement trees that the deterministic evaluator can check. Additions show up labeled in the catalog and Programs views, merge into search and plan checks, and can be removed by the student at any time.
+It launches a Chromium with `document.modelContext` installed before the page loads, signs in with the demo credentials from the environment, and serves whatever the page registered over `http://127.0.0.1:4571`:
 
-The loop closes in both directions:
+- `GET /tools` lists the registered tools with their read-only flags.
+- `POST /call` with `{"tool": "get_planning_context", "input": {}}` executes a tool and returns its result.
+- `POST /goto` with `{"path": "/app/calendar"}` moves the visible app between tabs.
+- `POST /screenshot` with `{"path": "shot.png"}` captures the current page.
 
-- Structured academic history, including completed courses, AP and transfer credit with course equivalencies, and class standing, is editable by the student in Settings and writable by an agent through `update_student_context`. Equivalencies count toward prerequisites and requirements like completed courses.
-- Onboarding asks for three durable facts only: university, entry year, graduation year. Everything else, including the student's name and goal, is filled inside afterward, by the student in Settings or by their agent through `update_student_context`.
-- A student at an unsupported school chooses Other, names their university, and gets a neutral beta workspace titled for that school. Their agent researches the university and constructs its catalog and program reference with sources.
+Any terminal, script, or agent that can speak HTTP gets a working session:
 
-The visible interface and WebMCP tools must use the same domain logic and persistent state. Tool results must be structured, concise, provenance-aware, and sufficient to verify what changed.
-
-## Challenge demo
-
-A student asks:
-
-> Build an Autumn schedule under 15 units that advances me toward CS, lets me explore product design, avoids Friday classes, and leaves time for research.
-
-The agent should be able to:
-
-1. Inspect the student's current context.
-2. Identify missing information.
-3. Query relevant courses and requirements.
-4. Build two evidence-backed schedule scenarios.
-5. Check time, units, prerequisites, finals, workload balance, and uncertainty.
-6. Explain every recommendation and provide backups.
-7. React to a human moving or removing a course without rebuilding unrelated work.
-
-The student remains in control. The challenge version does not enroll in courses or represent itself as an official academic advisor.
-
-## Evidence model
-
-Every consequential claim is classified as one of:
-
-- `official`: supported by a current institutional source.
-- `experiential`: based on student-reported or community information.
-- `derived`: produced from stored facts or deterministic evaluation.
-- `student`: supplied directly by the student.
-
-Evidence records include the source URL or document, retrieval time, quoted or normalized claim, and confidence. Uncertainty is shown rather than silently converted into fact.
-
-## Seven-day scope
-
-The competition build focuses on one excellent next-quarter planning loop:
-
-- a seeded Stanford demo profile.
-- public, attributable Stanford information.
-- course search and evidence inspection.
-- a visual weekly schedule.
-- two comparable plan scenarios.
-- a searchable Library with visible agent-added research.
-- selected program and requirement progress.
-- automated structural checks.
-- human edits followed by agent revalidation.
-- a non-trivial WebMCP tool surface.
-- a public deployment and an under-three-minute demo video.
-
-It does not attempt multi-university ingestion, official enrollment, a complete four-year optimizer, or authenticated Stanford data integration.
-
-## Working product
-
-The repository now contains a complete local challenge demo:
-
-- a polished landing page, login surface, desktop workspace, and mobile navigation.
-- Home, Plan, Explore, Library, Programs, Activity, and Settings routes.
-- the complete 2026-27 Stanford catalog imported from public ExploreCourses data, 15,000+ courses with official WAYS designations and real Autumn meeting times for detailed departments, plus structured requirement maps for Computer Science, Symbolic Systems, Data Science, and WAYS, six more official program references, official planning resources, and a starting club and research directory.
-- an institution registry that ships Stanford in full, lists other universities honestly as planned adapters, and supports custom schools whose reference an agent builds from scratch.
-- a deterministic degree timeline: quarter arithmetic, class standing, multi-year plans through graduation including coterm paths, prerequisite sequencing across terms, and units-toward-degree math, all computed by application code and served to agents as context.
-- atomic domain commands with version checks, idempotency keys, visible receipts, activity attribution, rollback, and undo.
-- deterministic checks for units, duplicates, meetings, commitments, offerings, sections, prerequisites, finals, day and time constraints, transition buffers, and stale evidence.
-- recursive requirement evaluation for completed, planned, missing, and manual-review states.
-- all 12 approved semantic WebMCP tools registered in the actual page.
-- portable JSON, Markdown, source, and activity exports.
-- a permanent Supabase-backed demo account plus personal accounts, row-level security, optimistic snapshot commits, and immutable workspace history.
-- goal-first account onboarding that asks only for a preferred name and planning question, protected workspace routes, sign-out, reload-safe persistence, version-conflict recovery, visible save state, loading and failure surfaces.
-- clean personal workspaces that never clone the fictional demo profile or prefill a major, course history, schedule, commitment, research item, or inferred preference.
-- working profile, Library, course, scenario, program-tracking, saved-view, search, filter, archive, restore, reset, and undo controls.
-- a visible agent connection guide and official abort-signal WebMCP registration lifecycle.
-
-Course and program references link to official Stanford sources. Meeting and section values in the challenge fixture are illustrative planning samples. CourseContext is not a live enrollment source or official degree audit.
+```bash
+curl -s -X POST http://127.0.0.1:4571/call -H 'content-type: application/json' -d '{"tool":"get_planning_context"}'
+```
 
 ## Run locally
 
-Requirements:
-
-- Node.js 20.9 or newer
-- npm
+Requirements are Node.js 20.9 or newer and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and choose **Demo login**.
+Create `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from a Supabase project, and apply the migrations in `supabase/migrations/` as described in [the setup guide](supabase/README.md). A shared demo account exists for judging, and its credentials travel with the challenge submission rather than the repository. The optional `COURSE_CONTEXT_DEMO_EMAIL` and `COURSE_CONTEXT_DEMO_PASSWORD` variables identify that account for the demo reset endpoint and for the agent bridge login.
 
-The demo and personal accounts use the configured Supabase project. Demo credentials are stored in server-only environment variables. Apply the migrations and create the permanent demo Auth user as described in [the setup guide](supabase/README.md).
-
-To run the complete verification pipeline:
+## Tests
 
 ```bash
 npx playwright install chromium
 npm run test:all
 ```
 
-`test:all` runs lint, strict TypeScript, coverage-gated unit and integration tests, the optimized production build, and browser journeys using desktop and mobile Chromium profiles.
+That runs lint, strict TypeScript, unit and contract tests behind enforced coverage gates of 90 percent statements, 85 percent branches, 90 percent functions, and 90 percent lines on the domain, data, WebMCP, and store layers, then the production build, and finally the browser journeys on desktop and mobile Chromium profiles with serious and critical accessibility checks.
 
-## Verified quality
+## Honest limits
 
-The current finalization run passes:
-
-- unit, property, integration, contract, security, infrastructure, and agent-sequence tests, including fresh-account contamination regressions.
-- coverage above the enforced 90% statement, 85% branch, 90% function, and 90% line gates.
-- 26 executed browser journeys across desktop and mobile, with two intentional profile-specific skips.
-- serious and critical accessibility checks on both browser profiles.
-- the production Next.js build for every public and workspace route.
-
-See [the test plan](docs/test-plan.md) for architecture traceability and [the verification record](docs/verification.md) for the exact release command.
-
-## Repository documents
-
-- [AGENTS.md](AGENTS.md): repository operating rules
-- [CONTEXT.md](CONTEXT.md): current product intent and durable requirements
-- [Architecture](ARCHITECTURE.md): full product, interface, data, WebMCP, security, and deployment design
-- [Product brief](docs/product-brief.md): audience, problem, workflow, and success criteria
-- [Challenge plan](docs/challenge-plan.md): submission requirements and seven-day schedule
-- [Implementation plan](docs/implementation-plan.md): phased engineering sequence and exit conditions
-- [Test plan](docs/test-plan.md): requirement-to-test traceability and coverage gates
-- [Verification record](docs/verification.md): latest full finalization result
-- [Supabase setup](supabase/README.md): hosted authentication and persistence configuration
+Acorn is an independent project and is not affiliated with Stanford University. The catalog is public ExploreCourses data retrieved on August 28, 2026, so live sections should be verified before enrolling. Acorn never enrolls anyone in anything; enrollment always happens through the university's own system.
 
 ## License
 
