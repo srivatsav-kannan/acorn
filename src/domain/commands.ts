@@ -223,7 +223,9 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
     const command = envelope.command
 
     if (command.type === "create_context_item") {
-      const item = validateContextItem(command.item) as unknown as ContextItem
+      let item: ContextItem
+      try { item = validateContextItem(command.item) as unknown as ContextItem }
+      catch (error) { throw commandError((error as Error).message) }
       if (workspace.contextItems.some((existingItem) => existingItem.id === item.id)) throw commandError("Context item ID already exists")
       item.tags = sanitizeTags(command.item?.tags)
       item.addedBy = envelope.actor

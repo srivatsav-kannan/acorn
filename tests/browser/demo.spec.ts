@@ -284,6 +284,54 @@ test("a fresh fixture account onboards and plans across terms", async ({ page })
   await expect(page.locator(".plan-rail").getByText("CS 106B")).toBeVisible()
 })
 
+test("goals sync between agent, checklist, calendar, and the plan explains itself", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile")
+  await page.addInitScript(() => {
+    const tools = new Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }>()
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        registerTool(tool: { name: string, execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }, options?: { signal?: AbortSignal }) {
+          tools.set(tool.name, tool)
+          options?.signal?.addEventListener("abort", () => { if (tools.get(tool.name) === tool) tools.delete(tool.name) }, { once: true })
+        }
+      }
+    })
+    Object.defineProperty(window, "__courseContextTools", { value: tools })
+  })
+  await page.goto("/demo")
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __courseContextTools: Map<string, unknown> }).__courseContextTools.size)).toBe(21)
+  await page.evaluate(async () => {
+    const tools = (window as unknown as { __courseContextTools: Map<string, { execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>> }> }).__courseContextTools
+    const context = await tools.get("get_planning_context")!.execute({}) as { version: number }
+    await tools.get("manage_goal")!.execute({ expectedVersion: context.version, idempotencyKey: "E2E-GOAL", action: "upsert", goal: { id: "GOAL-E2E", title: "Journey goal", milestones: [{ title: "Journey milestone", due: "2026-10-20" }] } })
+  })
+  const card = page.locator("article", { hasText: "Journey goal" }).first()
+  await expect(card.getByText("Goal", { exact: true })).toBeVisible()
+  await expect(card.getByRole("checkbox")).not.toBeChecked()
+  await page.getByRole("link", { name: "Calendar", exact: true }).click()
+  await expect(page.getByRole("button", { name: /Download this month/ })).toBeVisible()
+  const openList = page.locator("ul.todo-list").first()
+  const todoRow = openList.locator("li", { hasText: "Journey milestone" })
+  await expect(todoRow).toBeVisible()
+  // Completing a todo moves it from the open list into the collapsed done
+  // section, so click rather than check, and assert the move; the scratchpad
+  // milestone then proves the sync end to end.
+  await todoRow.getByRole("checkbox").click({ force: true })
+  await expect(todoRow).toHaveCount(0)
+  await expect(page.locator("details.todo-done li", { hasText: "Journey milestone" })).toHaveCount(1)
+  await page.getByRole("link", { name: "Scratchpad", exact: true }).click()
+  await expect(page.locator("article", { hasText: "Journey goal" }).first().getByRole("checkbox")).toBeChecked()
+
+  await page.getByRole("link", { name: "Courses", exact: true }).click()
+  await page.getByRole("button", { name: "Add why this shape" }).click()
+  await page.getByLabel("Why this scenario").fill("Thirteen units so CS 106B gets real attention.")
+  await page.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(page.getByRole("button", { name: /Edit why this scenario/ })).toContainText("real attention")
+  await page.reload()
+  await expect(page.getByRole("button", { name: /Edit why this scenario/ })).toContainText("real attention")
+})
+
 test("has no serious accessibility violations", async ({ page }, testInfo) => {
   await page.goto("/demo")
   const results = await new AxeBuilder({ page }).analyze()
