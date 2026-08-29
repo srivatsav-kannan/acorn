@@ -608,7 +608,17 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
 
     const receiptId = actionId(envelope.idempotencyKey)
     const undoAvailable = command.type !== "undo_action"
-    if (undoAvailable) workspace.undoSnapshots[receiptId] = before
+    if (undoAvailable) {
+      // A stored snapshot must not carry its own undo history: undo_action
+      // reattaches the live map anyway, and nesting made every commit double
+      // the payload until the database cancelled reads of it. Only the ten
+      // newest snapshots stay undoable, and older entries from before this
+      // rule are stripped and pruned the same way.
+      workspace.undoSnapshots[receiptId] = { ...before, undoSnapshots: {} }
+      const keys = Object.keys(workspace.undoSnapshots)
+      for (const key of keys.slice(0, Math.max(0, keys.length - 10))) delete workspace.undoSnapshots[key]
+      for (const kept of Object.values(workspace.undoSnapshots)) kept.undoSnapshots = {}
+    }
     const receipt: ActionReceipt = {
       ok: true,
       receiptId,
@@ -620,6 +630,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       primaryVisibleId: primaryVisibleType[command.type] ? changed.find((item) => item.type === primaryVisibleType[command.type])?.id : undefined
     }
     workspace.receipts.push(receipt)
+    if (workspace.receipts.length > 300) workspace.receipts.splice(0, workspace.receipts.length - 300)
     workspace.activity.push({
       id: `ACTIVITY-${receiptId.replace(/^ACTION-/, "")}`,
       receiptId,
@@ -629,6 +640,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       createdAt: new Date().toISOString(),
       undoAvailable
     })
+    if (workspace.activity.length > 500) workspace.activity.splice(0, workspace.activity.length - 500)
     return { workspace, inverse: before, result: receipt }
   })
   return mutation.result!

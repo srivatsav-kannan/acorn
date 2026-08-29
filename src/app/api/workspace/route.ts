@@ -20,7 +20,13 @@ export async function PUT(request: Request) {
   const client = await createCourseContextServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return unauthorized()
-  const body = await request.json() as { expectedVersion?: number, workspace?: WorkspaceState, idempotencyKey?: string }
+  const raw = await request.text()
+  // A healthy workspace payload stays far below this. Anything larger means
+  // runaway state, and committing it would degrade every later read.
+  if (raw.length > 4_000_000) return NextResponse.json({ ok: false, code: "PAYLOAD_TOO_LARGE", message: "The workspace payload is unreasonably large and was not saved. Reload the page and retry." }, { status: 413 })
+  let body: { expectedVersion?: number, workspace?: WorkspaceState, idempotencyKey?: string }
+  try { body = JSON.parse(raw) as typeof body }
+  catch { return NextResponse.json({ ok: false, code: "INVALID_WORKSPACE", message: "The workspace payload or version is invalid." }, { status: 400 }) }
   const workspace = body.workspace
   if (!workspace || !Number.isInteger(body.expectedVersion) || workspace.version !== Number(body.expectedVersion) + 1 || workspace.ownerUserId !== data.user.id) {
     return NextResponse.json({ ok: false, code: "INVALID_WORKSPACE", message: "The workspace payload or version is invalid." }, { status: 400 })

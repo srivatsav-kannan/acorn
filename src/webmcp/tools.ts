@@ -62,6 +62,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
   const mutate = (input: any, command: Record<string, unknown>) => gate(async () => {
     let applied: { receiptId: string } | null = null
     try {
+      const versionBefore = await repository.getWorkspaceVersion(session.workspaceId, session.userId)
       const result = await executeCommand(repository, {
         actor: session.actor,
         ownerUserId: session.userId,
@@ -71,6 +72,9 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         command
       })
       if (!result.ok) return result
+      // An idempotent replay returns the stored receipt without advancing the
+      // version, and nothing new exists to persist in that case.
+      if (result.workspaceVersion !== versionBefore + 1) return result
       applied = result
       if (onWorkspaceChanged) await onWorkspaceChanged(await workspace(), input.expectedVersion, input.idempotencyKey)
       return result

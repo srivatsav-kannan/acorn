@@ -40,6 +40,13 @@ export class MemoryWorkspaceRepository {
     return structuredClone(workspace)
   }
 
+  // The version alone, without paying for a full clone of the state.
+  async getWorkspaceVersion(workspaceId: string, userId: string) {
+    const workspace = this.workspaces.get(workspaceId)
+    if (!workspace || workspace.ownerUserId !== userId) throw new RepositoryError("FORBIDDEN", "You do not have access to this workspace")
+    return workspace.version
+  }
+
   async mutateWorkspace<T>(workspaceId: string, userId: string, expectedVersion: number, mutate: (workspace: WorkspaceState) => { workspace: WorkspaceState, inverse: unknown, result?: T }) {
     const current = this.workspaces.get(workspaceId)
     if (!current || current.ownerUserId !== userId) throw new RepositoryError("FORBIDDEN", "You do not have access to this workspace")
