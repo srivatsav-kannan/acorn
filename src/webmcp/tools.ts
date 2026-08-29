@@ -227,7 +227,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           summary: field("string", "One-line gist shown on the card; derived from text when omitted"),
           text: field("string", "The full content, kept and searchable"),
           tags: field("array", "Short lowercase tags"),
-          collectionId: field("string", "Optional collection; defaults to the inbox")
+          collectionId: field("string", "Optional collection; defaults to the inbox"),
+          archived: field("boolean", "True archives an existing item off every surface, restorable; false restores it")
         },
         required: ["id", "type", "title"]
       } }, ["expectedVersion", "idempotencyKey", "item"]),
@@ -237,13 +238,16 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const item = input.item ?? {}
         // Silently storing unrecognized fields buries their content where no
         // surface renders it, which reads as data loss. Reject them by name.
-        const allowedKeys = ["id", "type", "title", "summary", "text", "tags", "collectionId", "content"]
+        const allowedKeys = ["id", "type", "title", "summary", "text", "tags", "collectionId", "content", "archived"]
         const unknown = Object.keys(item).filter((key) => !allowedKeys.includes(key))
         if (unknown.length) return { ok: false, code: "COMMAND_INVALID", message: `Unknown item fields: ${unknown.join(", ")}. Allowed: id, type, title, summary, text, tags, collectionId.` }
         const summary = typeof item.summary === "string" && item.summary.trim() ? item.summary : String(item.text ?? "").trim().slice(0, 140)
         const content = item.content && typeof item.content === "object" ? item.content : { text: String(item.text ?? "") }
         const value = await workspace()
-        if (item.id && value.contextItems.some((candidate) => candidate.id === item.id)) {
+        const existing = item.id ? value.contextItems.find((candidate) => candidate.id === item.id) : undefined
+        if (existing && item.archived === true) return mutate(input, { type: "archive_context_item", itemId: item.id })
+        if (existing && item.archived === false && existing.archived) return mutate(input, { type: "restore_context_item", itemId: item.id })
+        if (existing) {
           return mutate(input, { type: "update_context_item", itemId: item.id, title: item.title, summary, content, tags: item.tags, collectionId: item.collectionId })
         }
         return mutate(input, { type: "create_context_item", item: { id: item.id, type: item.type, title: item.title, summary, content, tags: item.tags, collectionId: item.collectionId ?? "COLLECTION-INBOX" } })

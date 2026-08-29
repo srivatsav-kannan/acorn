@@ -161,6 +161,14 @@ describe("save_workspace_item as a real intake surface", () => {
     const explicitStored = workspace.contextItems.find((item) => item.id === "NOTE-EXPLICIT")!
     expect((explicitStored.content as { sourceUrl?: string }).sourceUrl).toContain("navigator")
     expect(explicitStored.tags).toEqual(["health"])
+    const archived = await save.execute({ expectedVersion: 4, idempotencyKey: "SW-5", item: { id: "NOTE-EXPLICIT", type: "note", title: "Explicit content", archived: true } })
+    expect(archived).toMatchObject({ ok: true })
+    workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.contextItems.find((item) => item.id === "NOTE-EXPLICIT")!.archived).toBe(true)
+    const restored = await save.execute({ expectedVersion: 5, idempotencyKey: "SW-6", item: { id: "NOTE-EXPLICIT", type: "note", title: "Explicit content", archived: false } })
+    expect(restored).toMatchObject({ ok: true })
+    workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.contextItems.find((item) => item.id === "NOTE-EXPLICIT")!.archived).toBe(false)
   })
 
   it("keeps standing goals visible in the goals export and findable in search", async () => {
