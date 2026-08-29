@@ -76,7 +76,8 @@ const primaryVisibleType: Record<string, string> = {
   set_course_interest: "course_interest",
   set_opportunity_interest: "opportunity_interest",
   set_goals: "student_profile",
-  ingest_context_items: "context_item"
+  ingest_context_items: "context_item",
+  save_context_item: "context_item"
 }
 
 const applyPlanOperations = (workspace: WorkspaceState, command: Record<string, any>, changed: ChangedEntity[]) => {
@@ -253,6 +254,41 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       if (!item) throw commandError("Context item not found")
       item.archived = false
       changed.push({ type: "context_item", id: item.id })
+    } else if (command.type === "save_context_item") {
+      // The agent-facing save tool sends this one command whatever the
+      // current state holds: branching between create and update inside the
+      // tool made an identical retry hash as a different command and read as
+      // an idempotency conflict, so the branching lives here instead.
+      const draft = (command.item ?? {}) as Record<string, any>
+      const existing = workspace.contextItems.find((candidate) => candidate.id === draft.id)
+      if (existing && draft.archived === true) {
+        existing.archived = true
+        changed.push({ type: "context_item", id: existing.id })
+      } else if (existing && draft.archived === false && existing.archived) {
+        existing.archived = false
+        changed.push({ type: "context_item", id: existing.id })
+      } else if (existing) {
+        if (typeof draft.title === "string" && draft.title.trim()) existing.title = draft.title.trim()
+        if (typeof draft.summary === "string" && draft.summary.trim()) existing.summary = draft.summary.trim()
+        if (draft.content && typeof draft.content === "object") existing.content = structuredClone(draft.content)
+        if (typeof draft.collectionId === "string" && workspace.collections.some((collection) => collection.id === draft.collectionId)) existing.collectionId = draft.collectionId
+        if (Array.isArray(draft.tags)) existing.tags = sanitizeTags(draft.tags)
+        existing.updatedAt = new Date().toISOString()
+        changed.push({ type: "context_item", id: existing.id })
+      } else {
+        if (draft.archived === true) throw commandError("Context item not found")
+        const rest = { ...draft }
+        delete rest.archived
+        let item: ContextItem
+        try { item = validateContextItem({ ...rest, collectionId: rest.collectionId ?? "COLLECTION-INBOX" }) as unknown as ContextItem }
+        catch (error) { throw commandError((error as Error).message) }
+        item.tags = sanitizeTags(rest.tags)
+        item.addedBy = envelope.actor
+        item.createdAt = item.createdAt ?? new Date().toISOString()
+        item.updatedAt = item.updatedAt ?? item.createdAt
+        workspace.contextItems.push(item)
+        changed.push({ type: "context_item", id: item.id })
+      }
     } else if (command.type === "set_student_preference") {
       const preference = command.preference as Preference
       if (!preference?.id || !preference.label) throw commandError("Preference requires an ID and label")

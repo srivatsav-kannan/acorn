@@ -270,3 +270,30 @@ describe("agent-facing counters and unit labels", () => {
     expect(checked.unitsToward.note).toContain("planUnits is this scenario alone")
   })
 })
+
+describe("save_workspace_item idempotent replay", () => {
+  it("replays identically through create, update, archive, and restore without conflicts or duplicates", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const save = findTool(tools, "save_workspace_item")
+    const input = { expectedVersion: 1, idempotencyKey: "SAVE-REPLAY-1", item: { id: "NOTE-REPLAY-CHECK", type: "note", title: "Replay check", text: "Same payload twice." } }
+    const first = await save.execute(structuredClone(input))
+    expect(first).toMatchObject({ ok: true, workspaceVersion: 2 })
+    const replay = await save.execute(structuredClone(input))
+    expect(replay).toMatchObject({ ok: true, receiptId: first.receiptId, workspaceVersion: 2 })
+    const conflict = await save.execute({ ...structuredClone(input), item: { ...input.item, title: "Different title" } })
+    expect(conflict).toMatchObject({ ok: false, code: "IDEMPOTENCY_CONFLICT" })
+    const update = await save.execute({ expectedVersion: 2, idempotencyKey: "SAVE-REPLAY-2", item: { id: "NOTE-REPLAY-CHECK", type: "note", title: "Replay check updated", text: "Edited." } })
+    expect(update).toMatchObject({ ok: true, workspaceVersion: 3 })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.contextItems.filter((item) => item.id === "NOTE-REPLAY-CHECK")).toHaveLength(1)
+    expect(workspace.contextItems.find((item) => item.id === "NOTE-REPLAY-CHECK")?.title).toBe("Replay check updated")
+    const archive = await save.execute({ expectedVersion: 3, idempotencyKey: "SAVE-REPLAY-3", item: { id: "NOTE-REPLAY-CHECK", type: "note", title: "Replay check updated", archived: true } })
+    expect(archive).toMatchObject({ ok: true, workspaceVersion: 4 })
+    const restoreInput = { expectedVersion: 4, idempotencyKey: "SAVE-REPLAY-4", item: { id: "NOTE-REPLAY-CHECK", type: "note", title: "Replay check updated", archived: false } }
+    const restored = await save.execute(structuredClone(restoreInput))
+    expect(restored).toMatchObject({ ok: true, workspaceVersion: 5 })
+    const restoredReplay = await save.execute(structuredClone(restoreInput))
+    expect(restoredReplay).toMatchObject({ ok: true, receiptId: restored.receiptId, workspaceVersion: 5 })
+  })
+})

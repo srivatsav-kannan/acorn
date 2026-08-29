@@ -166,13 +166,13 @@ const server = createServer(async (request, response) => {
     if (request.method === "POST" && request.url === "/goto") {
       const { path = "/app" } = await readBody(request)
       const destination = new URL(path, appUrl).toString()
-      await page.goto(destination, { waitUntil: "domcontentloaded" })
-      const registered = await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 20000 }).then(() => true).catch(() => false)
+      const arrived = await page.goto(destination, { waitUntil: "domcontentloaded", timeout: 60000 }).then(() => true).catch(() => false)
+      const registered = arrived && await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 20000 }).then(() => true).catch(() => false)
       if (registered) return respond(response, 200, { ok: true, url: page.url() })
       // The destination rendered without a tool surface (a signed-out page or
       // a path outside the workspace). Recover to the workspace instead of
       // stranding every later /call on an empty registry.
-      await page.goto(appUrl, { waitUntil: "domcontentloaded" })
+      await page.goto(appUrl, { waitUntil: "domcontentloaded", timeout: 60000 }).catch(() => undefined)
       const recovered = await page.waitForFunction(() => window.__acornToolRegistry && window.__acornToolRegistry.size > 0, undefined, { timeout: 30000 }).then(() => true).catch(() => false)
       return respond(response, recovered ? 200 : 502, { ok: false, recovered, url: page.url(), error: `No tools registered at ${destination}; ${recovered ? "returned to the workspace, which is serving tools again" : "recovery to the workspace also found no tools"}.` })
     }

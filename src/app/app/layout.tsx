@@ -6,6 +6,10 @@ import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
+// The catalog is static shipped data; rebuilding its fifteen thousand
+// courses on every request burned seconds of server time per page load.
+const catalog = buildStanfordCatalog()
+
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true") {
     const cookieStore = await cookies()
@@ -18,5 +22,5 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   if (!data.user) redirect("/login")
   const record = await loadWorkspaceRecordForUser(client, data.user.id)
   if (!record || record.onboardingRequired) redirect("/onboarding")
-  return <WorkspaceProvider mode="account" initialWorkspace={record.workspace} userId={data.user.id} userEmail={data.user.email ?? ""} catalog={buildStanfordCatalog()} isDemoAccount={record.isDemo}><AppShell>{children}</AppShell></WorkspaceProvider>
+  return <WorkspaceProvider mode="account" initialWorkspace={record.workspace} userId={data.user.id} userEmail={data.user.email ?? ""} catalog={catalog} isDemoAccount={record.isDemo}><AppShell>{children}</AppShell></WorkspaceProvider>
 }
