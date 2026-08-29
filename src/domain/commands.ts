@@ -669,13 +669,31 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         changed.push({ type: "context_item", id: item.id })
       })
     } else if (command.type === "undo_action") {
-      const snapshot = workspace.undoSnapshots[command.receiptId]
-      if (!snapshot) throw commandError("This action can no longer be undone")
+      // Undo restores the full snapshot taken before the target action, so an
+      // undo of anything except the newest not-yet-undone action would erase
+      // every commit made after it. The frontier rule forbids that: undos walk
+      // backward one step at a time, newest first, and each failure mode gets
+      // its own honest message.
+      const receiptId = String(command.receiptId ?? "")
+      const target = workspace.receipts.find((item) => item.receiptId === receiptId)
+      if (!target) throw commandError("No action with that receipt exists in this workspace")
+      if (target.undoAvailable === false) throw commandError("An undo cannot itself be undone")
+      const undone = new Set(workspace.activity.filter((item) => item.undoneAt).map((item) => item.receiptId))
+      if (undone.has(receiptId)) throw commandError("This action was already undone")
+      const frontier = [...workspace.receipts].reverse().find((item) => item.undoAvailable && !undone.has(item.receiptId))
+      if (frontier && frontier.receiptId !== receiptId) throw commandError("Only the most recent action can be undone, so newer committed work is never erased. Undo newer actions first, newest to oldest.")
+      const snapshot = workspace.undoSnapshots[receiptId]
+      if (!snapshot) throw commandError("This action is outside the undo window; only the ten most recent mutations keep snapshots")
       const restored = structuredClone(snapshot)
-      restored.undoSnapshots = structuredClone(workspace.undoSnapshots)
       const original = workspace.activity.find((item) => item.receiptId === command.receiptId)
       if (original) original.undoneAt = new Date().toISOString()
       changed.push(...(original?.changed ?? []))
+      // The snapshot rewinds workspace CONTENT only. The ledger is history,
+      // not state: receipts, activity, and the snapshot map carry forward so
+      // an undone action stays visible and marked, never erased.
+      restored.undoSnapshots = structuredClone(workspace.undoSnapshots)
+      restored.receipts = structuredClone(workspace.receipts)
+      restored.activity = structuredClone(workspace.activity)
       Object.assign(workspace, restored)
       // The restored snapshot carries the version it was taken at; the undo
       // itself is a new mutation, so the receipt must count from the current

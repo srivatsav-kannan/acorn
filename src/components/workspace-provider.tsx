@@ -3,8 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { buildFixture as buildDemoFixture, buildStanfordCatalog } from "@/data/fixture"
+import { institutionForWorkspace } from "@/data/institutions/registry"
 import { executeCommand } from "@/domain/commands"
-import { materializeLegacyResearch } from "@/domain/evidence"
+import { materializeLegacyResearch, refreshSystemEvidence } from "@/domain/evidence"
 import { mergedCatalogFor } from "@/domain/reference"
 import type { Catalog, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
@@ -46,7 +47,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
   const [initial] = useState(() => {
     if (mode === "account") {
       if (!initialWorkspace || !userId) throw new Error("Authenticated workspace data is required")
-      return { workspace: materializeLegacyResearch(initialWorkspace), catalog: catalog ?? buildStanfordCatalog() }
+      return { workspace: refreshSystemEvidence(materializeLegacyResearch(initialWorkspace), institutionForWorkspace(initialWorkspace).buildEvidence()), catalog: catalog ?? buildStanfordCatalog() }
     }
     return buildDemoFixture()
   })

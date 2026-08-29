@@ -133,7 +133,7 @@ describe("payload growth", () => {
     expect(Object.keys(workspace.undoSnapshots)).toHaveLength(10)
     expect(stored.every((snapshot) => Object.keys(snapshot.undoSnapshots).length === 0)).toBe(true)
     expect(workspace.undoSnapshots["ACTION-LEGACY"]).toBeUndefined()
-    await expect(executeCommand(repository, envelope({ type: "undo_action", receiptId: receipts[0] }, 13, "UNDO-OLD"))).rejects.toThrow(/no longer be undone/)
+    await expect(executeCommand(repository, envelope({ type: "undo_action", receiptId: receipts[0] }, 13, "UNDO-OLD"))).rejects.toThrow(/most recent action can be undone/)
     const undone = await executeCommand(repository, envelope({ type: "undo_action", receiptId: receipts[11] }, 13, "UNDO-NEW"))
     expect(undone.ok).toBe(true)
   })

@@ -45,6 +45,9 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
   const workspaceValue = useOptionalWorkspace()
   const activeKey = activePage ?? pageForPath(pathname)
   const activityEntries = activity ?? workspaceValue?.workspace.activity ?? []
+  // The frontier rule: only the newest not-yet-undone action offers Undo, so
+  // reversing it can never silently erase later committed work.
+  const frontierReceiptId = [...activityEntries].reverse().find((entry) => entry.undoAvailable && !entry.undoneAt)?.receiptId
   const handleUndo = onUndo ?? workspaceValue?.undo
   const quarterLabel = workspaceValue ? (parseTermId(workspaceValue.workspace.currentTermId) ? termLabel(workspaceValue.workspace.currentTermId) : "Current term") : quarter
   const initials = workspaceValue?.workspace.profile.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || workspaceValue?.userEmail?.[0]?.toUpperCase() || "AC"
@@ -92,7 +95,7 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
       <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>
         <div className="drawer-heading"><div><h2>Activity</h2></div><button className="icon-button" onClick={() => setActivityOpen(false)} aria-label="Close activity">×</button></div>
         {activityEntries.length === 0 ? <div className="empty-drawer"><strong>No changes yet</strong><p>Every edit shows up here with who made it and an undo.</p></div> : <ol className="activity-list">
-          {[...activityEntries].reverse().map((entry) => <li key={entry.id}><span className={`actor-dot ${entry.actor.type}`} /><div><strong>{entry.summary}</strong><p>{entry.actor.type === "agent" ? "Agent" : "You"} · just now</p><span>{entry.changed.length} workspace item{entry.changed.length === 1 ? "" : "s"} changed</span></div>{entry.undoAvailable && !entry.undoneAt && handleUndo && <button className="text-button" onClick={() => handleUndo(entry.receiptId)}>Undo</button>}</li>)}
+          {[...activityEntries].reverse().map((entry) => <li key={entry.id}><span className={`actor-dot ${entry.actor.type}`} /><div><strong>{entry.summary}</strong><p>{entry.actor.type === "agent" ? "Agent" : "You"} · just now</p><span>{entry.changed.length} workspace item{entry.changed.length === 1 ? "" : "s"} changed</span></div>{entry.undoAvailable && !entry.undoneAt && handleUndo && entry.receiptId === frontierReceiptId && <button className="text-button" onClick={() => handleUndo(entry.receiptId)}>Undo</button>}</li>)}
         </ol>}
       </aside>
     </div>}

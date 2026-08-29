@@ -84,7 +84,7 @@ export const checkPlan = ({ scenario, catalog, profile, evidence, now, termId = 
       for (const one of a.section.meetings) for (const two of b.section.meetings) {
         if (!one.days.some((day) => two.days.includes(day)) || meetingsOverlap(one, two)) continue
         const gap = Math.max(minutes(two.start) - minutes(one.end), minutes(one.start) - minutes(two.end))
-        if (gap >= 0 && gap < profile.transitionBufferMinutes) add("TRANSITION_BUFFER", "warning", [a.item.id, b.item.id], `Only ${gap} minutes separate two classes.`, ["Choose a section with more travel time"])
+        if (gap >= 0 && gap < profile.transitionBufferMinutes) add("TRANSITION_BUFFER", "warning", [a.item.id, b.item.id], `Only ${gap} minutes separate ${a.course?.code ?? "one class"} and ${b.course?.code ?? "the next"}.`, ["Choose a section with more travel time"])
       }
     }
   }

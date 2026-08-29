@@ -94,6 +94,19 @@ export const normalizeWorkspaceShape = (workspace: WorkspaceState): WorkspaceSta
   return workspace
 }
 
+// Institutional records the system owns follow the shipped definitions, so
+// a rename like ExploreCourses becoming Navigator reaches workspaces that
+// stored the old wording. Only addedBy "system" rows are touched, and only
+// their descriptive fields; student and agent records are never rewritten.
+export const refreshSystemEvidence = (workspace: WorkspaceState, shipped: Evidence[]) => {
+  const byId = new Map(shipped.map((item) => [item.id, item]))
+  workspace.evidence = workspace.evidence.map((item) => {
+    const current = item.addedBy === "system" ? byId.get(item.id) : undefined
+    return current ? { ...item, title: current.title, claim: current.claim, sourceUrl: current.sourceUrl, sourceTitle: current.sourceTitle, classification: current.classification, confidence: current.confidence } : item
+  })
+  return workspace
+}
+
 export const materializeLegacyResearch = (workspace: WorkspaceState) => {
   const migrated = structuredClone(workspace)
   for (const evidence of migrated.evidence) {

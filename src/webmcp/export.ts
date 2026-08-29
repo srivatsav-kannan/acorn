@@ -114,6 +114,15 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       const events = calendarEventsForRange(workspace, catalog, opportunities, from, isoDate(toDate))
       const highlights = events.filter((event) => event.kind !== "course" || event.title.endsWith("begins")).slice(0, 40)
       blocks.push([`## Next sixty days (${events.length} calendar entries, recurring class meetings collapsed)`, ...highlights.map((event) => `- ${event.date}${event.start ? ` ${event.start}` : ""}: ${event.title}${event.projected ? " (projected)" : ""}`)].join("\n"))
+      const currentPlan = workspace.plans.find((plan) => plan.termId === workspace.currentTermId)
+      const activeScenario = currentPlan?.scenarios.find((scenario) => scenario.id === currentPlan.activeScenarioId) ?? currentPlan?.scenarios[0]
+      const meetingLines = (activeScenario?.courses ?? []).filter((item) => item.status === "active" && item.sectionId).map((item) => {
+        const section = catalog.sections.find((candidate) => candidate.id === item.sectionId)
+        if (!section) return null
+        const meets = section.meetings.map((meeting) => `${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; ")
+        return `- ${code(item.courseId)}: ${meets}`
+      }).filter((line): line is string => Boolean(line))
+      if (meetingLines.length) blocks.push([`## Class meetings this term`, ...meetingLines].join("\n"))
     }
     if (current === "history") {
       const completed = workspace.profile.completedCourseIds.map((id) => code(id))

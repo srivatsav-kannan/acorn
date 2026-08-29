@@ -56,6 +56,78 @@ describe("the transition buffer preference", () => {
   })
 })
 
+describe("undo frontier honesty", () => {
+  it("names each refusal precisely and walks back only step by step", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const manageTodo = findTool(tools, "manage_todo")
+    const undoTool = findTool(tools, "undo")
+    const a = await manageTodo.execute({ expectedVersion: 1, idempotencyKey: "F-A", action: "add", todo: { title: "First" } })
+    const b = await manageTodo.execute({ expectedVersion: 2, idempotencyKey: "F-B", action: "add", todo: { title: "Second" } })
+    const older = await undoTool.execute({ expectedVersion: 3, idempotencyKey: "F-OLD", receiptId: a.receiptId })
+    expect(older).toMatchObject({ ok: false, code: "COMMAND_INVALID" })
+    expect(String(older.message)).toMatch(/most recent action/)
+    const undoB = await undoTool.execute({ expectedVersion: 3, idempotencyKey: "F-UB", receiptId: b.receiptId })
+    expect(undoB).toMatchObject({ ok: true, workspaceVersion: 4 })
+    const again = await undoTool.execute({ expectedVersion: 4, idempotencyKey: "F-AGAIN", receiptId: b.receiptId })
+    expect(String(again.message)).toMatch(/already undone/)
+    const undoTheUndo = await undoTool.execute({ expectedVersion: 4, idempotencyKey: "F-UU", receiptId: undoB.receiptId })
+    expect(String(undoTheUndo.message)).toMatch(/cannot itself be undone/)
+    const undoA = await undoTool.execute({ expectedVersion: 4, idempotencyKey: "F-UA", receiptId: a.receiptId })
+    expect(undoA).toMatchObject({ ok: true, workspaceVersion: 5 })
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.todos.some((todo) => ["First", "Second"].includes(todo.title))).toBe(false)
+    expect(workspace.version).toBe(5)
+  })
+
+  it("preserves later work by refusing the destructive path outright", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const a = await findTool(tools, "manage_todo").execute({ expectedVersion: 1, idempotencyKey: "K-A", action: "add", todo: { title: "Keep A" } })
+    await findTool(tools, "manage_event").execute({ expectedVersion: 2, idempotencyKey: "K-B", action: "add", event: { title: "Keep B", date: "2026-10-06" } })
+    const blocked = await findTool(tools, "undo").execute({ expectedVersion: 3, idempotencyKey: "K-UNDO", receiptId: a.receiptId })
+    expect(blocked.ok).toBe(false)
+    const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
+    expect(workspace.todos.some((todo) => todo.title === "Keep A")).toBe(true)
+    expect(workspace.events.some((event) => event.title === "Keep B")).toBe(true)
+    expect(workspace.version).toBe(3)
+  })
+})
+
+describe("system evidence refresh", () => {
+  it("rewrites stored system records to the shipped wording and leaves others alone", async () => {
+    const { refreshSystemEvidence } = await import("@/domain/evidence")
+    const { workspace } = buildFixture()
+    const target = workspace.evidence.find((item) => item.addedBy === "system")!
+    target.sourceTitle = "Stanford ExploreCourses"
+    target.sourceUrl = "https://explorecourses.stanford.edu/"
+    workspace.evidence.push({ ...target, id: "EVIDENCE-STUDENT-OWN", addedBy: "human", sourceTitle: "Stanford ExploreCourses" })
+    const { buildStanfordEvidence } = await import("@/data/institutions/stanford")
+    refreshSystemEvidence(workspace, buildStanfordEvidence())
+    const refreshed = workspace.evidence.find((item) => item.id === target.id)!
+    expect(refreshed.sourceTitle).toBe("Stanford Navigator")
+    expect(refreshed.sourceUrl).toContain("navigator.stanford.edu")
+    expect(workspace.evidence.find((item) => item.id === "EVIDENCE-STUDENT-OWN")!.sourceTitle).toBe("Stanford ExploreCourses")
+  })
+})
+
+describe("agent-readable schedule detail", () => {
+  it("exports class meetings for the current term and search results carry meeting strings", async () => {
+    const { workspace } = buildFixture()
+    const catalog = buildStanfordCatalog()
+    const { exportBlocks } = await import("@/webmcp/export")
+    const exported = exportBlocks(workspace, catalog, [], "calendar", new Date("2026-10-01T12:00:00Z")).join("\n")
+    expect(exported).toContain("## Class meetings this term")
+    expect(exported).toMatch(/CS 106B: mon\/wed\/fri 12:30 to 13:20/)
+    const repository = new MemoryWorkspaceRepository({ workspace: buildFixture().workspace, catalog })
+    const tools = buildTools(repository)
+    const found = await findTool(tools, "search_courses").execute({ query: "CS 106B" }) as { results: Array<{ code: string, sections: Array<{ id: string, meets: string }> }> }
+    const cs106b = found.results.find((row) => row.code === "CS 106B")!
+    expect(cs106b.sections[0].id).toBe("SECTION-CS-106B-01")
+    expect(cs106b.sections[0].meets).toContain("mon/wed/fri 12:30 to 13:20")
+  })
+})
+
 describe("the ics export", () => {
   it("renders timed and all-day entries with real timezone ids and escaping", () => {
     const ics = buildIcs([
@@ -72,5 +144,14 @@ describe("the ics export", () => {
     expect(ics).toContain("UID:EVENT-1@acorn")
     expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true)
     for (const line of ics.split("\r\n")) expect(line.length).toBeLessThanOrEqual(75)
+  })
+
+  it("folds long lines onto continuation lines per the iCalendar spec", () => {
+    const longDetail = "This description is deliberately long enough to require folding across multiple physical lines so that every calendar client reassembles it correctly when importing the file."
+    const ics = buildIcs([{ id: "EVENT-LONG", date: "2026-10-05", title: "Long", detail: longDetail, kind: "event" }])
+    const lines = ics.split("\r\n")
+    expect(lines.some((line) => line.startsWith(" "))).toBe(true)
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(75)
+    expect(ics.replace(/\r\n /g, "")).toContain("reassembles it correctly")
   })
 })
