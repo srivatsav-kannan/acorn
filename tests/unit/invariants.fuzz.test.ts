@@ -31,8 +31,12 @@ const checkInvariants = (workspace: WorkspaceState) => {
   expect(workspace.receipts.length).toBeLessThanOrEqual(300)
   expect(workspace.activity.length).toBeLessThanOrEqual(500)
   const snapshots = Object.values(workspace.undoSnapshots)
-  expect(snapshots.length).toBeLessThanOrEqual(10)
-  for (const snapshot of snapshots) expect(Object.keys(snapshot.undoSnapshots)).toHaveLength(0)
+  expect(snapshots.length).toBeLessThanOrEqual(6)
+  for (const snapshot of snapshots) {
+    expect(Object.keys(snapshot.undoSnapshots)).toHaveLength(0)
+    expect(snapshot.receipts).toHaveLength(0)
+    expect(snapshot.activity).toHaveLength(0)
+  }
   const todoIds = new Set(workspace.todos.map((todo) => todo.id))
   expect(todoIds.size).toBe(workspace.todos.length)
   for (const item of workspace.contextItems.filter((candidate) => candidate.type === "goal")) {

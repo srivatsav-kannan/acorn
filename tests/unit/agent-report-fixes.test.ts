@@ -130,8 +130,11 @@ describe("payload growth", () => {
     }
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
     const stored = Object.values(workspace.undoSnapshots)
-    expect(Object.keys(workspace.undoSnapshots)).toHaveLength(10)
+    expect(Object.keys(workspace.undoSnapshots)).toHaveLength(6)
     expect(stored.every((snapshot) => Object.keys(snapshot.undoSnapshots).length === 0)).toBe(true)
+    // The ledger lives on the live workspace only; snapshots that carried
+    // their own receipts and activity made every commit upload megabytes.
+    expect(stored.every((snapshot) => snapshot.receipts.length === 0 && snapshot.activity.length === 0)).toBe(true)
     expect(workspace.undoSnapshots["ACTION-LEGACY"]).toBeUndefined()
     await expect(executeCommand(repository, envelope({ type: "undo_action", receiptId: receipts[0] }, 13, "UNDO-OLD"))).rejects.toThrow(/most recent action can be undone/)
     const undone = await executeCommand(repository, envelope({ type: "undo_action", receiptId: receipts[11] }, 13, "UNDO-NEW"))

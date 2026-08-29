@@ -123,7 +123,10 @@ const callTool = (tool, input) => page.evaluate(async ({ tool, input }) => {
   if (!entry) return { ok: false, error: `No tool named ${tool} is registered. Call GET /tools for the list.` }
   try {
     const result = await entry.execute(input ?? {})
-    return { ok: true, result }
+    // A failed mutation reports ok: false inside its result; mirror that at
+    // the envelope level so clients need no special-case parsing.
+    const domainFailure = Boolean(result) && typeof result === "object" && result.ok === false
+    return { ok: !domainFailure, result }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }

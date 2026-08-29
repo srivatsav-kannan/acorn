@@ -827,7 +827,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       const frontier = [...workspace.receipts].reverse().find((item) => item.undoAvailable && !undone.has(item.receiptId))
       if (frontier && frontier.receiptId !== receiptId) throw commandError("Only the most recent action can be undone, so newer committed work is never erased. Undo newer actions first, newest to oldest.")
       const snapshot = workspace.undoSnapshots[receiptId]
-      if (!snapshot) throw commandError("This action is outside the undo window; only the ten most recent mutations keep snapshots")
+      if (!snapshot) throw commandError("This action is outside the undo window; only the six most recent mutations keep snapshots")
       const restored = structuredClone(snapshot)
       const original = workspace.activity.find((item) => item.receiptId === command.receiptId)
       if (original) original.undoneAt = new Date().toISOString()
@@ -848,15 +848,20 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
     const receiptId = actionId(envelope.idempotencyKey)
     const undoAvailable = command.type !== "undo_action"
     if (undoAvailable) {
-      // A stored snapshot must not carry its own undo history: undo_action
-      // reattaches the live map anyway, and nesting made every commit double
-      // the payload until the database cancelled reads of it. Only the ten
-      // newest snapshots stay undoable, and older entries from before this
-      // rule are stripped and pruned the same way.
-      workspace.undoSnapshots[receiptId] = { ...before, undoSnapshots: {} }
+      // A stored snapshot must not carry its own undo history, receipts, or
+      // activity: undo_action reattaches all three from the live workspace
+      // anyway, and carrying them made every commit upload megabytes until
+      // acknowledgements timed out under load. Only the six newest snapshots
+      // stay undoable, and older entries from before this rule are stripped
+      // and pruned the same way.
+      workspace.undoSnapshots[receiptId] = { ...before, undoSnapshots: {}, receipts: [], activity: [] }
       const keys = Object.keys(workspace.undoSnapshots)
-      for (const key of keys.slice(0, Math.max(0, keys.length - 10))) delete workspace.undoSnapshots[key]
-      for (const kept of Object.values(workspace.undoSnapshots)) kept.undoSnapshots = {}
+      for (const key of keys.slice(0, Math.max(0, keys.length - 6))) delete workspace.undoSnapshots[key]
+      for (const kept of Object.values(workspace.undoSnapshots)) {
+        kept.undoSnapshots = {}
+        kept.receipts = []
+        kept.activity = []
+      }
     }
     const receipt: ActionReceipt = {
       ok: true,

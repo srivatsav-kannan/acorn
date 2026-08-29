@@ -31,9 +31,12 @@ export async function PUT(request: Request) {
   if (!workspace || !Number.isInteger(body.expectedVersion) || workspace.version !== Number(body.expectedVersion) + 1 || workspace.ownerUserId !== data.user.id) {
     return NextResponse.json({ ok: false, code: "INVALID_WORKSPACE", message: "The workspace payload or version is invalid." }, { status: 400 })
   }
-  const currentRecord = await loadWorkspaceRecordForUser(client, data.user.id)
-  const current = currentRecord?.workspace
-  if (!currentRecord || currentRecord.onboardingRequired || !current || current.id !== workspace.id) return NextResponse.json({ ok: false, code: "FORBIDDEN" }, { status: 403 })
+  // Ownership and onboarding checks need only metadata; loading the full
+  // snapshot payload here doubled every commit's transfer for no benefit.
+  const membership = await client.from("workspace_memberships").select("workspace_id").eq("user_id", data.user.id).order("created_at", { ascending: true }).limit(1).maybeSingle()
+  if (!membership.data || membership.data.workspace_id !== workspace.id) return NextResponse.json({ ok: false, code: "FORBIDDEN" }, { status: 403 })
+  const metadata = await client.from("workspaces").select("onboarding_required").eq("id", workspace.id).single()
+  if (metadata.error || metadata.data.onboarding_required) return NextResponse.json({ ok: false, code: "FORBIDDEN" }, { status: 403 })
   const result = await client.rpc("commit_workspace_snapshot", {
     target_workspace_id: workspace.id,
     expected_version: body.expectedVersion,

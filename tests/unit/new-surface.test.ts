@@ -252,3 +252,21 @@ describe("the ics export", () => {
     expect(ics.replace(/\r\n /g, "")).toContain("reassembles it correctly")
   })
 })
+
+describe("agent-facing counters and unit labels", () => {
+  it("counts club interest in the tracker and reports plan units beside the degree projection", async () => {
+    const repository = new MemoryWorkspaceRepository(buildFixture())
+    const tools = buildTools(repository)
+    const before = await findTool(tools, "get_planning_context").execute({})
+    const marked = await findTool(tools, "set_interest").execute({ expectedVersion: 1, idempotencyKey: "CLUB-COUNT-1", kind: "club", id: "OPPORTUNITY-TREEHACKS", interested: true })
+    expect(marked).toMatchObject({ ok: true })
+    const after = await findTool(tools, "get_planning_context").execute({})
+    expect(after.tracker.interested).toBe(before.tracker.interested + 1)
+
+    const checked = await findTool(tools, "check_plan").execute({ planId: "PLAN-AUT26" })
+    expect(checked.unitsToward).not.toBeNull()
+    expect(checked.unitsToward.planUnits).toBeGreaterThan(0)
+    expect(checked.unitsToward.projected).toBeGreaterThan(checked.unitsToward.planUnits)
+    expect(checked.unitsToward.note).toContain("planUnits is this scenario alone")
+  })
+})

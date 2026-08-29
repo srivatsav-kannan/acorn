@@ -27,7 +27,7 @@ type Setup = {
   repository: MemoryWorkspaceRepository
   session: { userId: string, workspaceId: string, actor: Actor }
   now: () => Date
-  onWorkspaceChanged?: (workspace: WorkspaceState, expectedVersion: number, idempotencyKey: string) => Promise<void>
+  onWorkspaceChanged?: (workspace: WorkspaceState, expectedVersion: number, idempotencyKey: string, previous?: WorkspaceState) => Promise<void>
   // Serializes each mutation against every other mutation in the session,
   // including UI clicks, so concurrent tool calls cannot race their commits.
   runExclusive?: <T>(task: () => Promise<T>) => Promise<T>
@@ -70,6 +70,10 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     let applied: { receiptId: string } | null = null
     try {
       const versionBefore = await repository.getWorkspaceVersion(session.workspaceId, session.userId)
+      // Captured before the command mutates the repository, so a commit the
+      // server rejected outright can roll local state back instantly instead
+      // of re-downloading the whole payload.
+      const prior = onWorkspaceChanged ? structuredClone(await workspace()) : undefined
       const result = await executeCommand(repository, {
         actor: session.actor,
         ownerUserId: session.userId,
@@ -83,7 +87,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       // version, and nothing new exists to persist in that case.
       if (result.workspaceVersion !== versionBefore + 1) return result
       applied = result
-      if (onWorkspaceChanged) await onWorkspaceChanged(await workspace(), input.expectedVersion, input.idempotencyKey)
+      if (onWorkspaceChanged) await onWorkspaceChanged(await workspace(), input.expectedVersion, input.idempotencyKey, prior)
       return result
     } catch (error) {
       const code = (error as { code?: string }).code ?? (applied ? "COMMIT_FAILED" : "COMMAND_FAILED")
@@ -140,7 +144,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const expired = value.evidence.filter((item) => item.status === "current" && item.expiresAt && new Date(item.expiresAt) <= now()).length
         if (expired) warnings.push(`${expired} evidence record${expired === 1 ? "" : "s"} passed expiry while still marked current; refresh or archive them.`)
         const goals = structuredGoals(value).filter((entry) => entry.goal.status === "active").slice(0, 2).map((entry) => { const next = nextMilestone(entry.goal); return { id: entry.item.id, title: entry.item.title.slice(0, 60), next: next?.title.slice(0, 40) ?? null, nextId: next?.id ?? null } })
-        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Fill reference gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once per session", "Search the workspace before researching", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after each plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd, transitionBufferMinutes: value.profile.transitionBufferMinutes ?? 0, ...(value.profile.protectedWindows?.length ? { protectedWindows: value.profile.protectedWindows.map((window) => `${window.label} ${window.days.join("/")} ${window.start}-${window.end}`) } : {}) } }, uncertainties: value.uncertainties.slice(0, 2).map((item) => ({ id: item.id, question: item.question.slice(0, 60), status: item.status })), ...(goals.length ? { goals } : {}), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
+        return { workspaceId: value.id, version: value.version, institution: value.institution, referenceNote: custom ? "Custom school, beta. No shipped pack. Research this university and build its reference with extend_reference, courses and programs, each with an official source." : "Fill reference gaps with extend_reference.", timeline: timeline ? { entry: timeline.entryTermId, graduation: timeline.expectedGraduationTermId, degree: timeline.degree, plannedTermIds: value.plans.map((plan) => plan.termId), remainingTerms: termSequence(value.currentTermId, timeline.expectedGraduationTermId).length } : null, history: { classYear: timeline ? standingForTerm(timeline, value.currentTermId) : value.profile.classYear ?? null, completedCourses: value.profile.completedCourseIds.length, externalCredits: (value.profile.apCredits ?? []).length }, tracker: { todos: (value.todos ?? []).filter((todo) => !todo.done).length, notes: value.contextItems.filter((item) => !item.archived).length, interested: (value.interestedCourseIds ?? []).length + (value.interestedOpportunityIds ?? []).length, activities: (value.activities ?? []).length }, currentTermId: value.currentTermId, currentPlanId: currentPlan?.id ?? null, activeScenarioId: currentPlan?.activeScenarioId ?? null, workflow: ["Pull export_context once per session", "Search the workspace before researching", "Discover plan and scenario IDs before editing", "One atomic mutation per version", "Run check_plan after each plan edit"], boundaries: ["Never enroll or submit forms", "Save research with provenance", "Keep hard constraints"], profile: { summary: value.profile.summary, preferences: value.profile.preferences, constraints: { excludedDays: value.profile.excludedDays, earliestStart: value.profile.earliestStart, latestEnd: value.profile.latestEnd, transitionBufferMinutes: value.profile.transitionBufferMinutes ?? 0, ...(value.profile.protectedWindows?.length ? { protectedWindows: value.profile.protectedWindows.map((window) => `${window.label} ${window.days.join("/")} ${window.start}-${window.end}`) } : {}) } }, uncertainties: value.uncertainties.slice(0, 2).map((item) => ({ id: item.id, question: item.question.slice(0, 60), status: item.status })), ...(goals.length ? { goals } : {}), ...(warnings.length ? { warnings: warnings.slice(0, 2) } : {}) }
       }
     },
     {
@@ -186,7 +190,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios.find((item) => item.id === plan?.activeScenarioId) ?? plan?.scenarios[0]
         const merged = mergedCatalogFor(value, repository.catalog)
         const degree = supportsTimeline(value) ? evaluateDegreePlan(value, merged, now()) : null
-        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { projected: degree.projectedUnits, required: degree.requiredUnits } : null }
+        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { planUnits: selected ? selected.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) : 0, projected: degree.projectedUnits, required: degree.requiredUnits, note: "planUnits is this scenario alone; projected adds completed courses and external credit toward the degree total." } : null }
       }
     },
     {

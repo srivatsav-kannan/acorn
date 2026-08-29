@@ -136,7 +136,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     }
   }, [repository])
 
-  const persistWorkspace = useCallback(async (next: WorkspaceState, expectedVersion: number, idempotencyKey: string) => {
+  const persistWorkspace = useCallback(async (next: WorkspaceState, expectedVersion: number, idempotencyKey: string, previous?: WorkspaceState) => {
     if (mode === "fixture") {
       localStorage.setItem(storageKey, JSON.stringify(next))
       setWorkspace(next)
@@ -144,31 +144,58 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     }
     let response: Response
     try {
-      response = await fetch("/api/workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedVersion, workspace: next, idempotencyKey }), signal: AbortSignal.timeout(12000) })
+      response = await fetch("/api/workspace", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedVersion, workspace: next, idempotencyKey }), signal: AbortSignal.timeout(8000) })
     } catch (error) {
-      // The commit outcome is unknown: the request may or may not have landed.
-      // Reloading server truth resolves it either way, because a landed commit
-      // carries its receipt inside the reloaded workspace.
+      // The acknowledgement is lost, not necessarily the commit. A few
+      // hundred bytes from /head settle which one happened, without the
+      // multi-second full-payload reload that used to run here first.
+      try {
+        const headResponse = await fetch("/api/workspace/head", { cache: "no-store", signal: AbortSignal.timeout(5000) })
+        if (headResponse.ok) {
+          const head = await headResponse.json() as { version?: number, idempotencyKey?: string | null }
+          if (head.version === expectedVersion + 1 && head.idempotencyKey === idempotencyKey) {
+            repository.replaceWorkspace(next)
+            setWorkspace(next)
+            return
+          }
+          if (head.version === expectedVersion && previous) {
+            repository.replaceWorkspace(previous)
+            setWorkspace(previous)
+            throw new CommitError("COMMIT_TIMEOUT", "The save has not landed and local state was rolled back. Retry with the identical idempotency key; if the delayed commit lands first, the retry returns its original receipt.")
+          }
+        }
+      } catch (headError) {
+        if (headError instanceof CommitError) throw headError
+      }
       await restoreRemote()
       throw new CommitError("COMMIT_TIMEOUT", `The save did not confirm in time and the workspace was reloaded from the server. Retry with the same idempotency key; a landed commit will return its original receipt. (${(error as Error).message})`)
     }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { code?: string, message?: string }
-      await restoreRemote()
+      if (response.status !== 409 && previous) {
+        // A deterministic rejection means nothing landed, so the captured
+        // pre-mutation state restores instantly without a payload download.
+        repository.replaceWorkspace(previous)
+        setWorkspace(previous)
+      } else {
+        await restoreRemote()
+      }
       throw new CommitError(payload.code ?? "COMMIT_FAILED", payload.message ?? "The change could not be saved.")
     }
     setWorkspace(next)
-  }, [mode, restoreRemote, storageKey])
+  }, [mode, repository, restoreRemote, storageKey])
 
   const runCommand = async (command: Record<string, unknown>) => {
     counter.current += 1
     const current = await repository.getWorkspace(workspace.id, ownerUserId)
+    const expectedVersion = current.version
+    const previous = structuredClone(current)
     const key = `UI-${crypto.randomUUID()}-${counter.current}`
     setSaveState("saving")
     try {
-      await executeCommand(repository, { actor: { type: "human", id: ownerUserId }, ownerUserId, workspaceId: workspace.id, expectedVersion: current.version, idempotencyKey: key, command })
+      await executeCommand(repository, { actor: { type: "human", id: ownerUserId }, ownerUserId, workspaceId: workspace.id, expectedVersion, idempotencyKey: key, command })
       const next = await refresh()
-      await persistWorkspace(next, current.version, key)
+      await persistWorkspace(next, expectedVersion, key, previous)
       setSaveState("saved")
       setMessage({ kind: "success", text: "Saved" })
     } catch (error) {
@@ -231,10 +258,10 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       session: { userId: ownerUserId, workspaceId: workspace.id, actor: { type: "agent", id: "AGENT-WEBMCP" } },
       now: () => new Date(),
       runExclusive,
-      onWorkspaceChanged: async (next, expectedVersion, idempotencyKey) => {
+      onWorkspaceChanged: async (next, expectedVersion, idempotencyKey, previous) => {
         setSaveState("saving")
         try {
-          await persistWorkspace(next, expectedVersion, idempotencyKey)
+          await persistWorkspace(next, expectedVersion, idempotencyKey, previous)
           setSaveState("saved")
           setMessage({ kind: "success", text: "Saved by your agent" })
         } catch (error) {

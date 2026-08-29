@@ -232,7 +232,7 @@ export const CoursesPage = ({ initialTab = "courses" }: { initialTab?: "courses"
       </section>
 
       <aside className="plan-rail" aria-label="Plan">
-        <div className="section-heading"><h2>Plan</h2><span className="muted">{degree.projectedUnits} of {degree.requiredUnits} units</span></div>
+        <div className="section-heading"><h2>Plan</h2><span className="muted" title="Completed courses and external credit plus planned units, against the degree total">{degree.projectedUnits} of {degree.requiredUnits} toward degree</span></div>
         <div className="term-select-row">
           <select className="chunky-select" aria-label="Planning term" value={planTermId} onChange={(event) => setPlanTermId(event.target.value)}>
             {terms.map((term) => <option key={term.id} value={term.id}>{termLabel(term.id)}</option>)}

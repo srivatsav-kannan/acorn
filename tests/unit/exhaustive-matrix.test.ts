@@ -154,6 +154,6 @@ describe("the exhaustive tool matrix", () => {
     expect(finalWorkspace.contextItems.some((item) => item.id === "NOTE-UNDO-ME")).toBe(false)
     expect(finalWorkspace.version).toBe(version)
     expect(finalWorkspace.receipts.length).toBeLessThanOrEqual(300)
-    expect(Object.keys(finalWorkspace.undoSnapshots).length).toBeLessThanOrEqual(10)
+    expect(Object.keys(finalWorkspace.undoSnapshots).length).toBeLessThanOrEqual(6)
   })
 })
