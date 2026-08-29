@@ -53,8 +53,22 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
     return Boolean(normalized && text.includes(normalized)) || tokens.some((token) => text.includes(token))
   }
   const brief = (value: string) => value.length > 110 ? `${value.slice(0, 109).trimEnd()}…` : value
+  // Matching alone is not enough: a broad query matches dozens of notes and
+  // the six-item cap used to crowd out the exact-title hit. Rank first.
+  const relevance = (title: string, rest: string) => {
+    const titleText = title.toLowerCase()
+    const bodyText = rest.toLowerCase()
+    let score = 0
+    if (normalized && titleText.includes(normalized)) score += 100
+    else if (normalized && bodyText.includes(normalized)) score += 40
+    score += tokens.filter((token) => titleText.includes(token)).length * 5
+    score += tokens.filter((token) => bodyText.includes(token)).length
+    return score
+  }
   const groups: Array<{ type: string, items: Array<{ id: string, title: string, summary: string }> }> = []
-  const library = workspace.contextItems.filter((item) => !item.archived && matches(`${item.title} ${item.summary} ${JSON.stringify(item.content)}`))
+  const library = workspace.contextItems
+    .filter((item) => !item.archived && matches(`${item.title} ${item.summary} ${JSON.stringify(item.content)}`))
+    .sort((a, b) => relevance(b.title, `${b.summary} ${JSON.stringify(b.content)}`) - relevance(a.title, `${a.summary} ${JSON.stringify(a.content)}`))
   const people = library.filter((item) => item.type === "person")
   const otherContext = library.filter((item) => item.type !== "person")
   if (people.length) groups.push({ type: "people", items: people.slice(0, 6).map((item) => ({ id: item.id, title: item.title, summary: brief(item.summary) })) })
@@ -90,9 +104,19 @@ export const searchWorkspace = (workspace: WorkspaceState, catalog: Catalog, que
   }
   for (const code of [...missingCodes].slice(0, 2)) gaps.push(`No catalog course matches ${code}. If it is real, add it with extend_reference from an official source.`)
   // Club and organization questions padded with note matches used to claim
-  // sufficiency while the directory had nothing; name that gap.
+  // sufficiency while the directory had nothing; name that gap. A directory
+  // hit only counts as coverage when it matches a distinctive word from the
+  // query, because generic campus words match nearly every listing.
   const orgSeeking = /\b(club|clubs|association|intramural|hackathon|society|fraternity|sorority)\b/.test(normalized)
-  if (orgSeeking && !groups.some((group) => group.type === "opportunities")) gaps.push(`No club or program listing matches “${query}”. If it exists, add it with extend_reference as an opportunity, with an official source.`)
+  if (orgSeeking) {
+    const generic = new Set(["stanford", "club", "clubs", "association", "intramural", "hackathon", "society", "fraternity", "sorority", "student", "students", "first", "meeting", "meet", "campus", "group", "join", "the", "and"])
+    const distinctive = tokens.filter((token) => !generic.has(token))
+    const covered = matchedOpportunities.some((item) => {
+      const text = `${item.name} ${item.summary} ${item.tags.join(" ")}`.toLowerCase()
+      return (normalized && text.includes(normalized)) || distinctive.some((token) => text.includes(token))
+    })
+    if (!covered) gaps.push(`No club or program listing matches “${query}”. If it exists, add it with extend_reference as an opportunity, with an official source.`)
+  }
   return {
     query,
     sufficient: gaps.length === 0,

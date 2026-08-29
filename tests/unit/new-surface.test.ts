@@ -184,6 +184,27 @@ describe("organization search gaps and source urls", () => {
     expect(missing.gaps.some((gap) => gap.includes("club or program listing"))).toBe(true)
   })
 
+  it("keeps the gap through generic campus words and skips it for covered clubs", async () => {
+    const { workspace, catalog } = buildFixture()
+    const { institutionForWorkspace } = await import("@/data/institutions/registry")
+    const opportunities = institutionForWorkspace(workspace).buildOpportunities()
+    const padded = searchWorkspace(workspace, catalog, "Stanford Tamil students association first meeting", opportunities)
+    expect(padded.gaps.some((gap) => gap.includes("club or program listing"))).toBe(true)
+    const covered = searchWorkspace(workspace, catalog, "TreeHacks hackathon", opportunities)
+    expect(covered.gaps.some((gap) => gap.includes("club or program listing"))).toBe(false)
+  })
+
+  it("ranks the exact-title match into the visible library results", () => {
+    const { workspace, catalog } = buildFixture()
+    for (let index = 0; index < 8; index++) {
+      workspace.contextItems.push({ id: `NOTE-FILLER-${index}`, type: "note", title: `Research filler ${index}`, summary: "General research note about health and AI readiness.", content: { text: "research health readiness" }, tags: [], collectionId: "COLLECTION-INBOX", addedBy: { type: "human", id: "USER-DEMO" }, createdAt: "2026-08-29T00:00:00Z", updatedAt: "2026-08-29T00:00:00Z" })
+    }
+    workspace.contextItems.push({ id: "GOAL-CURIS-RANK", type: "goal", title: "Be ready for early health-AI research and CURIS", summary: "Shortlist labs by winter.", content: { text: "steps" }, tags: [], collectionId: "COLLECTION-INBOX", addedBy: { type: "agent", id: "AGENT" }, createdAt: "2026-08-29T00:00:00Z", updatedAt: "2026-08-29T00:00:00Z" })
+    const found = searchWorkspace(workspace, catalog, "Be ready for early health-AI research and CURIS")
+    const library = found.groups.find((group) => group.type === "library")!
+    expect(library.items[0].id).toBe("GOAL-CURIS-RANK")
+  })
+
   it("exposes source urls through search results", () => {
     const { workspace, catalog } = buildFixture()
     const evidence = workspace.evidence.find((item) => item.sourceUrl)!
