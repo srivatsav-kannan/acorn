@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "course-context-live",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
       "name": "course-context-fixture",
       "runtimeExecutable": "env",
       "runtimeArgs": ["COURSE_CONTEXT_E2E_FIXTURE=true", "npm", "run", "dev", "--", "-p", "3020"],
