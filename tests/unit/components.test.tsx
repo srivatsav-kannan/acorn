@@ -190,7 +190,7 @@ describe("calendar", () => {
 describe("academics and activities", () => {
   it("searches the catalog and marks interest", async () => {
     renderInWorkspace(<AcademicsPage />)
-    expect(screen.getByRole("tab", { name: "Courses" })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByLabelText("Planning term")).toBeVisible()
     await userEvent.type(screen.getByLabelText("Search courses"), "CS 106B")
     expect((await screen.findAllByText(/Programming Abstractions/)).length).toBeGreaterThan(0)
     await userEvent.click(screen.getAllByRole("button", { name: "Interested" })[0])
@@ -209,10 +209,11 @@ describe("academics and activities", () => {
     expect(await within(mine).findByRole("heading", { name: "TreeHacks" })).toBeVisible()
   })
 
-  it("keeps completed courses and all three credit kinds in the history tab", async () => {
-    renderInWorkspace(<AcademicsPage initialTab="history" />)
-    expect(screen.getByRole("heading", { name: "Credit before Stanford" })).toBeVisible()
-    expect(screen.getByRole("heading", { name: "Completed courses" })).toBeVisible()
+  it("keeps past courses and all three credit kinds in the done box", async () => {
+    renderInWorkspace(<AcademicsPage />)
+    expect(screen.getByRole("heading", { name: "Already done" })).toBeVisible()
+    expect(screen.getByRole("heading", { name: "Past courses" })).toBeVisible()
+    expect(screen.getByRole("heading", { name: "AP, IB, and college credit" })).toBeVisible()
     await userEvent.click(screen.getByRole("button", { name: "Add credit" }))
     for (const kind of ["AP", "IB", "College course"]) {
       expect(screen.getByRole("radio", { name: kind })).toBeVisible()

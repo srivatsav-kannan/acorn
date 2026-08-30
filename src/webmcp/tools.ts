@@ -34,6 +34,21 @@ type Setup = {
   runExclusive?: <T>(task: () => Promise<T>) => Promise<T>
 }
 
+const WAYS_CODES = ["A-II", "AQR", "CE", "ED", "ER", "FR", "SI", "SMA"]
+// WAYS coverage counted from completed courses plus every actively planned
+// course, straight off the catalog designations. Same math the academics
+// page shows, so the agent and the student read one number.
+const waysSummary = (value: WorkspaceState, merged: { courses: Array<{ id: string, ways?: string[] }> }) => {
+  const courseIds = new Set<string>(value.profile.completedCourseIds)
+  for (const plan of value.plans) {
+    const active = plan.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan.scenarios[0]
+    for (const item of active?.courses ?? []) if (item.status === "active") courseIds.add(item.courseId)
+  }
+  const covered = new Set<string>()
+  for (const id of courseIds) for (const way of merged.courses.find((course) => course.id === id)?.ways ?? []) covered.add(way)
+  return { met: WAYS_CODES.filter((code) => covered.has(code)).length, of: WAYS_CODES.length, missing: WAYS_CODES.filter((code) => !covered.has(code)) }
+}
+
 const schema = (properties: JsonSchema["properties"] = {}, required: string[] = []): JsonSchema => ({ type: "object", additionalProperties: false, properties, required })
 const field = (type: string, description: string) => ({ type, description })
 const annotations = (readOnlyHint: boolean, untrustedContentHint = false) => ({ readOnlyHint, untrustedContentHint })
@@ -181,7 +196,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     },
     {
       name: "check_plan",
-      description: "Run deterministic unit, schedule, prerequisite, evidence, and constraint checks. When a violated course has another section this term that clears every constraint, the check names it in alternative and its first suggested repair.",
+      description: "Run deterministic unit, schedule, prerequisite, evidence, and constraint checks, with earned and projected unit totals and WAYS coverage. When a violated course has another section this term that clears every constraint, the check names it in alternative and its first suggested repair.",
       inputSchema: schema({ planId: field("string", "Stable plan ID"), scenarioId: field("string", "Stable scenario ID") }),
       annotations: annotations(true),
       examples: [{ planId: "Use the current plan ID", scenarioId: "Use a scenario ID returned by get_plan" }],
@@ -191,7 +206,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
         const selected = plan?.scenarios.find((item) => item.id === scenarioId) ?? plan?.scenarios.find((item) => item.id === plan?.activeScenarioId) ?? plan?.scenarios[0]
         const merged = mergedCatalogFor(value, repository.catalog)
         const degree = supportsTimeline(value) ? evaluateDegreePlan(value, merged, now()) : null
-        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, activities: value.activities, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { planUnits: selected ? selected.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) : 0, projected: degree.projectedUnits, required: degree.requiredUnits, note: "planUnits is this scenario alone; projected adds completed courses and external credit toward the degree total." } : null }
+        return { workspaceVersion: value.version, checks: plan && selected ? checkPlan({ scenario: selected, catalog: merged, profile: value.profile, evidence: value.evidence, activities: value.activities, now: now(), termId: plan.termId }) : [], timelineIssues: degree ? degree.issues.slice(0, 8) : [], unitsToward: degree ? { planUnits: selected ? selected.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) : 0, earned: degree.completedUnits, projected: degree.projectedUnits, required: degree.requiredUnits, note: "planUnits is this scenario alone; earned counts completed courses and external credit; projected adds planned units." } : null, ways: waysSummary(value, merged) }
       }
     },
     {

@@ -77,7 +77,6 @@ export const SignupPage = () => {
     <section className="auth-card">
       <header>
         <h1>Create your account</h1>
-        <p>Your name and two dates set up the whole quarter map. Everything else gets added inside, by you or by your agent.</p>
       </header>
       {confirmationNeeded ? <div className="link-sent" role="status">
         <strong>Confirm your email</strong>
