@@ -27,8 +27,7 @@ describe("fresh account workspace", () => {
       preferences: [],
       excludedDays: []
     })
-    expect(workspace.contextItems).toHaveLength(1)
-    expect(workspace.contextItems[0]).toMatchObject({ type: "goal", addedBy: { type: "human", id: "USER-MAYA" } })
+    expect(workspace.contextItems).toHaveLength(0)
     expect(workspace.plans[0].scenarios[0].courses).toEqual([])
     expect(workspace.plans[0].scenarios[0].commitments).toEqual([])
     expect(workspace.uncertainties).toEqual([])
@@ -82,6 +81,6 @@ describe("fresh account workspace", () => {
     })
     const saved = await repository.getWorkspace(workspace.id, "USER-MAYA")
     expect(saved.profile.summary).toBe("Build a light quarter with time for research.")
-    expect(saved.contextItems.find((item) => item.type === "goal")?.summary).toBe(saved.profile.summary)
+    expect(saved.contextItems.filter((item) => item.type === "goal")).toHaveLength(0)
   })
 })

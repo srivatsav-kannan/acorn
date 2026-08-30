@@ -821,7 +821,9 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       }
       if (goal !== undefined) {
         workspace.profile.summary = goal
-        const goalItem = workspace.contextItems.find((item) => item.type === "goal" && !item.archived)
+        // Only the legacy onboarding-seeded card mirrors the profile summary;
+        // matching any goal item here would overwrite real structured goals.
+        const goalItem = workspace.contextItems.find((item) => item.type === "goal" && !item.archived && item.title === "What I want help with")
         if (goalItem) {
           goalItem.summary = goal
           goalItem.content = { ...goalItem.content, text: goal }

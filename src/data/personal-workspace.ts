@@ -38,8 +38,6 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     ? { entryTermId: termId(entryYear, "AUTUMN"), expectedGraduationTermId: termId(gradYear && gradYear > entryYear ? gradYear : entryYear + 4, "SPRING"), degree: gradYear && gradYear - entryYear >= 5 ? "BS-MS" : "BS" }
     : defaultTimeline(now())
   const suffix = id().replaceAll("-", "").toUpperCase()
-  const createdAt = now().toISOString()
-  const goalId = `GOAL-${suffix}`
 
   return {
     id: `WORKSPACE-${suffix}`,
@@ -82,17 +80,10 @@ export const buildPersonalWorkspace = ({ userId, email, name, goal, institutionI
     }],
     programs: institution.buildPrograms(),
     collections: personalCollections(),
-    contextItems: cleanGoal ? [{
-      id: goalId,
-      type: "goal",
-      title: "What I want help with",
-      summary: cleanGoal,
-      content: { text: cleanGoal },
-      collectionId: "COLLECTION-INBOX",
-      addedBy: { type: "human", id: userId },
-      createdAt,
-      updatedAt: createdAt
-    }] : [],
+    // The goal lives once, in the profile summary the goals card renders.
+    // Seeding it again as a scratchpad item made the same text appear twice,
+    // once as a bare goal card with no milestone structure.
+    contextItems: [],
     evidence: institution.buildEvidence().filter((item) => item.addedBy === "system"),
     uncertainties: [],
     savedViews: [],
