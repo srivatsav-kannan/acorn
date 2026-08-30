@@ -71,6 +71,11 @@ export const validateOverlayCourse = (input: Record<string, unknown>): Course =>
     minUnits,
     maxUnits,
     tags: Array.isArray(input.tags) ? input.tags.map((tag) => String(tag).slice(0, 30)).slice(0, 8) : [],
+    // A correction that resends the shipped course keeps its WAYS designation
+    // and season pattern; without these fields an amended course would drop
+    // out of the WAYS math and the offered-season hints.
+    ways: Array.isArray(input.ways) ? input.ways.map((way) => String(way).slice(0, 8)).slice(0, 8) : undefined,
+    offeredSeasons: typeof input.offeredSeasons === "string" ? input.offeredSeasons.slice(0, 4) : undefined,
     sourceUrl: typeof input.sourceUrl === "string" ? input.sourceUrl : undefined,
     catalogYear: typeof input.catalogYear === "string" ? input.catalogYear : undefined,
     prerequisites: Array.isArray(input.prerequisites) ? input.prerequisites.map((item) => String(item)).slice(0, 12) : undefined,

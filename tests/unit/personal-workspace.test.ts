@@ -59,7 +59,7 @@ describe("fresh account workspace", () => {
       workspaceId: workspace.id,
       expectedVersion: 1,
       idempotencyKey: "MAYA-FIRST-COURSE",
-      command: { type: "edit_plan", planId: workspace.plans[0].id, scenarioId: scenario.id, operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-MAYA-CS106A", courseId: "COURSE-CS-106A", sectionId: "SECTION-CS-106A-01", units: 5, status: "active" } }] }
+      command: { type: "edit_plan", planId: workspace.plans[0].id, scenarioId: scenario.id, operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-MAYA-CS106A", courseId: "COURSE-CS-106A", sectionId: "SECTION-CS-106A-01-02", units: 5, status: "active" } }] }
     })
     const saved = await repository.getWorkspace(workspace.id, "USER-MAYA")
     expect(receipt.ok).toBe(true)

@@ -214,19 +214,18 @@ describe("academics and activities", () => {
     expect(await within(mine).findByRole("heading", { name: "TreeHacks" })).toBeVisible()
   })
 
-  it("keeps past courses and all three credit kinds in the done box", async () => {
+  it("keeps all three credit kinds in the credit box", async () => {
     renderInWorkspace(<AcademicsPage />)
-    expect(screen.getByRole("heading", { name: "Already done" })).toBeVisible()
-    expect(screen.getByRole("heading", { name: "Past courses" })).toBeVisible()
-    expect(screen.getByRole("heading", { name: "AP, IB, and college credit" })).toBeVisible()
+    expect(screen.getByRole("heading", { name: "AP, IB, and transfer credit" })).toBeVisible()
+    expect(screen.queryByRole("heading", { name: "Past courses" })).toBeNull()
     await userEvent.click(screen.getByRole("button", { name: "Add credit" }))
-    for (const kind of ["AP", "IB", "College course"]) {
+    for (const kind of ["AP", "IB", "Transfer"]) {
       expect(screen.getByRole("radio", { name: kind })).toBeVisible()
     }
     await userEvent.click(screen.getByRole("radio", { name: "IB" }))
     expect(screen.getByLabelText("Subject")).toBeVisible()
     expect(screen.getByLabelText("Units Stanford granted")).toBeVisible()
-    await userEvent.click(screen.getByRole("radio", { name: "College course" }))
+    await userEvent.click(screen.getByRole("radio", { name: "Transfer" }))
     expect(screen.getByLabelText("College or university")).toBeVisible()
   })
 })

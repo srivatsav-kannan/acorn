@@ -221,7 +221,7 @@ describe("protected time windows", () => {
     const workspace = await repository.getWorkspace("WORKSPACE-DEMO", "USER-DEMO")
     expect(workspace.profile.protectedWindows?.[0]).toMatchObject({ days: ["fri"], start: "13:00", end: "18:00", label: "Research afternoons" })
     const catalog = buildStanfordCatalog()
-    const scenario = { id: "S", name: "S", unitLimit: 20, courses: [{ id: "PC-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" as const }], commitments: [] }
+    const scenario = { id: "S", name: "S", unitLimit: 20, courses: [{ id: "PC-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01-02", units: 5, status: "active" as const }], commitments: [] }
     const checks = checkPlan({ scenario, catalog, profile: workspace.profile, evidence: workspace.evidence, now: new Date("2026-08-29T12:00:00Z") })
     const flagged = checks.find((check) => check.code === "PROTECTED_TIME")
     expect(flagged).toBeDefined()

@@ -8,7 +8,7 @@ import type { InstitutionReference } from "@/data/institutions/types"
 // ID collisions. Curated SECTIONS are the opposite: imported meeting times
 // are the schedule truth and win on ID collisions, because the sample times
 // below drifted from the official schedule.
-type ImportedCourse = { c: string, t: string, u?: number | [number, number], w?: string[], o?: string, d?: string, s?: Array<{ n: string, m: Array<{ d: string[], s: string, e: string, l?: string }> }> }
+type ImportedCourse = { c: string, t: string, u?: number | [number, number], w?: string[], o?: string, d?: string, s?: Array<{ n: string, m: Array<{ d: string[], s: string, e: string, l?: string, y?: string }> }> }
 type ImportedPayload = { meta: { source: string, retrievedAt: string, academicYear: string, departments: number, courses: number, note: string }, courses: ImportedCourse[] }
 
 const imported = importedCatalog as ImportedPayload
@@ -435,6 +435,8 @@ const importedCourses = (curatedCodes: Set<string>): Course[] => imported.course
     }
   })
 
+const importedMeetingType = (flag?: string): Meeting["type"] => flag === "s" ? "section" : flag === "b" ? "lab" : flag === "m" ? "seminar" : "lecture"
+
 const importedSections = (): Section[] => {
   const result: Section[] = []
   for (const row of imported.courses) {
@@ -449,11 +451,11 @@ const importedSections = (): Section[] => {
         sectionNumber: section.n,
         instructor: "See Stanford Navigator",
         units,
-        // The public export carries no component field, so imported meetings
-        // are typed lecture-as-primary rather than guessing which block is a
-        // discussion or lab; agents can correct one through extend_reference
-        // with a typed meeting and a source.
-        meetings: section.m.map((meeting) => ({ days: meeting.d as Meeting["days"], start: meeting.s, end: meeting.e, timezone: "America/Los_Angeles", type: "lecture" as const, location: meeting.l })),
+        // The importer types each meeting from its ExploreCourses component:
+        // y "s" is a discussion, "b" a lab, "m" a seminar, absent a lecture.
+        // A section number like 01-02 is lecture 01 paired with discussion 02,
+        // one enrollable week. Corrections still flow through extend_reference.
+        meetings: section.m.map((meeting) => ({ days: meeting.d as Meeting["days"], start: meeting.s, end: meeting.e, timezone: "America/Los_Angeles", type: importedMeetingType(meeting.y), location: meeting.l })),
         evidenceIds: ["EVIDENCE-EXPLORECOURSES-IMPORT"]
       })
     }
@@ -470,20 +472,22 @@ export const buildStanfordCatalog = (): Catalog => {
   const curatedSections = sections()
   // Imported Stanford Navigator sections are the schedule truth. The curated
   // list predates the import and its sample times drifted from the official
-  // schedule, so on an ID collision the imported section wins. Curated
-  // sections with unique IDs survive: the deterministic-check demos and the
-  // courses the import carries no sections for. Curated final-exam blocks
-  // graft onto their imported twins, which the import does not know about.
+  // schedule, so once the import carries any section for a course, every
+  // curated section of that course drops out. Two exceptions: the
+  // deterministic-check rigs below stay for the planner demos and tests, and
+  // curated final-exam blocks graft onto every imported section of their
+  // course, because the public feed does not publish finals.
   const importedList = importedSections()
-  const importedIds = new Set(importedList.map((section) => section.id))
-  const curatedFinals = new Map(curatedSections.filter((section) => section.final).map((section) => [section.id, section.final!]))
+  const demoSectionIds = new Set(["SECTION-COMM-1-02", "SECTION-CONFLICTING", "SECTION-FINAL-CONFLICT", "SECTION-FRIDAY", "SECTION-EARLY", "SECTION-TIGHT-TRANSITION", "SECTION-STALE"])
+  const importedCourseIds = new Set(importedList.map((section) => section.courseId))
+  const courseFinals = new Map(curatedSections.filter((section) => section.final && !demoSectionIds.has(section.id)).map((section) => [section.courseId, section.final!]))
   for (const section of importedList) {
-    const final = curatedFinals.get(section.id)
+    const final = courseFinals.get(section.courseId)
     if (final && !section.final) section.final = final
   }
   catalogCache = {
     courses: [...curated, ...importedCourses(curatedCodes)],
-    sections: [...importedList, ...curatedSections.filter((section) => !importedIds.has(section.id))]
+    sections: [...importedList, ...curatedSections.filter((section) => demoSectionIds.has(section.id) || !importedCourseIds.has(section.courseId))]
   }
   return catalogCache
 }

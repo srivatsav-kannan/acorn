@@ -259,7 +259,7 @@ describe("codex round two findings", () => {
     await executeCommand(repository, envelope({
       type: "edit_plan",
       planId: "PLAN-AUT26",
-      operations: [{ type: "create_scenario", scenario: { id: "SCENARIO-ALT", name: "Alternate", courses: [{ id: "PLANCOURSE-ALT-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" }] } }]
+      operations: [{ type: "create_scenario", scenario: { id: "SCENARIO-ALT", name: "Alternate", courses: [{ id: "PLANCOURSE-ALT-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01-02", units: 5, status: "active" }] } }]
     }, 1, "SCEN-1"))
     await executeCommand(repository, envelope({ type: "edit_plan", planId: "PLAN-AUT26", scenarioId: "SCENARIO-ALT", operations: [{ type: "set_active_scenario" }] }, 2, "SCEN-2"))
     const after = await findTool(tools, "get_program_progress").execute({}) as { program: { requirements: Array<{ courseIds?: string[] }> } }
@@ -429,7 +429,7 @@ describe("official schedule truth", () => {
   it("serves imported official meeting times over stale curated samples", async () => {
     const { buildStanfordCatalog } = await import("@/data/institutions/stanford")
     const catalog = buildStanfordCatalog()
-    const cs106b = catalog.sections.find((section) => section.id === "SECTION-CS-106B-01")!
+    const cs106b = catalog.sections.find((section) => section.id === "SECTION-CS-106B-01-02")!
     expect(cs106b.meetings[0]).toMatchObject({ days: ["mon", "wed", "fri"], start: "12:30", end: "13:20", location: "Hewlett Teaching Center 200" })
     expect(cs106b.final).toBeDefined()
     expect(cs106b.evidenceIds).toContain("EVIDENCE-EXPLORECOURSES-IMPORT")

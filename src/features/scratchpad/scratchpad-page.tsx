@@ -24,7 +24,6 @@ export const ScratchpadPage = () => {
   const [milestoneTitle, setMilestoneTitle] = useState("")
   const [milestoneDue, setMilestoneDue] = useState("")
   const [goalDraft, setGoalDraft] = useState<string | null>(null)
-  const [tagFilter, setTagFilter] = useState("")
   const [query, setQuery] = useState("")
   const [editingId, setEditingId] = useState("")
   const [editTitle, setEditTitle] = useState("")
@@ -32,9 +31,7 @@ export const ScratchpadPage = () => {
   const [editTags, setEditTags] = useState("")
 
   const items = useMemo(() => value.workspace.contextItems.filter((item) => !item.archived).sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")), [value.workspace.contextItems])
-  const allTags = useMemo(() => [...new Set(items.flatMap((item) => item.tags ?? []))].sort(), [items])
   const visible = items.filter((item) => {
-    if (tagFilter && !(item.tags ?? []).includes(tagFilter)) return false
     if (query.trim() && !`${item.title} ${item.summary}`.toLowerCase().includes(query.toLowerCase())) return false
     return true
   })
@@ -120,10 +117,6 @@ export const ScratchpadPage = () => {
 
     <div className="scratch-filter">
       <input aria-label="Search the scratchpad" placeholder="Search notes" value={query} onChange={(event) => setQuery(event.target.value)} />
-      {allTags.length > 0 && <div className="tag-chips" role="group" aria-label="Filter by tag">
-        <button className={tagFilter === "" ? "tag-chip active" : "tag-chip"} type="button" onClick={() => setTagFilter("")}>All</button>
-        {allTags.map((tag) => <button key={tag} className={tagFilter === tag ? "tag-chip active" : "tag-chip"} type="button" onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}>{tag}</button>)}
-      </div>}
     </div>
 
     {visible.length === 0 ? <div className="empty-card"><strong>Nothing here yet</strong><p>Jot the first thing above, or let your agent file what it learns with ingest_context.</p></div> : <div className="scratch-grid">

@@ -215,7 +215,7 @@ export const ActivitiesPage = () => {
   }
 
   return <div className="page activities-page">
-    <header className="page-heading"><div><h1>Clubs and activities</h1><p>Yours in front with the hours they take, the whole directory one search away.</p></div></header>
+    <header className="page-heading"><div><h1>Clubs and activities</h1></div></header>
 
     <div className="activities-layout">
       <section className="activities-main" aria-label="Mine">

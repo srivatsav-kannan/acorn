@@ -132,9 +132,6 @@ input, select, textarea { accent-color: var(--cardinal); }
 .jot-row input { flex: 1; }
 .scratch-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .scratch-filter > input { min-width: 230px; }
-.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag-chip { min-height: 30px; padding: 0 12px; border: 2px solid var(--border); border-radius: 999px; background: var(--card); font-size: 12.5px; font-weight: 800; }
-.tag-chip.active { background: var(--gold); }
 .scratch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .scratch-card { display: flex; flex-direction: column; padding: 16px; transition: transform .12s ease, box-shadow .12s ease; }
 .scratch-card:hover { transform: translateY(-2px); box-shadow: 0 5px 0 rgba(67, 41, 31, .22); }
@@ -227,7 +224,6 @@ input, select, textarea { accent-color: var(--cardinal); }
 .plan-note-area { margin-top: 8px; padding: 10px 12px; border-left: 3px solid var(--gold); background: var(--tan); border-radius: 0 9px 9px 0; }
 .plan-note { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 13px; line-height: 1.5; }
 .done-box h3 { margin: 0 0 10px; font-size: 15.5px; }
-.done-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .catalog-box input[aria-label="Search courses"] { width: 100%; margin-bottom: 10px; }
 .cat-list { display: grid; gap: 8px; }
 .cat-row { border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); }
@@ -392,12 +388,6 @@ input, select, textarea { accent-color: var(--cardinal); }
 .history-list li > span { display: flex; flex-direction: column; }
 .history-list b { font-size: 14px; }
 .history-list small { color: var(--muted); font-size: 12.5px; }
-.completed-search-results { margin-top: 8px; border: 2px solid var(--border); border-radius: 10px; background: var(--card); overflow: hidden; }
-.completed-search-results button { display: grid; grid-template-columns: 90px 1fr auto; gap: 8px; width: 100%; border: 0; border-bottom: 1.5px solid var(--line); padding: 10px 12px; background: none; text-align: left; }
-.completed-search-results button:hover { background: var(--tan); }
-.completed-search-results b { font-weight: 800; }
-.completed-search-results span { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
-.completed-search-results em { color: var(--cardinal); font-style: normal; font-weight: 800; }
 
 /* ---------- Course drawer ---------- */
 .modal-backdrop, .drawer-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(51, 32, 26, .5); }
@@ -411,7 +401,10 @@ input, select, textarea { accent-color: var(--cardinal); }
 .drawer-block { margin-top: 16px; padding-top: 14px; border-top: 2px solid var(--line); }
 .drawer-block h3 { margin: 0 0 8px; font-size: 16px; }
 .drawer-section-list { margin: 0; padding: 0; list-style: none; }
-.drawer-section-list li { display: grid; gap: 1px; padding: 8px 0; border-top: 1.5px solid var(--line); font-size: 13.5px; }
+.drawer-section-list li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 8px 0; border-top: 1.5px solid var(--line); font-size: 13.5px; }
+.drawer-section-list li b { font-weight: 800; }
+.section-fix { margin-top: 12px; }
+.fix-meeting { display: grid; gap: 8px; margin-top: 4px; padding: 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--tan); }
 .drawer-section-list b { font-weight: 800; }
 .drawer-section-list span { color: var(--muted); }
 .course-note-list { margin: 0 0 10px; padding: 0; list-style: none; }
@@ -695,7 +688,6 @@ input, select, textarea { accent-color: var(--cardinal); }
   .sk-stats { grid-template-columns: repeat(2, 1fr); }
   .sk-two-up, .sk-scratch-grid { grid-template-columns: 1fr; }
   .stat-row { grid-template-columns: repeat(2, 1fr); }
-  .done-columns { grid-template-columns: 1fr; }
   .mine-grid { grid-template-columns: 1fr; }
   .dir-list { max-height: none; }
   .plan-rail { position: static; }

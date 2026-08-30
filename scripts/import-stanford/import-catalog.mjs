@@ -41,10 +41,16 @@ const cached = async (name, url) => {
   if (!refresh) {
     try { await access(file); return readFile(file, "utf8") } catch { /* fetch below */ }
   }
-  const text = await fetchText(url)
-  await writeFile(file, text)
-  await sleep(250)
-  return text
+  try {
+    const text = await fetchText(url)
+    await writeFile(file, text)
+    await sleep(250)
+    return text
+  } catch (error) {
+    // A refresh must never lose a department to a transient failure; the
+    // previous snapshot is better than a silent hole in the catalog.
+    try { await access(file); console.warn(`refresh failed for ${name}, using cached copy: ${error.message}`); return readFile(file, "utf8") } catch { throw error }
+  }
 }
 
 const decode = (value) => value
@@ -148,13 +154,31 @@ const main = async () => {
   await writeFile(join(root, "data", "stanford", "catalog-full.json"), JSON.stringify({ meta, courses: unique }))
   console.log(`full catalog: ${unique.length} courses`)
 
+  // Primary components are the enrollable class itself; secondary components
+  // (discussions and labs) attach to one. A student's real week is primary
+  // plus one secondary, so each emitted section is that pairing with the
+  // secondary meeting typed: y "s" discussion, "b" lab, "m" seminar.
+  const componentRank = { LEC: 0, SEM: 1, LNG: 2, WKS: 3, ITR: 4, PRC: 5, ISS: 6, ACT: 7, INS: 8, COL: 9, CAS: 10, PRA: 11 }
+  const secondaryType = { DIS: "s", LAB: "b", LBS: "b" }
+  const meetingOut = (schedule, component) => {
+    const out = { d: schedule.days, s: schedule.start, e: schedule.end, l: schedule.location?.slice(0, 40) }
+    if (secondaryType[component]) out.y = secondaryType[component]
+    else if (component === "SEM") out.y = "m"
+    return out
+  }
+  const byNumber = (a, b) => (Number(a.sectionNumber) || 99) - (Number(b.sectionNumber) || 99)
   const trimmed = unique.map((course) => {
     const detail = DETAIL_DEPTS.has(course.subject)
-    const componentRank = { LEC: 0, SEM: 1, LNG: 2, WKS: 3, ITR: 4, PRC: 5, LAB: 6, ISS: 7, ACT: 8, INS: 9 }
-    const autumn = detail ? course.sections
-      .filter((section) => section.termId === "TERM-2026-AUTUMN" && section.component in componentRank && section.schedules.length > 0)
-      .sort((a, b) => (componentRank[a.component] - componentRank[b.component]) || (Number(a.sectionNumber) || 99) - (Number(b.sectionNumber) || 99))
-      .slice(0, 2) : []
+    const scheduled = detail ? course.sections.filter((section) => section.termId === "TERM-2026-AUTUMN" && section.schedules.length > 0) : []
+    const primaries = scheduled.filter((section) => section.component in componentRank).sort((a, b) => (componentRank[a.component] - componentRank[b.component]) || byNumber(a, b))
+    const secondaries = scheduled.filter((section) => section.component in secondaryType).sort(byNumber)
+    let autumn = []
+    if (primaries.length && secondaries.length) {
+      for (const primary of primaries) for (const secondary of secondaries) autumn.push({ n: `${primary.sectionNumber}-${secondary.sectionNumber}`, m: [...primary.schedules.map((schedule) => meetingOut(schedule, primary.component)), ...secondary.schedules.map((schedule) => meetingOut(schedule, secondary.component))] })
+    } else {
+      autumn = [...primaries, ...secondaries].map((section) => ({ n: section.sectionNumber, m: section.schedules.map((schedule) => meetingOut(schedule, section.component)) }))
+    }
+    if (autumn.length > 96) autumn = autumn.slice(0, 96)
     const seasons = [...new Set(course.sections.map((section) => /TERM-\d{4}-([A-Z])/.exec(section.termId)?.[1]).filter(Boolean))].sort().join("")
     const entry = { c: course.code, t: course.title.slice(0, 110) }
     if (course.unitsMin === course.unitsMax) { if (course.unitsMin !== 3) entry.u = course.unitsMin } else entry.u = [course.unitsMin, course.unitsMax]
@@ -163,7 +187,7 @@ const main = async () => {
     if (seasons) entry.o = seasons
     if (detail) {
       entry.d = course.description.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/g, "").replace(/https?:\/\/\S+/g, "").replace(/\s+/g, " ").trim().slice(0, 200)
-      if (autumn.length) entry.s = autumn.map((section) => ({ n: section.sectionNumber, m: section.schedules.map((schedule) => ({ d: schedule.days, s: schedule.start, e: schedule.end, l: schedule.location?.slice(0, 40) })) }))
+      if (autumn.length) entry.s = autumn
     }
     return entry
   })

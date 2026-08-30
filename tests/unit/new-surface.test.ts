@@ -46,7 +46,7 @@ describe("the transition buffer preference", () => {
       name: "Tight",
       unitLimit: 20,
       courses: [
-        { id: "PC-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" as const },
+        { id: "PC-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01-02", units: 5, status: "active" as const },
         { id: "PC-173A", courseId: "COURSE-CS-173A", sectionId: "SECTION-CS-173A-01", units: 4, status: "active" as const }
       ],
       commitments: []
@@ -125,7 +125,7 @@ describe("agent-readable schedule detail", () => {
     const tools = buildTools(repository)
     const found = await findTool(tools, "search_courses").execute({ query: "CS 106B" }) as { results: Array<{ code: string, sections: Array<{ id: string, meets: string }> }> }
     const cs106b = found.results.find((row) => row.code === "CS 106B")!
-    expect(cs106b.sections[0].id).toBe("SECTION-CS-106B-01")
+    expect(cs106b.sections[0].id).toBe("SECTION-CS-106B-01-02")
     expect(cs106b.sections[0].meets).toContain("mon/wed/fri 12:30 to 13:20")
   })
 })

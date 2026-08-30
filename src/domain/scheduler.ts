@@ -36,12 +36,29 @@ export type SectionSuggestions = {
   note: string
 }
 
-export const suggestSections = ({ scenario, catalog, profile, evidence, activities, now, termId, limit = 3 }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], activities?: Activity[], now: Date, termId: string, limit?: number }): SectionSuggestions => {
+export const suggestSections = ({ scenario, catalog, profile, evidence, activities, now, termId, limit = 2 }: { scenario: PlanScenario, catalog: Catalog, profile: StudentProfile, evidence: Evidence[], activities?: Activity[], now: Date, termId: string, limit?: number }): SectionSuggestions => {
   const active = scenario.courses.filter((item) => item.status === "active")
-  const perCourse = active.map((item) => ({
-    item,
-    candidates: catalog.sections.filter((section) => section.courseId === item.courseId && section.termId === termId)
-  }))
+  // With real section counts, a course can offer dozens of discussion
+  // pairings and the pool below keeps only the first few. Screening each
+  // candidate against the fixed blocks first, protected windows, excluded
+  // days, the day's time fence, commitments, and scheduled activities, keeps
+  // the pool from filling with sections no choice elsewhere could ever save.
+  const fixedBlocks = [
+    ...(profile.protectedWindows ?? []).map((window) => ({ days: window.days as string[], start: window.start, end: window.end })),
+    ...scenario.commitments.flatMap((commitment) => commitment.meetings.map((meeting) => ({ days: meeting.days as string[], start: meeting.start, end: meeting.end }))),
+    ...(activities ?? []).filter((activity) => activity.schedule).map((activity) => ({ days: activity.schedule!.days as string[], start: activity.schedule!.start, end: activity.schedule!.end }))
+  ]
+  const excluded = new Set(profile.excludedDays ?? [])
+  const clearsFixedBlocks = (section: Section) => section.meetings.every((meeting) =>
+    meeting.days.every((day) => !excluded.has(day)) &&
+    (!profile.earliestStart || meeting.start >= profile.earliestStart) &&
+    (!profile.latestEnd || meeting.end <= profile.latestEnd) &&
+    fixedBlocks.every((block) => !block.days.some((day) => meeting.days.includes(day as Meeting["days"][number])) || meeting.start >= block.end || meeting.end <= block.start))
+  const perCourse = active.map((item) => {
+    const candidates = catalog.sections.filter((section) => section.courseId === item.courseId && section.termId === termId)
+    const clear = candidates.filter(clearsFixedBlocks)
+    return { item, candidates: clear.length ? clear : candidates }
+  })
   const unschedulable = perCourse.filter((entry) => entry.candidates.length === 0).map((entry) => ({ planCourseId: entry.item.id, courseId: entry.item.courseId, reason: "No stored section this term." }))
   const schedulable = perCourse.filter((entry) => entry.candidates.length > 0)
 

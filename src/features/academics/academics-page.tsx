@@ -6,19 +6,21 @@ import { apExamPresets, apGrantFor, apScoreChoices, ibExamPresets, ibScoreChoice
 import { creditCategory } from "@/domain/history"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { evaluateDegreePlan, planForTerm } from "@/domain/degree-plan"
-import { checkPlan } from "@/domain/planner"
+import { checkPlan, meetingComponent } from "@/domain/planner"
 import { referenceChanges } from "@/domain/reference"
 import { searchCourses } from "@/domain/search"
 import { termLabel, termSequence, timelineFor } from "@/domain/timeline"
-import type { Course } from "@/domain/types"
+import type { Course, Meeting, Section } from "@/domain/types"
 
 const shortTermLabel = (termId: string) => termLabel(termId).replace("Autumn", "Aut").replace("Winter", "Win").replace("Spring", "Spr").replace("Summer", "Sum")
 
 // One page, three boxes, no tabs. The plan sits front and center with a
 // quarter cycler and a note on any planned class. The catalog rides the rail
-// so adding to the plan is one click away, and everything already earned
-// lives in its own box under the plan. The numbers that matter stretch
-// across the top.
+// so adding to the plan is one click away, and external credit lives in its
+// own box under the plan. The numbers that matter stretch across the top.
+// Schedule collisions stay off this page: the calendar's week grid is where
+// overlapping blocks and protected windows are visible, so the checks here
+// stick to degree matters, prerequisites, duplicates, units, and offerings.
 
 const humanEvidence = (id: string, claim: string, sourceUrl: string) => ({
   id,
@@ -46,7 +48,6 @@ export const AcademicsPage = () => {
   const [planNoteDraft, setPlanNoteDraft] = useState("")
   const [addingCourse, setAddingCourse] = useState(false)
   const [courseForm, setCourseForm] = useState({ code: "", title: "", units: "3", description: "", sourceUrl: "" })
-  const [completedQuery, setCompletedQuery] = useState("")
   const [creditKind, setCreditKind] = useState<"ap" | "ib" | "college">("ap")
   const [creditExam, setCreditExam] = useState(apExamPresets[0].exam)
   const [creditScore, setCreditScore] = useState("5")
@@ -55,6 +56,8 @@ export const AcademicsPage = () => {
   const [creditInstitution, setCreditInstitution] = useState("")
   const [creditCourseTitle, setCreditCourseTitle] = useState("")
   const [addingCredit, setAddingCredit] = useState(false)
+  const [showAllSections, setShowAllSections] = useState(false)
+  const [fixSection, setFixSection] = useState<{ id: string, sectionNumber: string, meetings: Array<{ days: Meeting["days"], start: string, end: string, type: "lecture" | "section" | "lab" | "seminar", location: string }>, sourceUrl: string } | null>(null)
 
   const institution = institutionForWorkspace(workspace)
   const shippedCourses = useMemo(() => new Map(institution.buildCatalog().courses.map((course) => [course.id, course])), [institution])
@@ -79,7 +82,8 @@ export const AcademicsPage = () => {
   const scenario = plan?.scenarios.find((item) => item.id === plan.activeScenarioId) ?? plan?.scenarios[0]
   const plannedUnits = scenario?.courses.filter((item) => item.status === "active").reduce((total, item) => total + item.units, 0) ?? 0
   const activityUnits = (workspace.activities ?? []).reduce((total, activity) => total + (activity.units ?? 0), 0)
-  const checks = useMemo(() => plan && scenario ? checkPlan({ scenario, catalog: value.catalog, profile: workspace.profile, evidence: workspace.evidence, activities: workspace.activities, now: new Date(), termId: plan.termId }).slice(0, 3) : [], [plan, scenario, value.catalog, workspace.profile, workspace.evidence, workspace.activities])
+  const scheduleCodes = useMemo(() => new Set(["PROTECTED_TIME", "TRANSITION_BUFFER", "MEETING_CONFLICT", "COMMITMENT_CONFLICT", "TIME_CONSTRAINT", "DAY_CONSTRAINT", "FINAL_CONFLICT"]), [])
+  const checks = useMemo(() => plan && scenario ? checkPlan({ scenario, catalog: value.catalog, profile: workspace.profile, evidence: workspace.evidence, activities: workspace.activities, now: new Date(), termId: plan.termId }).filter((check) => !scheduleCodes.has(check.code)).slice(0, 3) : [], [plan, scenario, value.catalog, workspace.profile, workspace.evidence, workspace.activities, scheduleCodes])
   const degree = useMemo(() => evaluateDegreePlan(workspace, value.catalog, new Date()), [workspace, value.catalog])
 
   const waysCovered = useMemo(() => {
@@ -146,23 +150,47 @@ export const AcademicsPage = () => {
     setCreditCourseTitle("")
     chooseCreditKind("ap")
   }
-  const completedCourses = workspace.profile.completedCourseIds.map((id) => value.catalog.courses.find((course) => course.id === id)).filter((course): course is Course => Boolean(course))
-  const completedMatches = completedQuery.trim() ? value.catalog.courses.filter((course) => `${course.code} ${course.title}`.toLowerCase().includes(completedQuery.toLowerCase()) && !workspace.profile.completedCourseIds.includes(course.id)).slice(0, 6) : []
 
   const drawerCourse = drawerCourseId ? value.catalog.courses.find((course) => course.id === drawerCourseId) : undefined
   const drawerNotes = drawerCourseId ? workspace.courseNotes?.[drawerCourseId] ?? [] : []
-  const drawerSections = drawerCourseId ? value.catalog.sections.filter((section) => section.courseId === drawerCourseId).slice(0, 4) : []
+  const allDrawerSections = drawerCourseId ? value.catalog.sections.filter((section) => section.courseId === drawerCourseId) : []
+  const drawerSections = showAllSections ? allDrawerSections : allDrawerSections.slice(0, 6)
   const drawerDiff = drawerCourse ? referenceChanges(shippedCourses.get(drawerCourse.id) as unknown as Record<string, unknown> | undefined, drawerCourse as unknown as Record<string, unknown>, ["title", "description", "minUnits", "maxUnits"]) : []
+  const completedIds = workspace.profile.completedCourseIds
+  const openDrawer = (courseId: string) => { setDrawerCourseId(courseId); setShowAllSections(false); setFixSection(null); setNoteDraft("") }
+  const closeDrawer = () => { setDrawerCourseId(""); setShowAllSections(false); setFixSection(null) }
   const addNote = async () => {
     if (!noteDraft.trim() || !drawerCourseId) return
     await value.onCommand({ type: "annotate_course", courseId: drawerCourseId, note: { text: noteDraft.trim() } })
     setNoteDraft("")
   }
+  const describeMeeting = (meeting: Meeting) => `${meetingComponent(meeting.type) ? `${meetingComponent(meeting.type)} ` : ""}${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`
+  const openFix = (section?: Section) => setFixSection(section
+    ? { id: section.id, sectionNumber: section.sectionNumber, meetings: section.meetings.map((meeting) => ({ days: [...meeting.days], start: meeting.start, end: meeting.end, type: meeting.type === "commitment" ? "lecture" : meeting.type, location: meeting.location ?? "" })), sourceUrl: "" }
+    : { id: "", sectionNumber: "", meetings: [{ days: [], start: "09:30", end: "10:20", type: "lecture", location: "" }], sourceUrl: "" })
+  const patchFixMeeting = (index: number, patch: Partial<{ days: Meeting["days"], start: string, end: string, type: "lecture" | "section" | "lab" | "seminar", location: string }>) =>
+    setFixSection((current) => current ? { ...current, meetings: current.meetings.map((meeting, at) => at === index ? { ...meeting, ...patch } : meeting) } : current)
+  const toggleFixDay = (index: number, day: Meeting["days"][number]) =>
+    setFixSection((current) => current ? { ...current, meetings: current.meetings.map((meeting, at) => at === index ? { ...meeting, days: meeting.days.includes(day) ? meeting.days.filter((one) => one !== day) : [...meeting.days, day] } : meeting) } : current)
+  const submitFix = async () => {
+    if (!drawerCourse || !fixSection) return
+    const sectionNumber = (fixSection.sectionNumber.trim() || "01").slice(0, 6)
+    const id = fixSection.id || `SECTION-${drawerCourse.id.replace(/^COURSE-/, "")}-${sectionNumber.toUpperCase().replace(/[^A-Z0-9-]/g, "") || "A1"}`
+    const meetings = fixSection.meetings.filter((meeting) => meeting.days.length > 0 && meeting.start && meeting.end && meeting.start < meeting.end)
+    if (meetings.length === 0) return
+    await value.onCommand({
+      type: "extend_reference",
+      course: { id: drawerCourse.id, code: drawerCourse.code, title: drawerCourse.title, description: drawerCourse.description, subject: drawerCourse.subject, level: drawerCourse.level, minUnits: drawerCourse.minUnits, maxUnits: drawerCourse.maxUnits, tags: drawerCourse.tags, ways: drawerCourse.ways, offeredSeasons: drawerCourse.offeredSeasons, prerequisites: drawerCourse.prerequisites, prerequisiteUncertain: drawerCourse.prerequisiteUncertain, sourceUrl: fixSection.sourceUrl.trim() || drawerCourse.sourceUrl, catalogYear: drawerCourse.catalogYear },
+      section: { id, sectionNumber, units: drawerCourse.maxUnits, meetings: meetings.map((meeting) => ({ days: meeting.days, start: meeting.start, end: meeting.end, type: meeting.type, location: meeting.location.trim() || undefined })) },
+      evidence: humanEvidence(`EVIDENCE-HAND-${id}`, `${drawerCourse.code} section ${sectionNumber} recorded by hand from the student's own information.`, fixSection.sourceUrl.trim())
+    })
+    setFixSection(null)
+  }
 
   const catalogRow = (course: Course, sectionsCount: number) => {
     const unverified = overlayCourseIds.has(course.id)
     return <article className="cat-row" key={course.id}>
-      <button className="cat-row-main" type="button" onClick={() => setDrawerCourseId(course.id)}>
+      <button className="cat-row-main" type="button" onClick={() => openDrawer(course.id)}>
         <b>{course.code}</b>
         <span>{course.title}</span>
         <small>{course.minUnits === course.maxUnits ? `${course.maxUnits} units` : `${course.minUnits} to ${course.maxUnits} units`}{course.ways?.length ? ` · ${course.ways.join(", ")}` : ""}{sectionsCount > 0 ? ` · ${sectionsCount} section${sectionsCount === 1 ? "" : "s"}` : ""}</small>
@@ -176,7 +204,7 @@ export const AcademicsPage = () => {
   }
 
   return <div className="page academics-page">
-    <header className="page-heading"><div><h1>Academics</h1><p>The plan front and center, the catalog one click away, everything earned in its own box.</p></div></header>
+    <header className="page-heading"><div><h1>Academics</h1></div></header>
 
     <div className="stat-row" aria-label="Degree numbers">
       <div className="stat-tile"><em>{degree.completedUnits}</em><span>units earned</span></div>
@@ -221,23 +249,13 @@ export const AcademicsPage = () => {
           {checks.length > 0 && <div className="plan-rail-checks">
             {checks.map((check, index) => <p key={index} className={check.severity}><b>{check.code.replaceAll("_", " ").toLowerCase()}</b> {check.message}{check.alternative ? ` ${check.suggestedRepairs[0]} instead.` : ""}</p>)}
           </div>}
-          <p className="muted rail-note">Axess and your department have the official word on degree progress, so confirm there before you rely on these numbers.</p>
         </section>
 
-        <section className="panel-card done-box" aria-label="Already done">
-          <div className="section-heading"><h2>Already done</h2><span className="count-chip">{completedCourses.length + apCredits.length}</span></div>
-          <div className="done-columns">
-            <div>
-              <h3>Past courses</h3>
-              <input aria-label="Search the catalog" placeholder="Search to mark a course completed" value={completedQuery} onChange={(event) => setCompletedQuery(event.target.value)} />
-              {completedMatches.length > 0 && <div className="completed-search-results">{completedMatches.map((course) => <button key={course.id} type="button" onClick={() => { void value.onCommand({ type: "set_completed_courses", courseIds: [...workspace.profile.completedCourseIds, course.id] }); setCompletedQuery("") }}><b>{course.code}</b><span>{course.title}</span><em>Add</em></button>)}</div>}
-              {completedCourses.length === 0 ? <p className="muted">Courses you mark completed count toward prerequisites and units.</p> : <ul className="history-list">{completedCourses.map((course) => <li key={course.id}><span><b>{course.code}</b><small>{course.title}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "set_completed_courses", courseIds: workspace.profile.completedCourseIds.filter((id) => id !== course.id) })}>Remove</button></li>)}</ul>}
-            </div>
-            <div>
-              <div className="section-heading"><h3>AP, IB, and college credit</h3><button className="secondary-button small" type="button" onClick={() => setAddingCredit((current) => !current)}>{addingCredit ? "Cancel" : "Add credit"}</button></div>
+        <section className="panel-card done-box" aria-label="AP, IB, and transfer credit">
+          <div className="section-heading"><h2>AP, IB, and transfer credit</h2><button className="secondary-button small" type="button" onClick={() => setAddingCredit((current) => !current)}>{addingCredit ? "Cancel" : "Add credit"}</button></div>
               {addingCredit && <form className="add-form" onSubmit={(event) => { event.preventDefault(); void addCredit() }}>
                 <div className="kind-toggle-row" role="radiogroup" aria-label="Credit type">
-                  {([["ap", "AP"], ["ib", "IB"], ["college", "College course"]] as const).map(([kind, label]) => <button key={kind} type="button" role="radio" aria-checked={creditKind === kind} className={creditKind === kind ? "day-toggle active" : "day-toggle"} onClick={() => chooseCreditKind(kind)}>{label}</button>)}
+                  {([["ap", "AP"], ["ib", "IB"], ["college", "Transfer"]] as const).map(([kind, label]) => <button key={kind} type="button" role="radio" aria-checked={creditKind === kind} className={creditKind === kind ? "day-toggle active" : "day-toggle"} onClick={() => chooseCreditKind(kind)}>{label}</button>)}
                 </div>
                 {creditKind === "ap" && <>
                   <label>Exam<select value={creditExam} onChange={(event) => chooseCredit(event.target.value, creditScore)}>{apExamPresets.map((preset) => <option key={preset.exam} value={preset.exam}>{preset.exam}</option>)}</select></label>
@@ -264,9 +282,7 @@ export const AcademicsPage = () => {
                 </>}
                 <button className="primary-button" type="submit">Save credit</button>
               </form>}
-              {apCredits.length === 0 ? <p className="muted">No credits recorded.</p> : <ul className="history-list">{apCredits.map((credit) => <li key={credit.id}><span><b>{credit.exam}</b><small>{[creditCategory(credit) === "ib" ? "IB" : creditCategory(credit) === "college" ? (credit.institution || "College") : "AP", credit.score !== undefined ? `score ${credit.score}` : null, credit.unitsGranted !== undefined ? `${credit.unitsGranted} units granted` : null].filter(Boolean).join(" · ")}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "update_academic_history", patch: { apCredits: apCredits.filter((item) => item.id !== credit.id) } })}>Remove</button></li>)}</ul>}
-            </div>
-          </div>
+          {apCredits.length === 0 ? <p className="muted">No credits recorded.</p> : <ul className="history-list">{apCredits.map((credit) => <li key={credit.id}><span><b>{credit.exam}</b><small>{[creditCategory(credit) === "ib" ? "IB" : creditCategory(credit) === "college" ? (credit.institution || "Transfer") : "AP", credit.score !== undefined ? `score ${credit.score}` : null, credit.unitsGranted !== undefined ? `${credit.unitsGranted} units granted` : null].filter(Boolean).join(" · ")}</small></span><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "update_academic_history", patch: { apCredits: apCredits.filter((item) => item.id !== credit.id) } })}>Remove</button></li>)}</ul>}
         </section>
       </div>
 
@@ -290,19 +306,50 @@ export const AcademicsPage = () => {
             <div className="section-heading interested-heading"><h3>Interested</h3><span className="count-chip">{interestedCourses.length}</span></div>
             <div className="cat-list">{interestedCourses.map((course) => <div key={course.id}>{catalogRow(course, value.catalog.sections.filter((section) => section.courseId === course.id).length)}{workspace.courseIntents?.[course.id] && <p className="muted intent-note">Intended for {shortTermLabel(workspace.courseIntents[course.id])}</p>}</div>)}</div>
           </>}
-          {query.trim() === "" && interestedCourses.length === 0 && <p className="muted side-empty">All {value.catalog.courses.length.toLocaleString()} imported courses are here. Search, mark what looks interesting, plan what you decide on.</p>}
+          {query.trim() === "" && interestedCourses.length === 0 && <p className="muted side-empty">Plan or add your courses. You or your agent can add any course missing from the catalog.</p>}
         </section>
       </aside>
     </div>
 
-    {drawerCourse && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setDrawerCourseId("")}>
+    {drawerCourse && <div className="drawer-backdrop" role="presentation" onMouseDown={closeDrawer}>
       <aside className="course-drawer" aria-label={`${drawerCourse.code} details`} onMouseDown={(event) => event.stopPropagation()}>
-        <div className="drawer-heading"><div><h2>{drawerCourse.code}</h2><p className="drawer-subtitle">{drawerCourse.title}</p></div><button className="icon-button" onClick={() => setDrawerCourseId("")} aria-label="Close course details">×</button></div>
+        <div className="drawer-heading"><div><h2>{drawerCourse.code}</h2><p className="drawer-subtitle">{drawerCourse.title}</p></div><button className="icon-button" onClick={closeDrawer} aria-label="Close course details">×</button></div>
         {overlayCourseIds.has(drawerCourse.id) && <p className="unverified-banner block">This entry was {shippedCourses.has(drawerCourse.id) ? "amended" : "added"} outside the official import and is unverified.</p>}
         {drawerDiff.length > 0 && <div className="reference-diff"><b>Changed from the shipped catalog</b><ul>{drawerDiff.map((change) => <li key={change.field}><span>{change.label}</span><em>{change.was}</em><strong>{change.now}</strong></li>)}</ul></div>}
         {drawerCourse.description && <p className="drawer-description">{drawerCourse.description}</p>}
         {drawerCourse.prerequisites && drawerCourse.prerequisites.length > 0 && <div className="drawer-block"><h3>Prerequisites</h3><p>{drawerCourse.prerequisites.map((id) => value.catalog.courses.find((course) => course.id === id)?.code ?? id).join(", ")}</p></div>}
-        {drawerSections.length > 0 && <div className="drawer-block"><h3>Sections</h3><ul className="drawer-section-list">{drawerSections.map((section) => <li key={section.id}><b>{section.sectionNumber}</b><span>{section.instructor}</span><span>{section.meetings.map((meeting) => `${meeting.days.join("/")} ${meeting.start} to ${meeting.end}`).join("; ")}</span></li>)}</ul></div>}
+        <div className="drawer-block">
+          <div className="section-heading"><h3>Sections</h3><button className="text-button" type="button" onClick={() => openFix()}>Add a section</button></div>
+          {allDrawerSections.length === 0 && !fixSection && <p className="muted">No stored sections this term. Add one from the official listing, or ask your agent to.</p>}
+          {drawerSections.length > 0 && <ul className="drawer-section-list">{drawerSections.map((section) => <li key={section.id}><b>{section.sectionNumber}</b><span>{section.meetings.map(describeMeeting).join("; ")}</span><button className="text-button" type="button" onClick={() => openFix(section)}>Fix times</button></li>)}</ul>}
+          {allDrawerSections.length > 6 && <button className="text-button" type="button" onClick={() => setShowAllSections((current) => !current)}>{showAllSections ? "Show fewer" : `Show all ${allDrawerSections.length} sections`}</button>}
+          {fixSection && <form className="add-form section-fix" onSubmit={(event) => { event.preventDefault(); void submitFix() }}>
+            <div className="add-form-row">
+              <label>Section number<input value={fixSection.sectionNumber} onChange={(event) => setFixSection((current) => current ? { ...current, sectionNumber: event.target.value } : current)} maxLength={6} placeholder="01-02" /></label>
+              <label>Source URL<input value={fixSection.sourceUrl} onChange={(event) => setFixSection((current) => current ? { ...current, sourceUrl: event.target.value } : current)} placeholder="https://navigator.stanford.edu/classes…" /></label>
+            </div>
+            {fixSection.meetings.map((meetingDraft, index) => <div className="fix-meeting" key={index}>
+              <div className="kind-toggle-row" role="group" aria-label={`Meeting ${index + 1} days`}>
+                {(["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((day) => <button key={day} type="button" className={meetingDraft.days.includes(day) ? "day-toggle active" : "day-toggle"} onClick={() => toggleFixDay(index, day)}>{day}</button>)}
+              </div>
+              <div className="add-form-row">
+                <label>Start<input type="time" value={meetingDraft.start} onChange={(event) => patchFixMeeting(index, { start: event.target.value })} /></label>
+                <label>End<input type="time" value={meetingDraft.end} onChange={(event) => patchFixMeeting(index, { end: event.target.value })} /></label>
+                <label>Kind<select value={meetingDraft.type} onChange={(event) => patchFixMeeting(index, { type: event.target.value as "lecture" | "section" | "lab" | "seminar" })}><option value="lecture">Lecture</option><option value="section">Discussion</option><option value="lab">Lab</option><option value="seminar">Seminar</option></select></label>
+              </div>
+              <div className="add-form-row">
+                <label>Location<input value={meetingDraft.location} onChange={(event) => patchFixMeeting(index, { location: event.target.value })} maxLength={80} placeholder="Hewlett 200" /></label>
+                {fixSection.meetings.length > 1 && <button className="text-button" type="button" onClick={() => setFixSection((current) => current ? { ...current, meetings: current.meetings.filter((one, at) => at !== index) } : current)}>Remove meeting</button>}
+              </div>
+            </div>)}
+            <div className="add-form-row">
+              {fixSection.meetings.length < 4 && <button className="secondary-button small" type="button" onClick={() => setFixSection((current) => current ? { ...current, meetings: [...current.meetings, { days: [], start: "09:30", end: "10:20", type: "section", location: "" }] } : current)}>Add a meeting</button>}
+              <button className="primary-button small" type="submit">Save correction</button>
+              <button className="text-button" type="button" onClick={() => setFixSection(null)}>Cancel</button>
+            </div>
+            <p className="muted add-form-note">Corrections replace the shipped listing in your workspace and are marked unverified until the agent or you re-verify them.</p>
+          </form>}
+        </div>
         <div className="drawer-block">
           <h3>Notes</h3>
           {drawerNotes.length === 0 && <p className="muted">Nothing yet. Impressions, warnings, and instructor gossip all belong here.</p>}
@@ -310,6 +357,7 @@ export const AcademicsPage = () => {
           <div className="course-note-add"><textarea aria-label="Add a note" rows={2} placeholder="Seems heavy alongside MATH 51. RateMyProfessor is skeptical." value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={600} /><button className="primary-button small" type="button" onClick={() => void addNote()} disabled={!noteDraft.trim()}>Add note</button></div>
         </div>
         <div className="drawer-actions">
+          <button className={completedIds.includes(drawerCourse.id) ? "chip-button active" : "chip-button"} type="button" onClick={() => void value.onCommand({ type: "set_completed_courses", courseIds: completedIds.includes(drawerCourse.id) ? completedIds.filter((id) => id !== drawerCourse.id) : [...completedIds, drawerCourse.id] })}>{completedIds.includes(drawerCourse.id) ? "Completed ✓" : "Completed"}</button>
           <button className={interested.has(drawerCourse.id) ? "chip-button active" : "chip-button"} type="button" onClick={() => void value.onCommand({ type: "set_course_interest", courseId: drawerCourse.id, interested: !interested.has(drawerCourse.id) })}>{interested.has(drawerCourse.id) ? "Interested ✓" : "Interested"}</button>
           <button className="primary-button" type="button" onClick={() => void planCourse(drawerCourse)}>Plan for {shortTermLabel(planTermId)}</button>
         </div>

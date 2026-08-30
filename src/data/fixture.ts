@@ -56,10 +56,10 @@ export const buildFixture = (): Fixture => {
         name: "Primary",
         unitLimit: 20,
         courses: [
-          { id: "PLANCOURSE-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" },
+          { id: "PLANCOURSE-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01-02", units: 5, status: "active" },
           { id: "PLANCOURSE-COMM-1", courseId: "COURSE-COMM-1", sectionId: "SECTION-COMM-1-01", units: 3, status: "active" },
           { id: "PLANCOURSE-DESIGN-60", courseId: "COURSE-DESIGN-60", sectionId: "SECTION-DESIGN-60-01", units: 2, status: "backup" },
-          { id: "PLANCOURSE-MATH-51", courseId: "COURSE-MATH-51", sectionId: "SECTION-MATH-51-01", units: 5, status: "active" },
+          { id: "PLANCOURSE-MATH-51", courseId: "COURSE-MATH-51", sectionId: "SECTION-MATH-51-01-08", units: 5, status: "active" },
           { id: "PLANCOURSE-BACKUP-CS-147", courseId: "COURSE-CS-147", sectionId: "SECTION-CS-147-01", units: 4, status: "backup" }
         ],
         commitments: [{ id: "COMMITMENT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "14:00", "16:00", "commitment", "Research lab")] }]
@@ -68,9 +68,9 @@ export const buildFixture = (): Fixture => {
         name: "Lighter option",
         unitLimit: 18,
         courses: [
-          { id: "PLANCOURSE-LIGHT-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01", units: 5, status: "active" },
+          { id: "PLANCOURSE-LIGHT-CS-106B", courseId: "COURSE-CS-106B", sectionId: "SECTION-CS-106B-01-02", units: 5, status: "active" },
           { id: "PLANCOURSE-LIGHT-COMM-1", courseId: "COURSE-COMM-1", sectionId: "SECTION-COMM-1-01", units: 3, status: "active" },
-          { id: "PLANCOURSE-LIGHT-MATH-51", courseId: "COURSE-MATH-51", sectionId: "SECTION-MATH-51-01", units: 5, status: "active" },
+          { id: "PLANCOURSE-LIGHT-MATH-51", courseId: "COURSE-MATH-51", sectionId: "SECTION-MATH-51-01-08", units: 5, status: "active" },
           { id: "PLANCOURSE-LIGHT-DESIGN-60", courseId: "COURSE-DESIGN-60", sectionId: "SECTION-DESIGN-60-01", units: 2, status: "backup" }
         ],
         commitments: [{ id: "COMMITMENT-LIGHT-RESEARCH", title: "Research block", meetings: [meeting(["fri"], "14:00", "16:00", "commitment", "Research lab")] }]

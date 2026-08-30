@@ -169,7 +169,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       inputSchema: schema({ query: field("string", "Course code, title, topic, or keyword"), termId: field("string", "Stable academic term ID") }, ["query"]),
       annotations: annotations(true),
       examples: [{ query: "design", termId: "Use currentTermId from get_planning_context" }],
-      execute: async (input) => ({ results: searchCourses(await catalog(), input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sections: sections.slice(0, 3).map((item) => ({ id: item.id, meets: item.meetings.map((meeting) => `${meetingComponent(meeting.type) ? `${meetingComponent(meeting.type)} ` : ""}${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; "), instructor: item.instructor })) })) })
+      execute: async (input) => ({ results: searchCourses(await catalog(), input).slice(0, 6).map(({ course, sections }) => ({ id: course.id, code: course.code, title: course.title, units: `${course.minUnits}-${course.maxUnits}`, sectionCount: sections.length, sections: sections.slice(0, 3).map((item) => ({ id: item.id, meets: item.meetings.map((meeting) => `${meetingComponent(meeting.type) ? `${meetingComponent(meeting.type)} ` : ""}${meeting.days.join("/")} ${meeting.start} to ${meeting.end}${meeting.location ? ` at ${meeting.location}` : ""}`).join("; ") })) })) })
     },
     {
       name: "get_plan",
@@ -212,7 +212,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
     {
       name: "suggest_sections",
       description: "Generate complete section assignments for a scenario's active courses. Every option clears hard schedule constraints, protected windows, transition buffers, commitments, and scheduled activities included, and options rank by fewest warnings, fewest campus days, then least idle time between classes. Assignments come only from stored sections; standingIssues lists problems no section choice can fix. Apply a choice with edit_plan select_section.",
-      inputSchema: schema({ planId: field("string", "Stable plan ID; defaults to the current plan"), scenarioId: field("string", "Scenario to schedule; defaults to the active scenario"), limit: field("number", "Options to return, 1 to 5, default 3") }),
+      inputSchema: schema({ planId: field("string", "Stable plan ID; defaults to the current plan"), scenarioId: field("string", "Scenario to schedule; defaults to the active scenario"), limit: field("number", "Options to return, 1 to 5, default 2") }),
       annotations: annotations(true),
       examples: [{ scenarioId: "Use a scenario ID returned by get_plan" }],
       execute: async ({ planId, scenarioId, limit }: { planId?: string, scenarioId?: string, limit?: number }) => {
@@ -369,7 +369,7 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
       } }, ["expectedVersion", "idempotencyKey", "operations"]),
       annotations: annotations(false),
       examples: [
-        { planId: "PLAN-FROM-GET-PLANNING-CONTEXT", operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-CS-106A", courseId: "COURSE-CS-106A", sectionId: "SECTION-CS-106A-01", units: 5, status: "active" } }] },
+        { planId: "PLAN-FROM-GET-PLANNING-CONTEXT", operations: [{ type: "add_course", planCourse: { id: "PLANCOURSE-CS-106A", courseId: "COURSE-CS-106A", sectionId: "SECTION-CS-106A-01-02", units: 5, status: "active" } }] },
         { planId: "PLAN-FROM-GET-PLANNING-CONTEXT", scenarioId: "SCENARIO-ALT", operations: [{ type: "set_active_scenario" }] }
       ],
       execute: async (input) => mutate(input, { type: "edit_plan", planId: input.planId, termId: input.termId, scenarioId: input.scenarioId, operations: input.operations })
@@ -395,6 +395,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
             minUnits: field("number", "Minimum units"),
             maxUnits: field("number", "Maximum units"),
             tags: field("array", "Short topical tags"),
+            ways: field("array", "WAYS codes like FR or SMA. Resend when amending a designated course or the designation drops."),
+            offeredSeasons: field("string", "Season letters like ASW. Resend when amending."),
             sourceUrl: field("string", "Official catalog URL for this course"),
             prerequisites: field("array", "Known prerequisite course IDs"),
             prerequisiteUncertain: field("boolean", "True when the prerequisite reading needs review")
@@ -406,8 +408,8 @@ export const createCourseContextTools = ({ repository, session, now, onWorkspace
           additionalProperties: false,
           description: "Optional current-term section with verified meeting times, only alongside course",
           properties: {
-            id: field("string", "Stable section ID"),
-            sectionNumber: field("string", "Official section number"),
+            id: field("string", "Stable section ID. Reuse a stored ID to replace its listed times."),
+            sectionNumber: field("string", "Section number. Paired listings read lecture-discussion, like 01-02."),
             instructor: field("string", "Instructor as listed officially"),
             units: field("number", "Section units"),
             meetings: field("array", "Meetings as {days, start, end, type, location} with HH:MM times")
