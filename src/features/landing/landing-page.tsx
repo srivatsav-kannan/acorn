@@ -46,7 +46,19 @@ const acornRain: Array<{ left: number, size: number, delay: number, duration: nu
   { left: 71, size: 20, delay: 27, duration: 52, tilt: 12 },
   { left: 79, size: 14, delay: 44, duration: 61, tilt: -16 },
   { left: 87, size: 23, delay: 14, duration: 47, tilt: 25 },
-  { left: 94, size: 16, delay: 34, duration: 55, tilt: -10 }
+  { left: 94, size: 16, delay: 34, duration: 55, tilt: -10 },
+  { left: 8, size: 17, delay: 40, duration: 53, tilt: 18 },
+  { left: 17, size: 21, delay: 2, duration: 60, tilt: -24 },
+  { left: 26, size: 15, delay: 48, duration: 45, tilt: 10 },
+  { left: 34, size: 22, delay: 20, duration: 56, tilt: -6 },
+  { left: 43, size: 16, delay: 52, duration: 48, tilt: 26 },
+  { left: 51, size: 20, delay: 9, duration: 64, tilt: -18 },
+  { left: 59, size: 14, delay: 29, duration: 51, tilt: 6 },
+  { left: 67, size: 24, delay: 45, duration: 58, tilt: -30 },
+  { left: 75, size: 15, delay: 6, duration: 43, tilt: 20 },
+  { left: 83, size: 19, delay: 36, duration: 62, tilt: -12 },
+  { left: 91, size: 14, delay: 22, duration: 50, tilt: 14 },
+  { left: 98, size: 18, delay: 50, duration: 54, tilt: -22 }
 ]
 
 const importedOn = new Date(stanfordCatalogMeta.retrievedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })

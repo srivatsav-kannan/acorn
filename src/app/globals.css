@@ -538,7 +538,7 @@ input, select, textarea { accent-color: var(--cardinal); }
 .public-page > header, .public-page > section, .public-page > footer, .public-page .use-band, .public-page .webmcp-band { position: relative; z-index: 1; }
 
 .acorn-rain { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.acorn-rain span { position: absolute; top: -40px; display: block; opacity: .08; animation: acorn-fall linear infinite; }
+.acorn-rain span { position: absolute; top: -40px; display: block; opacity: .14; animation: acorn-fall linear infinite; }
 .acorn-rain svg { width: 100%; height: auto; }
 @keyframes acorn-fall {
   from { transform: translateY(0) rotate(var(--tilt, 0deg)); }
