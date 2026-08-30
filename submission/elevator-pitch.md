@@ -1,5 +1,5 @@
 # Elevator pitch
 
-Devpost tagline field, 200 character limit. This version is 192.
+Devpost tagline field, 200 character limit. This version is 188, built from the story's own language.
 
-> You and your agent plan your Stanford degree in one workspace: 15,618 real courses, 22 WebMCP tools, and context that stays put between chats. Anything the agent changes, you can see and undo.
+> One workspace where you and your agent plan Stanford together: the real catalog, your real week, human-level control. Whatever the two of you put down, you come back and it is still there.
