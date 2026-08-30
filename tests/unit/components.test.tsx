@@ -146,7 +146,7 @@ describe("scratchpad", () => {
     renderInWorkspace(<ScratchpadPage />)
     expect(screen.getByRole("heading", { name: "Scratchpad" })).toBeVisible()
     expect(screen.getByLabelText("Degree objective")).toBeVisible()
-    await userEvent.type(screen.getByLabelText("Jot something down"), "SLE sounds intense but tempting")
+    await userEvent.type(screen.getByLabelText("Title"), "SLE sounds intense but tempting")
     await userEvent.type(screen.getByLabelText("Tags"), "residences, humanities")
     await userEvent.click(screen.getByRole("button", { name: "Add to scratchpad" }))
     expect(await screen.findByText("SLE sounds intense but tempting")).toBeVisible()
@@ -178,6 +178,11 @@ describe("calendar", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Details" }), "SFO to CDG over winter closure.")
     await userEvent.click(screen.getByRole("button", { name: "Add event" }))
     await userEvent.click(screen.getByRole("tab", { name: "Events" }))
+    for (let expand = 0; expand < 6 && !screen.queryByRole("button", { name: /Flight home/ }); expand++) {
+      const more = screen.queryByRole("button", { name: /Show \d+ more/ })
+      if (!more) break
+      await userEvent.click(more)
+    }
     const row = await screen.findByRole("button", { name: /Flight home/ })
     await userEvent.click(row)
     const inspector = screen.getByRole("complementary", { name: "Selection details" })

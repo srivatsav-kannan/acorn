@@ -125,7 +125,9 @@ input, select, textarea { accent-color: var(--cardinal); }
 .goals-note-view:hover { color: var(--cardinal); }
 .goals-note-edit textarea { width: 100%; }
 .jot-card { margin-bottom: 18px; padding: 14px; }
+.jot-card > input[aria-label="Title"] { width: 100%; border: 0 !important; padding: 4px 2px 0 !important; background: transparent !important; box-shadow: none !important; font-family: var(--font-serif-stack); font-size: 18px; font-weight: 800; }
 .jot-card textarea { width: 100%; border: 0 !important; padding: 4px 2px !important; background: transparent !important; box-shadow: none !important; font-size: 15.5px; }
+.milestone-add { display: grid; gap: 6px; margin-top: 8px; }
 .jot-row { display: flex; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 2px dashed var(--line); }
 .jot-row input { flex: 1; }
 .scratch-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -200,7 +202,7 @@ input, select, textarea { accent-color: var(--cardinal); }
 .subtab-row.small .subtab { padding: 4px 12px; font-size: 13px; }
 .inspector-add { margin-top: 12px; }
 .show-more { display: block; margin-top: 8px; }
-.inspector-day-list .legend-item { margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.inspector-day-list .legend-item, .side-event-list .legend-item { margin-left: auto; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-style: normal; }
 
 .rail-block { margin-top: 16px; padding-top: 14px; border-top: 2px solid var(--line); }
 .rail-block h3 { margin: 0; font-size: 15px; }

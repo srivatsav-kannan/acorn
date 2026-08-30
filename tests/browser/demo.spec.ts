@@ -55,7 +55,7 @@ test("the scratchpad takes jots with tags, edits, archives, and persists", async
   await page.goto("/demo")
   await page.getByRole("link", { name: "Scratchpad", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible()
-  await page.getByLabel("Jot something down").fill("Heard the Solar Car shop is open to frosh")
+  await page.getByLabel("Title", { exact: true }).fill("Heard the Solar Car shop is open to frosh")
   await page.getByLabel("Tags").fill("clubs, engineering")
   await page.getByRole("button", { name: "Add to scratchpad" }).click()
   await expect(page.getByText("Heard the Solar Car shop is open to frosh")).toBeVisible()

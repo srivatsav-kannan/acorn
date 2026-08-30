@@ -17,8 +17,12 @@ export const ScratchpadPage = () => {
   const value = useWorkspace()
   const profile = value.workspace.profile
   const timeline = profile.timeline
+  const [jotTitle, setJotTitle] = useState("")
   const [jot, setJot] = useState("")
   const [jotTags, setJotTags] = useState("")
+  const [milestoneFor, setMilestoneFor] = useState("")
+  const [milestoneTitle, setMilestoneTitle] = useState("")
+  const [milestoneDue, setMilestoneDue] = useState("")
   const [goalDraft, setGoalDraft] = useState<string | null>(null)
   const [tagFilter, setTagFilter] = useState("")
   const [query, setQuery] = useState("")
@@ -38,12 +42,31 @@ export const ScratchpadPage = () => {
   const parseTags = (raw: string) => raw.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean).slice(0, 8)
 
   const addJot = async () => {
-    const lines = jot.trim().split("\n")
-    const title = lines[0].slice(0, 80)
+    const title = jotTitle.trim().slice(0, 80)
     if (!title) return
-    await value.onCommand({ type: "create_context_item", item: { id: `NOTE-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, type: "note", title, summary: lines.slice(1).join("\n").trim().slice(0, 600), content: {}, collectionId: "COLLECTION-INBOX", tags: parseTags(jotTags) } })
+    await value.onCommand({ type: "create_context_item", item: { id: `NOTE-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, type: "note", title, summary: jot.trim().slice(0, 600), content: {}, collectionId: "COLLECTION-INBOX", tags: parseTags(jotTags) } })
+    setJotTitle("")
     setJot("")
     setJotTags("")
+  }
+
+  const addMilestone = async (item: ContextItem) => {
+    if (!milestoneTitle.trim()) return
+    const structured = goalContentOf(item)
+    const existing = (structured?.milestones ?? []).map((milestone) => ({ id: milestone.id, title: milestone.title, due: milestone.due, done: milestone.done }))
+    await value.onCommand({ type: "manage_goal", action: "upsert", goal: {
+      id: item.id,
+      title: item.title,
+      text: structured?.text ?? item.summary ?? undefined,
+      status: structured?.status,
+      targetDate: structured?.targetDate,
+      courseIds: structured?.courseIds,
+      opportunityIds: structured?.opportunityIds,
+      milestones: [...existing, { title: milestoneTitle.trim(), due: milestoneDue || undefined }]
+    } })
+    setMilestoneFor("")
+    setMilestoneTitle("")
+    setMilestoneDue("")
   }
 
   const startEdit = (item: ContextItem) => {
@@ -86,10 +109,11 @@ export const ScratchpadPage = () => {
     </section>
 
     <section className="jot-card">
-      <textarea aria-label="Jot something down" rows={3} placeholder="Jot something down. First line becomes the title." value={jot} onChange={(event) => setJot(event.target.value)} />
+      <input aria-label="Title" placeholder="Title" value={jotTitle} onChange={(event) => setJotTitle(event.target.value)} maxLength={80} />
+      <textarea aria-label="Jot something down" rows={3} placeholder="Jot something down" value={jot} onChange={(event) => setJot(event.target.value)} />
       <div className="jot-row">
         <input aria-label="Tags" placeholder="tags, comma separated" value={jotTags} onChange={(event) => setJotTags(event.target.value)} />
-        <button className="primary-button" type="button" onClick={() => void addJot()} disabled={!jot.trim()}>Add to scratchpad</button>
+        <button className="primary-button" type="button" onClick={() => void addJot()} disabled={!jotTitle.trim()}>Add to scratchpad</button>
       </div>
     </section>
     </div>
@@ -117,18 +141,24 @@ export const ScratchpadPage = () => {
           <h3>{item.title}</h3>
           {item.summary && <p>{item.summary}</p>}
           {(() => {
+            if (item.type !== "goal") return null
             const structured = goalContentOf(item)
-            if (!structured) return null
+            const milestones = structured?.milestones ?? []
             return <div className="goal-structure">
-              <ul className="goal-milestones">
-                {structured.milestones.map((milestone) => <li key={milestone.id}>
+              {milestones.length > 0 && <ul className="goal-milestones">
+                {milestones.map((milestone) => <li key={milestone.id}>
                   <label className="goal-milestone">
                     <input type="checkbox" checked={milestone.done} onChange={() => void value.onCommand({ type: "manage_goal", action: "toggle_milestone", goalId: item.id, milestoneId: milestone.id, done: !milestone.done })} />
                     <span className={milestone.done ? "goal-milestone-done" : ""}>{milestone.title}{milestone.due ? ` · ${milestone.due}` : ""}</span>
                   </label>
                 </li>)}
-              </ul>
-              {structured.courseIds.length > 0 && <div className="scratch-tags">{structured.courseIds.map((id) => <span key={id}>{value.catalog.courses.find((course) => course.id === id)?.code ?? id}</span>)}</div>}
+              </ul>}
+              {milestoneFor === item.id ? <div className="milestone-add">
+                <input aria-label={`New milestone for ${item.title}`} placeholder="Milestone" value={milestoneTitle} onChange={(event) => setMilestoneTitle(event.target.value)} maxLength={100} autoFocus />
+                <input aria-label="Milestone due date" type="date" value={milestoneDue} onChange={(event) => setMilestoneDue(event.target.value)} />
+                <div className="form-row-actions"><button className="secondary-button small" type="button" onClick={() => setMilestoneFor("")}>Cancel</button><button className="primary-button small" type="button" disabled={!milestoneTitle.trim()} onClick={() => void addMilestone(item)}>Add</button></div>
+              </div> : <button className="text-button" type="button" onClick={() => { setMilestoneFor(item.id); setMilestoneTitle(""); setMilestoneDue("") }}>Add milestone</button>}
+              {(structured?.courseIds ?? []).length > 0 && <div className="scratch-tags">{structured!.courseIds.map((id) => <span key={id}>{value.catalog.courses.find((course) => course.id === id)?.code ?? id}</span>)}</div>}
             </div>
           })()}
           {(item.tags ?? []).length > 0 && <div className="scratch-tags">{(item.tags ?? []).map((tag) => <span key={tag}>{tag}</span>)}</div>}

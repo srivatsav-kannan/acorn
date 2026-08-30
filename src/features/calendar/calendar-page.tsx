@@ -118,14 +118,29 @@ export const CalendarPage = () => {
   const doneTodos = (value.workspace.todos ?? []).filter((todo) => todo.done)
   const joinedClubs = (value.workspace.activities ?? []).filter((activity) => activity.kind === "club")
 
-  const upcomingEvents = useMemo(() => (value.workspace.events ?? []).map((event) => {
-    if (!event.start) return event
-    const homeZone = event.timezone ?? CAMPUS_TIMEZONE
-    if (homeZone === displayTimezone) return event
-    const converted = convertZonedTime(event.date, event.start, homeZone, displayTimezone)
-    const convertedEnd = event.end ? convertZonedTime(event.date, event.end, homeZone, displayTimezone) : undefined
-    return { ...event, date: converted.date, start: converted.time, end: convertedEnd?.time }
-  }).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "").localeCompare(b.start ?? "")), [value.workspace.events, displayTimezone])
+  // The upcoming feed carries everything dated in the next six months:
+  // events, club and activity one-offs, and registrar dates. Recurring class
+  // and activity meetings stay on the grid, where repetition reads as rhythm
+  // instead of noise. Schedule instances are the entries whose id ends at
+  // the bare date; dated one-offs carry a label suffix past it.
+  const upcoming = useMemo(() => {
+    const horizon = addDays(new Date(), 180)
+    return calendarEventsForRange(value.workspace, value.catalog, opportunities, todayIso, isoDate(horizon))
+      .filter((event) => {
+        if (event.kind === "todo" || event.kind === "course") return false
+        if (event.id.startsWith("ACTIVITY-") && /-\d{4}-\d{2}-\d{2}$/.test(event.id)) return false
+        return true
+      })
+      .map((event) => {
+        if (!event.start) return event
+        const homeZone = event.timezone ?? CAMPUS_TIMEZONE
+        if (homeZone === displayTimezone) return event
+        const converted = convertZonedTime(event.date, event.start, homeZone, displayTimezone)
+        const convertedEnd = event.end ? convertZonedTime(event.date, event.end, homeZone, displayTimezone) : undefined
+        return { ...event, date: converted.date, start: converted.time, end: convertedEnd?.time }
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "").localeCompare(b.start ?? ""))
+  }, [value.workspace, value.catalog, opportunities, todayIso, displayTimezone])
 
   const openComposer = (date: string) => {
     setComposer({ date, kind: "event", title: "", timing: "time", start: "12:00", end: "", detail: "", timezone: displayTimezone, activityId: joinedClubs[0]?.id ?? "" })
@@ -328,16 +343,16 @@ export const CalendarPage = () => {
             </details>}
           </>}
           {upcomingTab === "events" && <>
-            {upcomingEvents.length === 0 ? <p className="muted side-empty">Interviews, flights, review sessions: anything with its own date and time lives here.</p> : <ul className="side-event-list">
-              {upcomingEvents.slice(0, eventsShown).map((item) => <li key={item.id}>
-                <button type="button" className="event-open" onClick={() => inspectStoredEvent(item.id)}>
+            {upcoming.length === 0 ? <p className="muted side-empty">Interviews, club events, deadlines, Stanford dates: everything dated in the next six months lives here.</p> : <ul className="side-event-list">
+              {upcoming.slice(0, eventsShown).map((item) => <li key={item.id}>
+                <button type="button" className="event-open" onClick={() => item.kind === "event" && item.sourceId ? inspectStoredEvent(item.sourceId) : inspectEntry(item)}>
                   <b>{item.date}{item.start ? ` · ${item.start}` : ""}</b>
                   <span>{item.title}</span>
-                  {item.addedBy === "agent" && <em className="agent-chip">Agent</em>}
+                  <em className={`legend-item ${item.kind}`}>{kindLabel[item.kind] ?? item.kind}</em>
                 </button>
               </li>)}
             </ul>}
-            {upcomingEvents.length > eventsShown && <button className="text-button show-more" type="button" onClick={() => setEventsShown((current) => current + 8)}>Show {Math.min(8, upcomingEvents.length - eventsShown)} more</button>}
+            {upcoming.length > eventsShown && <button className="text-button show-more" type="button" onClick={() => setEventsShown((current) => current + 8)}>Show {Math.min(8, upcoming.length - eventsShown)} more</button>}
           </>}
         </aside>
       </div>
