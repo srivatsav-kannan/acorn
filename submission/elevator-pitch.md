@@ -1,5 +1,5 @@
 # Elevator pitch
 
-Devpost tagline field, 200 character limit. This version is 180, leading with Stanford.
+Devpost tagline field, 200 character limit. Sri's own wording, 181 characters.
 
-> Stanford has 15,618 courses. Acorn is the planning workspace you share with your agent: it holds your goals and constraints between chats and lets you undo anything the agent does.
+> Acorn is the academic planning workspace built for Stanford. Work directly with your agent to set goals, research courses, and track your progress for every quarter till graduation.
