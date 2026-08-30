@@ -108,6 +108,5 @@ export const SignupPage = () => {
       {status && <p className="auth-status" role="status">{status}</p>}
       <p className="auth-switch">Already have an account? <Link href="/login">Log in</Link></p>
     </section>
-    <p className="auth-note">Acorn helps you plan; enrollment and anything official still go through Stanford&apos;s own systems.</p>
   </main>
 }

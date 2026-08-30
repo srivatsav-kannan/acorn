@@ -10,7 +10,8 @@ import { SignupPage } from "@/features/auth/signup-page"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
 import { ScratchpadPage } from "@/features/scratchpad/scratchpad-page"
 import { CalendarPage } from "@/features/calendar/calendar-page"
-import { CoursesPage } from "@/features/courses/courses-page"
+import { AcademicsPage } from "@/features/academics/academics-page"
+import { ActivitiesPage } from "@/features/activities/activities-page"
 import { CollaboratePage } from "@/features/collaborate/collaborate-page"
 import { ProfilePage } from "@/features/profile/profile-page"
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider"
@@ -31,7 +32,6 @@ describe("public product surfaces", () => {
     expect(screen.getByLabelText("Entered in autumn")).toBeVisible()
     expect(screen.getByLabelText("Graduating in spring")).toBeVisible()
     expect(screen.getAllByRole("textbox")).toHaveLength(1)
-    expect(screen.getByText(/no sample data is preloaded/i)).toBeVisible()
   })
 
   it("asks for the school's name only when Other is chosen", async () => {
@@ -42,14 +42,16 @@ describe("public product surfaces", () => {
     expect(screen.getByLabelText("University name")).toBeVisible()
   })
 
-  it("explains the product with real catalog numbers and routes into the account flow", () => {
+  it("explains the product in three use cases and routes into the account flow", () => {
     render(<LandingPage />)
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/every quarter to graduation/i)
     const starts = screen.getAllByRole("link", { name: /start planning/i })
     expect(starts.length).toBeGreaterThan(0)
     for (const link of starts) expect(link).toHaveAttribute("href", "/signup")
     expect(screen.getByRole("link", { name: /log in/i })).toBeVisible()
-    expect(screen.getAllByText(/15,587/).length).toBeGreaterThan(0)
+    expect(screen.getByRole("heading", { name: /braindump, get a schedule/i })).toBeVisible()
+    expect(screen.getByRole("heading", { name: /tired of re-explaining yourself/i })).toBeVisible()
+    expect(screen.getByText(/twenty-two real tools/i)).toBeVisible()
     expect(screen.getByText(/not affiliated with stanford/i)).toBeVisible()
   })
 
@@ -110,13 +112,13 @@ describe("account reset", () => {
 })
 
 describe("application shell", () => {
-  it("renders the four tabs plus account controls with the active tab lit", () => {
+  it("renders the five tabs plus account controls with the active tab lit", () => {
     render(<AppShell quarter="Autumn 2026"><div>Content</div></AppShell>)
-    for (const name of ["Scratchpad", "Calendar", "Courses", "Collaborate"]) {
+    for (const name of ["Calendar", "Academics", "Activities", "Scratchpad", "Collaborate"]) {
       expect(screen.getByRole("link", { name })).toBeVisible()
     }
-    expect(screen.getByRole("link", { name: "Scratchpad" })).toHaveAttribute("aria-current", "page")
-    expect(screen.getByRole("link", { name: "Calendar" })).not.toHaveAttribute("aria-current")
+    expect(screen.getByRole("link", { name: "Calendar" })).toHaveAttribute("aria-current", "page")
+    expect(screen.getByRole("link", { name: "Academics" })).not.toHaveAttribute("aria-current")
     expect(screen.getByRole("button", { name: /search workspace/i })).toBeVisible()
     expect(screen.getByRole("button", { name: /activity/i })).toBeVisible()
     expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/app/profile")
@@ -158,20 +160,24 @@ describe("calendar", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(/year|calendar/i)
     expect(screen.getByText("Plan the language requirement")).toBeVisible()
     expect(screen.getByText("Schedule PWR 1 during the first year")).toBeVisible()
-    await userEvent.type(screen.getByLabelText("New todo"), "Email Prof. Rivera")
     await userEvent.click(screen.getByRole("button", { name: /^Add$/ }))
+    await userEvent.click(screen.getByRole("radio", { name: "Todo" }))
+    await userEvent.type(screen.getByLabelText("Title"), "Email Prof. Rivera")
+    await userEvent.click(screen.getByRole("button", { name: "Add todo" }))
     expect(await screen.findByText("Email Prof. Rivera")).toBeVisible()
   })
 
   it("keeps events separate from todos, with descriptions behind a click", async () => {
     renderInWorkspace(<CalendarPage />)
-    expect(screen.getByRole("heading", { name: "Events" })).toBeVisible()
-    expect(screen.getByRole("heading", { name: "Todos" })).toBeVisible()
+    expect(screen.getByRole("tab", { name: "Events" })).toBeVisible()
+    expect(screen.getByRole("tab", { name: "Todos" })).toBeVisible()
+    await userEvent.click(screen.getByRole("button", { name: /^Add$/ }))
+    await userEvent.type(screen.getByLabelText("Title"), "Flight home")
+    await userEvent.clear(screen.getByLabelText("Date"))
+    await userEvent.type(screen.getByLabelText("Date"), "2026-12-13")
+    await userEvent.type(screen.getByRole("textbox", { name: "Details" }), "SFO to CDG over winter closure.")
     await userEvent.click(screen.getByRole("button", { name: "Add event" }))
-    await userEvent.type(screen.getByLabelText("Event title"), "Flight home")
-    await userEvent.type(screen.getByLabelText("Event date"), "2026-12-13")
-    await userEvent.type(screen.getByLabelText("Event description"), "SFO to CDG over winter closure.")
-    await userEvent.click(screen.getByRole("button", { name: /^Add event$/ }))
+    await userEvent.click(screen.getByRole("tab", { name: "Events" }))
     const row = await screen.findByRole("button", { name: /Flight home/ })
     await userEvent.click(row)
     const inspector = screen.getByRole("complementary", { name: "Selection details" })
@@ -181,9 +187,9 @@ describe("calendar", () => {
   })
 })
 
-describe("courses and clubs", () => {
+describe("academics and activities", () => {
   it("searches the catalog and marks interest", async () => {
-    renderInWorkspace(<CoursesPage />)
+    renderInWorkspace(<AcademicsPage />)
     expect(screen.getByRole("tab", { name: "Courses" })).toHaveAttribute("aria-selected", "true")
     await userEvent.type(screen.getByLabelText("Search courses"), "CS 106B")
     expect((await screen.findAllByText(/Programming Abstractions/)).length).toBeGreaterThan(0)
@@ -191,16 +197,20 @@ describe("courses and clubs", () => {
     expect((await screen.findAllByRole("button", { name: /Interested ✓/ })).length).toBeGreaterThan(0)
   })
 
-  it("lists shipped clubs with an interest toggle that feeds the calendar", async () => {
-    renderInWorkspace(<CoursesPage initialTab="clubs" />)
+  it("lists shipped clubs with join and interest, and joining creates a real activity", async () => {
+    renderInWorkspace(<ActivitiesPage />)
     expect(await screen.findByText("TreeHacks")).toBeVisible()
     const card = screen.getByText("TreeHacks").closest("article") as HTMLElement
     await userEvent.click(within(card).getByRole("button", { name: "Interested" }))
     expect(await within(card).findByRole("button", { name: /Interested ✓/ })).toBeVisible()
+    await userEvent.click(within(card).getByRole("button", { name: "Join" }))
+    expect((await screen.findAllByText("Joined ✓")).length).toBeGreaterThan(0)
+    const mine = screen.getByRole("heading", { name: "Mine" }).closest("section") as HTMLElement
+    expect(await within(mine).findByRole("heading", { name: "TreeHacks" })).toBeVisible()
   })
 
   it("keeps completed courses and all three credit kinds in the history tab", async () => {
-    renderInWorkspace(<CoursesPage initialTab="history" />)
+    renderInWorkspace(<AcademicsPage initialTab="history" />)
     expect(screen.getByRole("heading", { name: "Credit before Stanford" })).toBeVisible()
     expect(screen.getByRole("heading", { name: "Completed courses" })).toBeVisible()
     await userEvent.click(screen.getByRole("button", { name: "Add credit" }))

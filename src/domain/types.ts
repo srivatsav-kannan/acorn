@@ -255,7 +255,9 @@ export type Opportunity = {
 
 // A single dated moment attached to something: a deadline, an application
 // window opening, an info session. Calendar events are derived from these.
-export type DatedItem = { date: string, label: string }
+// Times are optional so a deadline can stay all-day while a meeting carries
+// its real start and end.
+export type DatedItem = { date: string, label: string, start?: string, end?: string }
 
 export type TodoItem = {
   id: string
@@ -298,7 +300,7 @@ export type ActivitySchedule = { days: Day[], start: string, end: string, locati
 export type Activity = {
   id: string
   name: string
-  kind: "research" | "job" | "volunteering" | "athletics" | "arts" | "other"
+  kind: "club" | "research" | "job" | "volunteering" | "athletics" | "arts" | "other"
   detail?: string
   organizer?: string
   sourceUrl?: string
@@ -306,6 +308,13 @@ export type Activity = {
   startDate?: string
   endDate?: string
   dates?: DatedItem[]
+  // Set when this activity is a joined club from the directory; its events
+  // and schedule then render on the calendar under the club's name.
+  opportunityId?: string
+  notes?: string
+  // Units the registrar grants for this commitment, counted alongside the
+  // planned course units on the academics page.
+  units?: number
   addedBy: "human" | "agent"
 }
 

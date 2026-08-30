@@ -1,3 +1,3 @@
 import { redirect } from "next/navigation"
 
-export default function Page() { redirect("/app/courses") }
+export default function Page() { redirect("/app/academics") }

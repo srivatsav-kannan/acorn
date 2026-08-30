@@ -9,31 +9,34 @@ import { searchWorkspace } from "@/domain/search"
 import { institutionForWorkspace } from "@/data/institutions/registry"
 import { parseTermId, termLabel } from "@/domain/timeline"
 import { useOptionalWorkspace } from "@/components/workspace-provider"
-import { AcornSquirrelMark, ExploreFill, NoteFill, PlanFill, ProfileFill, SearchIcon, TogetherFill } from "@/components/icons"
+import { AcornSquirrelMark, ExploreFill, NoteFill, PlanFill, ProfileFill, ProgramsFill, SearchIcon, TogetherFill } from "@/components/icons"
 
-// One top bar, four tabs, and the tab you are on is unmistakably lit.
+// One top bar, five tabs, and the tab you are on is unmistakably lit.
 const navigation = [
-  ["Scratchpad", "/app", "scratchpad"],
-  ["Calendar", "/app/calendar", "calendar"],
-  ["Courses", "/app/courses", "courses"],
+  ["Calendar", "/app", "calendar"],
+  ["Academics", "/app/academics", "academics"],
+  ["Activities", "/app/activities", "activities"],
+  ["Scratchpad", "/app/scratchpad", "scratchpad"],
   ["Collaborate", "/app/collaborate", "collaborate"]
 ] as const
 
 const mobileGlyph = (key: string) => {
   if (key === "scratchpad") return <NoteFill />
   if (key === "calendar") return <PlanFill />
-  if (key === "courses") return <ExploreFill />
-  if (key === "collaborate") return <TogetherFill />
+  if (key === "academics") return <ProgramsFill />
+  if (key === "activities") return <TogetherFill />
+  if (key === "collaborate") return <ExploreFill />
   return <ProfileFill />
 }
 
 const pageForPath = (pathname: string | null) => {
-  if (!pathname) return "scratchpad"
-  if (pathname.startsWith("/app/calendar")) return "calendar"
-  if (pathname.startsWith("/app/courses")) return "courses"
+  if (!pathname) return "calendar"
+  if (pathname.startsWith("/app/academics")) return "academics"
+  if (pathname.startsWith("/app/activities")) return "activities"
+  if (pathname.startsWith("/app/scratchpad")) return "scratchpad"
   if (pathname.startsWith("/app/collaborate")) return "collaborate"
   if (pathname.startsWith("/app/profile")) return "profile"
-  return "scratchpad"
+  return "calendar"
 }
 
 export const AppShell = ({ activePage, quarter = "", children, activity, onUndo }: { activePage?: string, quarter?: string, children: ReactNode, activity?: ActivityEntry[], onUndo?: (receiptId: string) => void }) => {
@@ -71,7 +74,7 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
     window.addEventListener("keydown", handleShortcut)
     return () => window.removeEventListener("keydown", handleShortcut)
   }, [])
-  const resultHref = (type: string) => type === "courses" || type === "opportunities" ? "/app/courses" : "/app"
+  const resultHref = (type: string) => type === "courses" ? "/app/academics" : type === "opportunities" ? "/app/activities" : "/app/scratchpad"
   return <div className="app-frame">
     <a className="skip-link" href="#workspace-content">Skip to workspace</a>
     <header className="topbar">

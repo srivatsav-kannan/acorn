@@ -761,7 +761,7 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       const input = command.activity ?? {}
       const name = String(input.name ?? "").trim().slice(0, 80)
       if (!name) throw commandError("An activity needs a name")
-      const kind = ["research", "job", "volunteering", "athletics", "arts", "other"].includes(String(input.kind)) ? input.kind : "other"
+      const kind = ["club", "research", "job", "volunteering", "athletics", "arts", "other"].includes(String(input.kind)) ? input.kind : "other"
       const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
       let schedule
       if (input.schedule) {
@@ -773,7 +773,11 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
       for (const bound of [input.startDate, input.endDate]) if (bound && !isRealDate(String(bound))) throw commandError("Activity dates use YYYY-MM-DD and must be real calendar dates")
       const dates = Array.isArray(input.dates) ? input.dates.slice(0, 30).map((item: Record<string, unknown>) => {
         if (!isRealDate(String(item?.date)) || !String(item?.label ?? "").trim()) throw commandError("Each activity date needs a real YYYY-MM-DD date and a label")
-        return { date: String(item.date), label: String(item.label).trim().slice(0, 80) }
+        const timed = item?.start !== undefined && item?.start !== null && item?.start !== ""
+        if (timed && !isRealTime(String(item.start))) throw commandError("An activity date's start uses 24h HH:MM")
+        const ended = timed && item?.end !== undefined && item?.end !== null && item?.end !== ""
+        if (ended && (!isRealTime(String(item.end)) || String(item.end) <= String(item.start))) throw commandError("An activity date's end uses 24h HH:MM and must come after its start")
+        return { date: String(item.date), label: String(item.label).trim().slice(0, 80), ...(timed ? { start: String(item.start) } : {}), ...(ended ? { end: String(item.end) } : {}) }
       }) : undefined
       const activity = {
         id: String(input.id ?? `ACTIVITY-${envelope.idempotencyKey.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 28)}`),
@@ -786,6 +790,9 @@ export const executeCommand = async (repository: MemoryWorkspaceRepository, enve
         startDate: input.startDate ? String(input.startDate) : undefined,
         endDate: input.endDate ? String(input.endDate) : undefined,
         dates,
+        opportunityId: typeof input.opportunityId === "string" && input.opportunityId.trim() ? input.opportunityId.trim().slice(0, 80) : undefined,
+        notes: typeof input.notes === "string" && input.notes.trim() ? input.notes.trim().slice(0, 600) : undefined,
+        units: Number.isInteger(Number(input.units)) && Number(input.units) > 0 && Number(input.units) <= 10 ? Number(input.units) : undefined,
         addedBy: envelope.actor.type === "agent" ? "agent" as const : "human" as const
       }
       if (activity.sourceUrl) {

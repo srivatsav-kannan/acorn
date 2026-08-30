@@ -1,3 +1,3 @@
-import { CoursesPage } from "@/features/courses/courses-page"
+import { redirect } from "next/navigation"
 
-export default function Page() { return <CoursesPage /> }
+export default function Page() { redirect("/app/academics") }

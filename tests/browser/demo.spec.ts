@@ -9,7 +9,7 @@ const todayIso = () => {
 test("public landing explains the product and routes into the account flow", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { level: 1 })).toContainText("every quarter to graduation")
-  await expect(page.getByText("15,587 courses")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Braindump, get a schedule." })).toBeVisible()
   await page.getByRole("link", { name: "Start planning" }).first().click()
   await expect(page).toHaveURL(/\/signup/)
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible()
@@ -18,16 +18,16 @@ test("public landing explains the product and routes into the account flow", asy
 test("a guessed workspace path lands on the workspace, never a bare 404", async ({ page }) => {
   await page.goto("/demo")
   await expect(page).toHaveURL(/\/app/)
-  await page.goto("/app/scratchpad")
+  await page.goto("/app/notes")
   await expect(page).toHaveURL(/\/app$/)
   await expect(page.getByRole("banner").getByText("Autumn 2026")).toBeVisible()
 })
 
-test("the demo workspace exposes the four tabs and the front-door return", async ({ page }) => {
+test("the demo workspace exposes the five tabs and the front-door return", async ({ page }) => {
   await page.goto("/demo")
   await expect(page).toHaveURL(/\/app/)
   await expect(page.getByRole("banner").getByText("Autumn 2026")).toBeVisible()
-  for (const name of ["Scratchpad", "Calendar", "Courses", "Collaborate"]) {
+  for (const name of ["Calendar", "Academics", "Activities", "Scratchpad", "Collaborate"]) {
     await expect(page.getByRole("link", { name, exact: true })).toBeVisible()
   }
   await page.goto("/")
@@ -53,6 +53,7 @@ test("workspace and onboarding routes are account-gated", async ({ page }) => {
 
 test("the scratchpad takes jots with tags, edits, archives, and persists", async ({ page }) => {
   await page.goto("/demo")
+  await page.getByRole("link", { name: "Scratchpad", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible()
   await page.getByLabel("Jot something down").fill("Heard the Solar Car shop is open to frosh")
   await page.getByLabel("Tags").fill("clubs, engineering")
@@ -71,7 +72,7 @@ test("the scratchpad takes jots with tags, edits, archives, and persists", async
 
 test("courses search, interest, planning, and undo run through one command path", async ({ page }) => {
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Courses", exact: true }).click()
+  await page.getByRole("link", { name: "Academics", exact: true }).click()
   await expect(page.getByText(/13 units/).first()).toBeVisible()
   await page.getByLabel("Search courses").fill("CS 148")
   await expect(page.getByText("Introduction to Computer Graphics").first()).toBeVisible()
@@ -87,37 +88,47 @@ test("courses search, interest, planning, and undo run through one command path"
   await expect(page.locator(".plan-rail").getByText("DESIGN 60")).toBeVisible()
 })
 
-test("clubs mark interest and hand-added clubs land dated on the calendar", async ({ page }) => {
+test("clubs join, take events, and land on the calendar under the club's name", async ({ page }) => {
   await page.goto("/demo")
-  await page.goto("/app/courses")
-  await page.getByRole("tab", { name: "Clubs" }).click()
-  await expect(page.getByText("TreeHacks")).toBeVisible()
-  const treehacks = page.locator("article", { hasText: "TreeHacks" }).first()
+  await page.getByRole("link", { name: "Activities", exact: true }).click()
+  await expect(page.getByText("TreeHacks").first()).toBeVisible()
+  const treehacks = page.locator(".directory-section article", { hasText: "TreeHacks" }).first()
   await treehacks.getByRole("button", { name: "Interested" }).click()
   await expect(treehacks.getByRole("button", { name: /Interested ✓/ })).toBeVisible()
+  await treehacks.getByRole("button", { name: "Join", exact: true }).click()
+  await expect(page.getByText("Joined ✓").first()).toBeVisible()
+  const mine = page.locator(".mine-section article", { hasText: "TreeHacks" }).first()
+  await mine.getByRole("button", { name: "Add event" }).click()
+  await mine.getByLabel("Date").fill(todayIso())
+  await mine.getByLabel("What happens").fill("Team formation night")
+  await mine.getByRole("button", { name: "Add event", exact: true }).click()
+  await expect(mine.getByText("Team formation night")).toBeVisible()
 
-  await page.getByRole("button", { name: "Add a club" }).click()
+  await page.getByRole("button", { name: "Add to the directory" }).click()
   await page.getByLabel("Name", { exact: true }).fill("Stanford Healthcare Innovators")
   await page.getByLabel("What it is").fill("Student group building health tech with clinicians.")
   await page.getByLabel("Date", { exact: true }).fill(todayIso())
-  await page.getByLabel("What happens then").first().fill("Info session")
-  await page.getByRole("button", { name: "Add club", exact: true }).click()
+  await page.getByLabel("What happens then").fill("Info session")
+  await page.getByRole("button", { name: "Add to the directory", exact: true }).click()
   const added = page.locator("article", { hasText: "Stanford Healthcare Innovators" }).first()
   await expect(added.getByText(/unverified/i)).toBeVisible()
   await added.getByRole("button", { name: "Interested" }).click()
 
   await page.getByRole("link", { name: "Calendar", exact: true }).click()
-  await expect(page.getByText(/Stanford Healthcare Innovators: Info session/).first()).toBeVisible()
+  await page.locator(".calendar-cell.today .calendar-cell-date").click()
+  const dayList = page.locator(".inspector-day-list")
+  await expect(dayList.getByText(/TreeHacks: Team formation night/)).toBeVisible()
+  await expect(dayList.getByText(/Stanford Healthcare Innovators: Info session/)).toBeVisible()
 })
 
 test("the calendar carries registrar dates, todos, and planned classes", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === "mobile")
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Calendar", exact: true }).click()
   await expect(page.getByText("Plan the language requirement")).toBeVisible()
-  await page.getByLabel("New todo").fill("Confirm study list")
-  await page.getByLabel("Due date").fill(todayIso())
   await page.getByRole("button", { name: "Add", exact: true }).click()
+  await page.getByRole("radio", { name: "Todo" }).click()
+  await page.getByLabel("Title").fill("Confirm study list")
+  await page.getByRole("button", { name: "Add todo", exact: true }).click()
   await expect(page.locator(".todo-list").getByText("Confirm study list")).toBeVisible()
   await expect(page.locator(".calendar-grid").getByText("Confirm study list").first()).toBeVisible()
 
@@ -133,7 +144,6 @@ test("the calendar carries registrar dates, todos, and planned classes", async (
 test("the week view lays classes on an hour grid beside the research block", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === "mobile")
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Calendar", exact: true }).click()
   await page.getByRole("button", { name: "Week", exact: true }).click()
   await expect(page.locator(".week-body")).toBeVisible()
   let found = false
@@ -150,13 +160,12 @@ test("the week view lays classes on an hour grid beside the research block", asy
 test("timed events carry descriptions and re-express in other timezones", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === "mobile")
   await page.goto("/demo")
-  await page.getByRole("link", { name: "Calendar", exact: true }).click()
-  await page.getByRole("button", { name: "Add event" }).click()
-  await page.getByLabel("Event title").fill("CURIS interview")
-  await page.getByLabel("Event date").fill(todayIso())
-  await page.getByLabel("Start time").fill("15:00")
-  await page.getByLabel("Event description").fill("Zoom link arrives by email.")
+  await page.getByRole("button", { name: "Add", exact: true }).click()
+  await page.getByLabel("Title").fill("CURIS interview")
+  await page.getByLabel("Start").fill("15:00")
+  await page.getByRole("textbox", { name: "Details" }).fill("Zoom link arrives by email.")
   await page.getByRole("button", { name: "Add event", exact: true }).click()
+  await page.getByRole("tab", { name: "Events" }).click()
   const row = page.locator(".side-event-list").getByRole("button", { name: /CURIS interview/ })
   await row.click()
   await expect(page.locator(".inspector-panel").getByText("Zoom link arrives by email.")).toBeVisible()
@@ -218,7 +227,6 @@ test("onboarding asks for a name and durable facts through real controls", async
   await page.getByLabel("Entered in autumn").selectOption("2026")
   await page.getByLabel("Graduating in spring").selectOption("2030")
   await expect(page.getByRole("button", { name: "Enter my workspace" })).toBeVisible()
-  await expect(page.getByText(/no sample data is preloaded/i)).toBeVisible()
 })
 
 test("the collaborate page states the agent capability without theater", async ({ page }) => {
@@ -293,10 +301,10 @@ test("a fresh fixture account onboards and plans across terms", async ({ page })
   await page.getByLabel("Graduating in spring").selectOption("2030")
   await page.getByRole("button", { name: "Enter my workspace" }).click()
   await expect(page).toHaveURL(/\/app$/)
-  await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Todos" })).toBeVisible()
   await expect(page.getByText("Alex Chen")).toHaveCount(0)
 
-  await page.getByRole("link", { name: "Courses", exact: true }).click()
+  await page.getByRole("link", { name: "Academics", exact: true }).click()
   await page.getByLabel("Search courses").fill("CS 106A")
   await page.getByRole("button", { name: /Plan CS 106A for Aut 2026/ }).first().click()
   await expect(page.locator(".plan-rail").getByText("CS 106A")).toBeVisible()
@@ -331,6 +339,7 @@ test("goals sync between agent, checklist, calendar, and the plan explains itsel
     const context = await tools.get("get_planning_context")!.execute({}) as { version: number }
     await tools.get("manage_goal")!.execute({ expectedVersion: context.version, idempotencyKey: "E2E-GOAL", action: "upsert", goal: { id: "GOAL-E2E", title: "Journey goal", milestones: [{ title: "Journey milestone", due: "2026-10-20" }] } })
   })
+  await page.getByRole("link", { name: "Scratchpad", exact: true }).click()
   const card = page.locator("article", { hasText: "Journey goal" }).first()
   await expect(card.getByText("Goal", { exact: true })).toBeVisible()
   await expect(card.getByRole("checkbox")).not.toBeChecked()
@@ -348,7 +357,7 @@ test("goals sync between agent, checklist, calendar, and the plan explains itsel
   await page.getByRole("link", { name: "Scratchpad", exact: true }).click()
   await expect(page.locator("article", { hasText: "Journey goal" }).first().getByRole("checkbox")).toBeChecked()
 
-  await page.getByRole("link", { name: "Courses", exact: true }).click()
+  await page.getByRole("link", { name: "Academics", exact: true }).click()
   await page.getByRole("button", { name: "Add why this shape" }).click()
   await page.getByLabel("Why this scenario").fill("Thirteen units so CS 106B gets real attention.")
   await page.getByRole("button", { name: "Save", exact: true }).click()
@@ -368,8 +377,8 @@ test("mobile navigation reaches every tab with the active one lit", async ({ pag
   test.skip(testInfo.project.name !== "mobile")
   await page.goto("/demo")
   await expect(page.getByRole("navigation", { name: "Mobile" })).toBeVisible()
-  await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Calendar" }).click()
-  await expect(page.getByRole("heading", { name: "Todos" })).toBeVisible()
-  await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Courses" }).click()
+  await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Academics" }).click()
   await expect(page.getByLabel("Search courses")).toBeVisible()
+  await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Calendar" }).click()
+  await expect(page.getByRole("tab", { name: "Todos" })).toBeVisible()
 })

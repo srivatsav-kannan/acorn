@@ -50,6 +50,5 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
       {status && <p className="auth-status" role="status">{status}</p>}
       <p className="auth-switch">New here? <Link href="/signup">Create an account</Link></p>
     </section>
-    <p className="auth-note">Acorn helps you plan; enrollment and anything official still go through Stanford&apos;s own systems.</p>
   </main>
 }

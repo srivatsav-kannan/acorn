@@ -1,3 +1,3 @@
-import { ScratchpadPage } from "@/features/scratchpad/scratchpad-page"
+import { CalendarPage } from "@/features/calendar/calendar-page"
 
-export default function Page() { return <ScratchpadPage /> }
+export default function Page() { return <CalendarPage /> }

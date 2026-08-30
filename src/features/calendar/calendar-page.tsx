@@ -13,9 +13,10 @@ import { WeekView } from "@/features/calendar/week-view"
 
 // One continuous calendar from New Student Orientation to commencement. The
 // grid is a fixed lattice: cells never grow, and clicking a day or any single
-// entry pins its summary in the inspector beside the grid instead of
-// stretching rows. Everything timed carries a home timezone and the whole
-// view re-expresses itself in whichever zone the viewer selects.
+// entry pins its summary in the inspector beside the grid. Every day takes a
+// quick add for an event, a todo, or a club event; classes and weekly
+// meetings come from the academics and activities pages, which is also the
+// only place they are removed.
 
 const yearHeadline: Record<string, string> = { "Frosh": "Freshman year", "Sophomore": "Sophomore year", "Junior": "Junior year", "Senior": "Senior year", "Fifth year": "Fifth year" }
 const seasonNames: Record<string, string> = { AUTUMN: "Autumn quarter", WINTER: "Winter quarter", SPRING: "Spring quarter", SUMMER: "Summer" }
@@ -24,6 +25,7 @@ const timezoneStorageKey = "acorn-display-timezone"
 const viewStorageKey = "acorn-calendar-view"
 
 type Inspection = { kind: "day", date: string } | { kind: "entry", entry: CalendarEvent, fromDate?: string } | null
+type ComposerState = { date: string, kind: "event" | "todo" | "club", title: string, timing: "allday" | "time" | "period", start: string, end: string, detail: string, timezone: string, activityId: string } | null
 
 export const CalendarPage = () => {
   const value = useWorkspace()
@@ -34,12 +36,10 @@ export const CalendarPage = () => {
   const weekStart = useMemo(() => subDays(anchor, (anchor.getDay() + 6) % 7), [anchor])
   const [inspection, setInspection] = useState<Inspection>(null)
   const [displayTimezone, setDisplayTimezone] = useState(CAMPUS_TIMEZONE)
-  const [todoTitle, setTodoTitle] = useState("")
-  const [todoDue, setTodoDue] = useState("")
-  const [todoTime, setTodoTime] = useState("")
-  const [todoDetail, setTodoDetail] = useState("")
-  const [addingEvent, setAddingEvent] = useState(false)
-  const [eventForm, setEventForm] = useState({ title: "", date: "", start: "", end: "", timezone: CAMPUS_TIMEZONE, description: "" })
+  const [composer, setComposer] = useState<ComposerState>(null)
+  const [upcomingTab, setUpcomingTab] = useState<"todos" | "events">("todos")
+  const [todosShown, setTodosShown] = useState(8)
+  const [eventsShown, setEventsShown] = useState(8)
 
   useEffect(() => {
     try {
@@ -92,10 +92,10 @@ export const CalendarPage = () => {
     const raw = calendarEventsForRange(value.workspace, value.catalog, opportunities, isoDate(startOfMonth(monthStart)), isoDate(addDays(startOfMonth(addMonths(monthStart, 1)), -1)))
     const blob = new Blob([buildIcs(raw, `Acorn ${format(monthStart, "MMMM yyyy")}`)], { type: "text/calendar" })
     const url = URL.createObjectURL(blob)
-    const anchor = document.createElement("a")
-    anchor.href = url
-    anchor.download = `acorn-${format(monthStart, "yyyy-MM")}.ics`
-    anchor.click()
+    const anchorEl = document.createElement("a")
+    anchorEl.href = url
+    anchorEl.download = `acorn-${format(monthStart, "yyyy-MM")}.ics`
+    anchorEl.click()
     URL.revokeObjectURL(url)
   }
 
@@ -114,19 +114,10 @@ export const CalendarPage = () => {
   const headline = yearHeadline[standing] ?? (standing === "Before entry" ? "Before Stanford" : standing || "Your calendar")
   const todayIso = isoDate(new Date())
 
-  const openTodos = (value.workspace.todos ?? []).filter((todo) => !todo.done)
+  const openTodos = useMemo(() => [...(value.workspace.todos ?? []).filter((todo) => !todo.done)].sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999")), [value.workspace.todos])
   const doneTodos = (value.workspace.todos ?? []).filter((todo) => todo.done)
-  const addTodo = async () => {
-    if (!todoTitle.trim()) return
-    await value.onCommand({ type: "manage_todo", action: "add", todo: { title: todoTitle.trim(), due: todoDue || undefined, dueTime: todoDue && todoTime ? todoTime : undefined, detail: todoDetail.trim() || undefined } })
-    setTodoTitle("")
-    setTodoDue("")
-    setTodoTime("")
-    setTodoDetail("")
-  }
+  const joinedClubs = (value.workspace.activities ?? []).filter((activity) => activity.kind === "club")
 
-  // The sidebar shows the same display timezone the grid does; a timed event
-  // recorded in another zone is converted, so both surfaces agree.
   const upcomingEvents = useMemo(() => (value.workspace.events ?? []).map((event) => {
     if (!event.start) return event
     const homeZone = event.timezone ?? CAMPUS_TIMEZONE
@@ -135,19 +126,34 @@ export const CalendarPage = () => {
     const convertedEnd = event.end ? convertZonedTime(event.date, event.end, homeZone, displayTimezone) : undefined
     return { ...event, date: converted.date, start: converted.time, end: convertedEnd?.time }
   }).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? "").localeCompare(b.start ?? "")), [value.workspace.events, displayTimezone])
-  const addEvent = async () => {
-    if (!eventForm.title.trim() || !eventForm.date) return
-    await value.onCommand({ type: "manage_event", action: "add", event: { title: eventForm.title.trim(), date: eventForm.date, start: eventForm.start || undefined, end: eventForm.start && eventForm.end ? eventForm.end : undefined, timezone: eventForm.timezone !== CAMPUS_TIMEZONE ? eventForm.timezone : undefined, description: eventForm.description.trim() || undefined } })
-    setAddingEvent(false)
-    setEventForm({ title: "", date: "", start: "", end: "", timezone: CAMPUS_TIMEZONE, description: "" })
+
+  const openComposer = (date: string) => {
+    setComposer({ date, kind: "event", title: "", timing: "time", start: "12:00", end: "", detail: "", timezone: displayTimezone, activityId: joinedClubs[0]?.id ?? "" })
+    setInspection(null)
   }
+
+  const submitComposer = async () => {
+    if (!composer || !composer.title.trim() || !composer.date) return
+    const timed = composer.timing !== "allday"
+    if (composer.kind === "todo") {
+      await value.onCommand({ type: "manage_todo", action: "add", todo: { title: composer.title.trim(), due: composer.date, dueTime: timed && composer.start ? composer.start : undefined, detail: composer.detail.trim() || undefined } })
+    } else if (composer.kind === "event") {
+      await value.onCommand({ type: "manage_event", action: "add", event: { title: composer.title.trim(), date: composer.date, start: timed && composer.start ? composer.start : undefined, end: composer.timing === "period" && composer.start && composer.end ? composer.end : undefined, timezone: composer.timezone !== CAMPUS_TIMEZONE ? composer.timezone : undefined, description: composer.detail.trim() || undefined } })
+    } else {
+      const activity = joinedClubs.find((club) => club.id === composer.activityId)
+      if (!activity) return
+      await value.onCommand({ type: "upsert_activity", activity: { ...activity, dates: [...(activity.dates ?? []), { date: composer.date, label: composer.title.trim(), ...(timed && composer.start ? { start: composer.start } : {}), ...(composer.timing === "period" && composer.start && composer.end ? { end: composer.end } : {}) }] } })
+    }
+    setComposer(null)
+  }
+
   const removeEvent = async (eventId: string) => {
     await value.onCommand({ type: "manage_event", action: "remove", eventId })
     setInspection(null)
   }
 
-  const inspectDay = (date: string) => setInspection((current) => current?.kind === "day" && current.date === date ? null : { kind: "day", date })
-  const inspectEntry = (entry: CalendarEvent, fromDate?: string) => setInspection({ kind: "entry", entry, fromDate })
+  const inspectDay = (date: string) => { setComposer(null); setInspection((current) => current?.kind === "day" && current.date === date ? null : { kind: "day", date }) }
+  const inspectEntry = (entry: CalendarEvent, fromDate?: string) => { setComposer(null); setInspection({ kind: "entry", entry, fromDate }) }
   const inspectStoredEvent = (id: string) => {
     const converted = events.find((event) => event.sourceId === id && event.kind === "event")
     if (converted) { inspectEntry(converted); return }
@@ -161,6 +167,33 @@ export const CalendarPage = () => {
 
   const displayLabel = timezoneChoices.find((choice) => choice.id === displayTimezone)?.label ?? displayTimezone
 
+  const composerForm = composer && <form className="composer" onSubmit={(event) => { event.preventDefault(); void submitComposer() }}>
+    <div className="section-heading"><h3>Add to {composer.date ? format(new Date(`${composer.date}T12:00:00`), "EEE, MMM d") : "the calendar"}</h3><button className="text-button" type="button" onClick={() => setComposer(null)}>Cancel</button></div>
+    <div className="kind-toggle-row" role="radiogroup" aria-label="What to add">
+      {([["event", "Event"], ["todo", "Todo"], ["club", "Club event"]] as const).map(([kind, label]) => <button key={kind} type="button" role="radio" aria-checked={composer.kind === kind} className={composer.kind === kind ? "day-toggle active" : "day-toggle"} onClick={() => setComposer({ ...composer, kind })}>{label}</button>)}
+    </div>
+    {composer.kind === "club" && (joinedClubs.length === 0 ? <p className="add-form-note">Join a club on the activities page first, then its events can go here.</p> : <label>Club<select value={composer.activityId} onChange={(event) => setComposer({ ...composer, activityId: event.target.value })}>{joinedClubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}</select></label>)}
+    <input aria-label="Title" placeholder={composer.kind === "todo" ? "What needs doing" : "What is happening"} value={composer.title} onChange={(event) => setComposer({ ...composer, title: event.target.value })} maxLength={100} required />
+    <div className="add-form-row">
+      <label>Date<input type="date" value={composer.date} onChange={(event) => setComposer({ ...composer, date: event.target.value })} required /></label>
+      <label>Timing<select aria-label="Timing" value={composer.timing} onChange={(event) => setComposer({ ...composer, timing: event.target.value as "allday" | "time" | "period" })}>
+        <option value="allday">All day</option>
+        <option value="time">At a time</option>
+        {composer.kind !== "todo" && <option value="period">Start and end</option>}
+      </select></label>
+    </div>
+    {composer.timing !== "allday" && <div className="add-form-row">
+      <label>Start<input type="time" value={composer.start} onChange={(event) => setComposer({ ...composer, start: event.target.value })} required /></label>
+      {composer.timing === "period" && <label>End<input type="time" value={composer.end} onChange={(event) => setComposer({ ...composer, end: event.target.value })} required /></label>}
+    </div>}
+    {composer.kind === "event" && <select aria-label="Event timezone" value={composer.timezone} onChange={(event) => setComposer({ ...composer, timezone: event.target.value })}>
+      {timezoneChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label} ({timezoneOffsetLabel(choice.id)})</option>)}
+    </select>}
+    {composer.kind !== "club" && <textarea aria-label="Details" rows={2} placeholder="Details (optional)" value={composer.detail} onChange={(event) => setComposer({ ...composer, detail: event.target.value })} maxLength={600} />}
+    <button className="primary-button small" type="submit" disabled={!composer.title.trim() || (composer.kind === "club" && !composer.activityId)}>{composer.kind === "todo" ? "Add todo" : composer.kind === "club" ? "Add club event" : "Add event"}</button>
+    <p className="add-form-note">Classes come from your plan in Academics. Weekly meetings for clubs and activities live in Activities.</p>
+  </form>
+
   const inspector = () => {
     if (!inspection) return <p className="muted inspector-empty">Click a day, or any single entry, and its summary lands here.</p>
     if (inspection.kind === "day") {
@@ -172,9 +205,11 @@ export const CalendarPage = () => {
             <button type="button" className="event-open" onClick={() => inspectEntry(event, inspection.date)}>
               <b>{event.start ? `${event.start}${event.end ? ` to ${event.end}` : ""}` : "All day"}</b>
               <span>{event.title}</span>
+              <em className={`legend-item ${event.kind}`}>{kindLabel[event.kind] ?? event.kind}</em>
             </button>
           </li>)}
         </ul>}
+        <button className="secondary-button small inspector-add" type="button" onClick={() => openComposer(inspection.date)}>Add to this day</button>
       </>
     }
     const entry = inspection.entry
@@ -188,6 +223,7 @@ export const CalendarPage = () => {
         {entry.projected && <span className="muted">Projected date</span>}
         {entry.kind === "event" && entry.sourceId && <button className="text-button" type="button" onClick={() => void removeEvent(entry.sourceId!)}>Remove event</button>}
         {entry.kind === "todo" && entry.sourceId && <button className="text-button" type="button" onClick={() => { void value.onCommand({ type: "manage_todo", action: "toggle", todoId: entry.sourceId! }); setInspection(null) }}>Mark done</button>}
+        {(entry.kind === "course" || entry.kind === "activity" || entry.kind === "club") && <span className="muted">Managed in {entry.kind === "course" ? "Academics" : "Activities"}</span>}
       </div>
     </>
   }
@@ -237,7 +273,10 @@ export const CalendarPage = () => {
             const selected = (inspection?.kind === "day" && inspection.date === iso) || (inspection?.kind === "entry" && inspection.entry.date === iso)
             const shown = dayEvents.slice(0, 2)
             return <div key={iso} className={`calendar-cell${outside ? " outside" : ""}${iso === todayIso ? " today" : ""}${selected ? " selected" : ""}`}>
-              <button type="button" className="calendar-cell-date" onClick={() => inspectDay(iso)} aria-label={`Open ${iso}, ${dayEvents.length} items`}>{day.getDate()}</button>
+              <div className="calendar-cell-head">
+                <button type="button" className="calendar-cell-date" onClick={() => inspectDay(iso)} aria-label={`Open ${iso}, ${dayEvents.length} items`}>{day.getDate()}</button>
+                <button type="button" className="calendar-cell-add" onClick={() => openComposer(iso)} aria-label={`Add to ${iso}`}>+</button>
+              </div>
               {shown.map((event) => <button key={event.id} type="button" className={`calendar-chip ${event.kind}${event.projected ? " projected" : ""}`} onClick={() => inspectEntry(event, iso)} title={event.title}>{event.start ? `${event.start} ` : ""}{event.title}</button>)}
               {dayEvents.length > 2 && <button type="button" className="calendar-more" onClick={() => inspectDay(iso)}>+{dayEvents.length - 2} more</button>}
             </div>
@@ -251,71 +290,55 @@ export const CalendarPage = () => {
           <span className="legend-item activity">Activities</span>
           <span className="legend-item event">Events</span>
           <span className="legend-item todo">Todos</span>
-          <span className="legend-note">Dotted entries are projected until the registrar publishes that year.</span>
         </div>
       </section>
 
       <div className="calendar-side">
         <aside className="todo-panel inspector-panel" aria-label="Selection details">
-          <div className="section-heading"><h2>Details</h2>{inspection && <button className="text-button" type="button" onClick={() => setInspection(null)}>Clear</button>}</div>
-          {inspector()}
+          <div className="section-heading"><h2>Details</h2>{inspection && !composer && <button className="text-button" type="button" onClick={() => setInspection(null)}>Clear</button>}</div>
+          {composer ? composerForm : inspector()}
         </aside>
 
-        <aside className="todo-panel events-panel" aria-label="Events">
-          <div className="section-heading"><h2>Events</h2><button className="secondary-button small" type="button" onClick={() => setAddingEvent((current) => !current)}>{addingEvent ? "Cancel" : "Add event"}</button></div>
-          {addingEvent && <form className="event-add" onSubmit={(event) => { event.preventDefault(); void addEvent() }}>
-            <input aria-label="Event title" placeholder="What is happening" value={eventForm.title} onChange={(event) => setEventForm({ ...eventForm, title: event.target.value })} maxLength={100} required />
-            <div className="event-add-row">
-              <input aria-label="Event date" type="date" value={eventForm.date} onChange={(event) => setEventForm({ ...eventForm, date: event.target.value })} required />
-              <input aria-label="Start time" type="time" value={eventForm.start} onChange={(event) => setEventForm({ ...eventForm, start: event.target.value })} />
-              <input aria-label="End time" type="time" value={eventForm.end} onChange={(event) => setEventForm({ ...eventForm, end: event.target.value })} disabled={!eventForm.start} />
+        <aside className="todo-panel upcoming-panel" aria-label="Upcoming">
+          <div className="section-heading">
+            <div className="subtab-row small" role="tablist" aria-label="Upcoming">
+              {([["todos", "Todos"], ["events", "Events"]] as const).map(([key, label]) => <button key={key} role="tab" aria-selected={upcomingTab === key} className={upcomingTab === key ? "subtab active" : "subtab"} onClick={() => setUpcomingTab(key)}>{label}</button>)}
             </div>
-            <select aria-label="Event timezone" value={eventForm.timezone} onChange={(event) => setEventForm({ ...eventForm, timezone: event.target.value })}>
-              {timezoneChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label} ({timezoneOffsetLabel(choice.id)})</option>)}
-            </select>
-            <textarea aria-label="Event description" rows={2} placeholder="Description (optional)" value={eventForm.description} onChange={(event) => setEventForm({ ...eventForm, description: event.target.value })} maxLength={600} />
-            <button className="primary-button small" type="submit" disabled={!eventForm.title.trim() || !eventForm.date}>Add event</button>
-          </form>}
-          {upcomingEvents.length === 0 && !addingEvent ? <p className="muted side-empty">Interviews, flights, review sessions: anything with its own date and time lives here.</p> : <ul className="side-event-list">
-            {upcomingEvents.map((item) => <li key={item.id}>
-              <button type="button" className="event-open" onClick={() => inspectStoredEvent(item.id)}>
-                <b>{item.date}{item.start ? ` · ${item.start}` : ""}</b>
-                <span>{item.title}</span>
-                {item.addedBy === "agent" && <em className="agent-chip">Agent</em>}
-              </button>
-            </li>)}
-          </ul>}
-        </aside>
-
-        <aside className="todo-panel" aria-label="Todos">
-          <div className="section-heading"><h2>Todos</h2><span className="count-chip">{openTodos.length}</span></div>
-          <div className="todo-add">
-            <input aria-label="New todo" placeholder="Add a todo" value={todoTitle} onChange={(event) => setTodoTitle(event.target.value)} />
-            <div className="event-add-row">
-              <input aria-label="Due date" type="date" value={todoDue} onChange={(event) => setTodoDue(event.target.value)} />
-              <input aria-label="Due time" type="time" value={todoTime} onChange={(event) => setTodoTime(event.target.value)} disabled={!todoDue} />
-            </div>
-            <input aria-label="Todo details" placeholder="Details (optional)" value={todoDetail} onChange={(event) => setTodoDetail(event.target.value)} maxLength={300} />
-            <button className="primary-button small" type="button" onClick={() => void addTodo()} disabled={!todoTitle.trim()}>Add</button>
+            <button className="secondary-button small" type="button" onClick={() => openComposer(todayIso)}>Add</button>
           </div>
-          <ul className="todo-list">
-            {openTodos.map((todo) => <li key={todo.id}>
-              <label>
-                <input type="checkbox" checked={false} onChange={() => void value.onCommand({ type: "manage_todo", action: "toggle", todoId: todo.id })} aria-label={`Complete ${todo.title}`} />
-                <span><b>{todo.title}</b>{todo.due && <em>due {todo.due}{todo.dueTime ? ` at ${todo.dueTime}` : ""}</em>}{todo.detail && <small>{todo.detail}</small>}</span>
-              </label>
-              <span className={`todo-source ${todo.source}`}>{todo.source === "system" ? "Stanford" : todo.source === "agent" ? "Agent" : "You"}</span>
-              <button className="text-button" type="button" onClick={() => void value.onCommand({ type: "manage_todo", action: "remove", todoId: todo.id })} aria-label={`Remove ${todo.title}`}>Remove</button>
-            </li>)}
-          </ul>
-          {doneTodos.length > 0 && <details className="todo-done">
-            <summary>{doneTodos.length} done</summary>
-            <ul className="todo-list">
-              {doneTodos.map((todo) => <li key={todo.id} className="done">
-                <label><input type="checkbox" checked onChange={() => void value.onCommand({ type: "manage_todo", action: "toggle", todoId: todo.id })} aria-label={`Reopen ${todo.title}`} /><span><b>{todo.title}</b></span></label>
+          {upcomingTab === "todos" && <>
+            {openTodos.length === 0 ? <p className="muted side-empty">Nothing open. Add one from any day, or from the button above.</p> : <ul className="todo-list">
+              {openTodos.slice(0, todosShown).map((todo) => <li key={todo.id}>
+                <label>
+                  <input type="checkbox" checked={false} onChange={() => void value.onCommand({ type: "manage_todo", action: "toggle", todoId: todo.id })} aria-label={`Complete ${todo.title}`} />
+                  <span><b>{todo.title}</b>{todo.due && <em>due {todo.due}{todo.dueTime ? ` at ${todo.dueTime}` : ""}</em>}{todo.detail && <small>{todo.detail}</small>}</span>
+                </label>
+                <span className={`todo-source ${todo.source}`}>{todo.source === "system" ? "Stanford" : todo.source === "agent" ? "Agent" : "You"}</span>
+                <button className="text-button" type="button" onClick={() => void value.onCommand({ type: "manage_todo", action: "remove", todoId: todo.id })} aria-label={`Remove ${todo.title}`}>Remove</button>
               </li>)}
-            </ul>
-          </details>}
+            </ul>}
+            {openTodos.length > todosShown && <button className="text-button show-more" type="button" onClick={() => setTodosShown((current) => current + 8)}>Show {Math.min(8, openTodos.length - todosShown)} more</button>}
+            {doneTodos.length > 0 && <details className="todo-done">
+              <summary>{doneTodos.length} done</summary>
+              <ul className="todo-list">
+                {doneTodos.map((todo) => <li key={todo.id} className="done">
+                  <label><input type="checkbox" checked onChange={() => void value.onCommand({ type: "manage_todo", action: "toggle", todoId: todo.id })} aria-label={`Reopen ${todo.title}`} /><span><b>{todo.title}</b></span></label>
+                </li>)}
+              </ul>
+            </details>}
+          </>}
+          {upcomingTab === "events" && <>
+            {upcomingEvents.length === 0 ? <p className="muted side-empty">Interviews, flights, review sessions: anything with its own date and time lives here.</p> : <ul className="side-event-list">
+              {upcomingEvents.slice(0, eventsShown).map((item) => <li key={item.id}>
+                <button type="button" className="event-open" onClick={() => inspectStoredEvent(item.id)}>
+                  <b>{item.date}{item.start ? ` · ${item.start}` : ""}</b>
+                  <span>{item.title}</span>
+                  {item.addedBy === "agent" && <em className="agent-chip">Agent</em>}
+                </button>
+              </li>)}
+            </ul>}
+            {upcomingEvents.length > eventsShown && <button className="text-button show-more" type="button" onClick={() => setEventsShown((current) => current + 8)}>Show {Math.min(8, upcomingEvents.length - eventsShown)} more</button>}
+          </>}
         </aside>
       </div>
     </div>

@@ -112,7 +112,6 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
         </div>
         {error && <p className="form-error onboarding-error" role="alert">{error}</p>}
         <button className="primary-button onboarding-submit" type="submit" disabled={busy}>{busy ? "Setting up…" : "Enter my workspace"}</button>
-        <p className="onboarding-privacy">Nothing here is sent to your university, and no sample data is preloaded.</p>
       </form>
     </div>
   </main>

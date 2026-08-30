@@ -112,20 +112,23 @@ export const calendarEventsForRange = (workspace: WorkspaceState, catalog: Catal
   for (const opportunity of opportunities) {
     if (!interested.has(opportunity.id)) continue
     for (const dated of opportunity.dates ?? []) {
-      if (within(dated.date, from, to)) events.push({ id: `CLUB-${opportunity.id}-${dated.date}-${dated.label.slice(0, 12)}`, date: dated.date, title: `${opportunity.name}: ${dated.label}`, kind: "club" })
+      if (within(dated.date, from, to)) events.push({ id: `CLUB-${opportunity.id}-${dated.date}-${dated.label.slice(0, 12)}`, date: dated.date, start: dated.start, end: dated.end, title: `${opportunity.name}: ${dated.label}`, kind: "club" })
     }
   }
 
   for (const activity of workspace.activities ?? []) {
+    // A joined club is an activity linked to its directory entry; everything
+    // it puts on the calendar reads as that club, name first.
+    const activityKind = activity.kind === "club" ? "club" as const : "activity" as const
     if (activity.schedule) {
       const start = activity.startDate ?? from
       const end = activity.endDate ?? to
       for (const date of recurringDays(activity.schedule.days, start, end, from, to)) {
-        events.push({ id: `ACTIVITY-${activity.id}-${date}`, date, start: activity.schedule.start, end: activity.schedule.end, title: activity.name, detail: activity.schedule.location, kind: "activity" })
+        events.push({ id: `ACTIVITY-${activity.id}-${date}`, date, start: activity.schedule.start, end: activity.schedule.end, title: activity.name, detail: activity.schedule.location, kind: activityKind })
       }
     }
     for (const dated of activity.dates ?? []) {
-      if (within(dated.date, from, to)) events.push({ id: `ACTIVITY-${activity.id}-${dated.date}-${dated.label.slice(0, 12)}`, date: dated.date, title: `${activity.name}: ${dated.label}`, kind: "activity" })
+      if (within(dated.date, from, to)) events.push({ id: `ACTIVITY-${activity.id}-${dated.date}-${dated.label.slice(0, 12)}`, date: dated.date, start: dated.start, end: dated.end, title: `${activity.name}: ${dated.label}`, kind: activityKind })
     }
   }
 

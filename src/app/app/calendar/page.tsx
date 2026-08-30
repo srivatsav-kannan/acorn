@@ -1,3 +1,3 @@
-import { CalendarPage } from "@/features/calendar/calendar-page"
+import { redirect } from "next/navigation"
 
-export default function Page() { return <CalendarPage /> }
+export default function Page() { redirect("/app") }
