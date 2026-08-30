@@ -37,7 +37,6 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
     <section className="auth-card">
       <header>
         <h1>Log in</h1>
-        <p>Your workspace and everything in it lives behind your account.</p>
       </header>
       <form className="email-login-form" onSubmit={submit}>
         <label htmlFor="email">Email</label>
