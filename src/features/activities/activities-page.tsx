@@ -147,7 +147,7 @@ export const ActivitiesPage = () => {
       <div className="club-card-top">
         <span className={`kind-chip ${activity.kind === "club" ? "club" : activity.kind === "research" ? "research" : "program"}`}>{activity.kind}</span>
         {hours > 0 && <span className="hours-chip">{hours} h/wk</span>}
-        {activity.units ? <span className="hours-chip">{activity.units} units</span> : null}
+        {activity.units ? <span className="hours-chip">{activity.units} unit{activity.units === 1 ? "" : "s"}</span> : null}
         {activity.addedBy === "agent" && <span className="agent-chip">Agent</span>}
       </div>
       <h3>{activity.name}</h3>

@@ -124,7 +124,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
     // and a stale in-memory workspace is worse than a short extra wait.
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const response = await fetch("/api/workspace", { cache: "no-store", signal: AbortSignal.timeout(10000) })
+        const response = await fetch("/api/workspace", { cache: "no-store", signal: AbortSignal.timeout(6000) })
         if (!response.ok) throw new Error(`Reload failed with status ${response.status}`)
         const payload = await response.json() as { workspace: WorkspaceState }
         repository.replaceWorkspace(payload.workspace)

@@ -76,7 +76,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
     }
     if (current === "courses") {
       const interested = (workspace.interestedCourseIds ?? []).map((id) => `- ${code(id)}: ${courseById.get(id)?.title ?? "unknown"}${workspace.courseIntents?.[id] ? ` (intended ${termLabel(workspace.courseIntents[id])})` : ""} \`${id}\``)
-      blocks.push([`## Course tracker (${interested.length} interested)`, ...(interested.length ? interested : ["Nothing marked interested yet."])].join("\n"))
+      blocks.push([`## Course tracker (${interested.length} courses interested; clubs counted in their own section)`, ...(interested.length ? interested : ["Nothing marked interested yet."])].join("\n"))
       const noted = Object.entries(workspace.courseNotes ?? {}).filter(([, notes]) => notes.length > 0)
       for (const [courseId, notes] of noted) {
         blocks.push([`### Notes on ${code(courseId)} \`${courseId}\``, ...notes.map((note) => `- (${note.author}) ${note.text} \`${note.id}\``)].join("\n"))
@@ -112,7 +112,7 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       for (const activity of activities) {
         blocks.push([
           `### ${activity.name} \`${activity.id}\``,
-          `${activity.kind}${activity.opportunityId ? ` (joined \`${activity.opportunityId}\`)` : ""}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}${activity.schedule.location ? ` at ${activity.schedule.location}` : ""}` : ""}${activity.units ? `, ${activity.units} units` : ""}.`,
+          `${activity.kind}${activity.opportunityId ? ` (joined \`${activity.opportunityId}\`)` : ""}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}${activity.schedule.location ? ` at ${activity.schedule.location}` : ""}` : ""}${activity.units ? `, ${activity.units} unit${activity.units === 1 ? "" : "s"}` : ""}.`,
           activity.startDate || activity.endDate ? `Runs ${activity.startDate ?? "now"} to ${activity.endDate ?? "open-ended"}.` : "",
           activity.detail ?? "",
           activity.notes ? `Notes: ${activity.notes}` : "",

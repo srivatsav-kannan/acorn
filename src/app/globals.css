@@ -161,7 +161,7 @@ input, select, textarea { accent-color: var(--cardinal); }
 /* ---------- Calendar ---------- */
 .calendar-heading p { font-size: 16px !important; font-weight: 700; color: var(--gold-deep) !important; }
 .calendar-controls { display: flex; gap: 8px; }
-.calendar-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; align-items: start; }
+.calendar-layout { display: grid; grid-template-columns: minmax(0, 1fr) 344px; gap: 16px; align-items: start; }
 .calendar-panel { overflow: hidden; }
 .calendar-weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 2px solid var(--border); background: var(--tan); }
 .calendar-weekday-row span { padding: 8px 10px; font-size: 11.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -367,9 +367,12 @@ input, select, textarea { accent-color: var(--cardinal); }
 .club-card h3 { margin: 0 0 6px; font-size: 18px; }
 .club-card > p { flex: 1; margin: 0 0 10px; color: #5a4536; font-size: 14px; line-height: 1.55; }
 .club-facts { display: grid; gap: 4px; margin: 0 0 10px; }
-.club-facts div { display: flex; gap: 8px; font-size: 13px; }
-.club-facts dt { color: var(--muted); font-weight: 700; }
-.club-facts dd { margin: 0; font-weight: 700; }
+.club-facts div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 13px; }
+.club-facts dt { flex: 0 0 auto; color: var(--muted); font-weight: 700; }
+.club-facts dd { flex: 1 1 auto; min-width: 0; margin: 0; font-weight: 700; }
+.club-facts dd .text-button { white-space: nowrap; }
+.club-card-actions { flex-wrap: wrap; }
+.club-card-actions .text-button, .cat-row-actions .chip-button { white-space: nowrap; }
 .club-card-actions { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1.5px solid var(--line); }
 .reference-diff { margin: 0 0 10px; padding: 10px 12px; border: 1.5px dashed var(--gold-deep); border-radius: 10px; background: #fcf3df; }
 .reference-diff > b { display: block; margin-bottom: 6px; font-size: 12.5px; }
