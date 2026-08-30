@@ -42,6 +42,7 @@ const pageForPath = (pathname: string | null) => {
 export const AppShell = ({ activePage, quarter = "", children, activity, onUndo }: { activePage?: string, quarter?: string, children: ReactNode, activity?: ActivityEntry[], onUndo?: (receiptId: string) => void }) => {
   const [activityOpen, setActivityOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [veil, setVeil] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [mobile, setMobile] = useState(false)
   const pathname = usePathname()
@@ -63,6 +64,18 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
     media.addEventListener("change", update)
     return () => media.removeEventListener("change", update)
   }, [])
+  // A commit that takes real time gets a visible veil: the page dims, a
+  // spinner names what is happening, and clicks wait instead of stacking
+  // more mutations behind the one in flight. Sub-350ms saves never flash it.
+  const saveState = workspaceValue?.saveState
+  useEffect(() => {
+    if (saveState !== "saving") {
+      const timer = window.setTimeout(() => setVeil(false), 0)
+      return () => window.clearTimeout(timer)
+    }
+    const timer = window.setTimeout(() => setVeil(true), 350)
+    return () => window.clearTimeout(timer)
+  }, [saveState])
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -90,7 +103,7 @@ export const AppShell = ({ activePage, quarter = "", children, activity, onUndo 
         <Link className={activeKey === "profile" ? "avatar-button active" : "avatar-button"} href="/app/profile" aria-label="Account">{initials}</Link>
       </div>
     </header>
-    <main id="workspace-content" className="workspace-main">{children}</main>
+    <main id="workspace-content" className="workspace-main" aria-busy={veil}>{children}{veil && <div className="save-veil" role="status"><span className="save-veil-pill"><AcornSquirrelMark className="save-veil-mark" />Saving your change</span></div>}</main>
     {mobile && <nav className="mobile-nav" aria-label="Mobile">
       {[...navigation, ["Profile", "/app/profile", "profile"] as const].map(([name, href, key]) => <Link key={key} className={activeKey === key ? "active" : ""} href={href} aria-label={name}><span aria-hidden="true">{mobileGlyph(key)}</span><span aria-hidden="true">{name}</span></Link>)}
     </nav>}

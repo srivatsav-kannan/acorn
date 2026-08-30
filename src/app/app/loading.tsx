@@ -1,3 +1,3 @@
-import { ShellSkeleton } from "@/components/shell-skeleton"
+import { CalendarSkeleton } from "@/components/skeletons"
 
-export default function Loading() { return <ShellSkeleton /> }
+export default function Loading() { return <CalendarSkeleton /> }

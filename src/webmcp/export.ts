@@ -112,10 +112,11 @@ export const exportBlocks = (workspace: WorkspaceState, catalog: Catalog, opport
       for (const activity of activities) {
         blocks.push([
           `### ${activity.name} \`${activity.id}\``,
-          `${activity.kind}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}${activity.schedule.location ? ` at ${activity.schedule.location}` : ""}` : ""}.`,
+          `${activity.kind}${activity.opportunityId ? ` (joined \`${activity.opportunityId}\`)` : ""}${activity.organizer ? ` with ${activity.organizer}` : ""}${activity.schedule ? `, ${activity.schedule.days.join("/")} ${activity.schedule.start} to ${activity.schedule.end}${activity.schedule.location ? ` at ${activity.schedule.location}` : ""}` : ""}${activity.units ? `, ${activity.units} units` : ""}.`,
           activity.startDate || activity.endDate ? `Runs ${activity.startDate ?? "now"} to ${activity.endDate ?? "open-ended"}.` : "",
           activity.detail ?? "",
-          ...(activity.dates?.length ? [`Dates: ${activity.dates.map((dated) => `${dated.date} ${dated.label}`).join("; ")}`] : [])
+          activity.notes ? `Notes: ${activity.notes}` : "",
+          ...(activity.dates?.length ? [`Dates: ${activity.dates.map((dated) => `${dated.date}${dated.start ? ` ${dated.start}${dated.end ? ` to ${dated.end}` : ""}` : ""} ${dated.label}`).join("; ")}`] : [])
         ].filter(Boolean).join("\n"))
       }
     }
