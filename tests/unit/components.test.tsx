@@ -50,7 +50,7 @@ describe("public product surfaces", () => {
     for (const link of starts) expect(link).toHaveAttribute("href", "/signup")
     expect(screen.getByRole("link", { name: /log in/i })).toBeVisible()
     expect(screen.getByRole("heading", { name: /braindump, get a schedule/i })).toBeVisible()
-    expect(screen.getByRole("heading", { name: /tired of re-explaining yourself/i })).toBeVisible()
+    expect(screen.getByRole("heading", { name: /does your agent forget/i })).toBeVisible()
     expect(screen.getByText(/twenty-two real tools/i)).toBeVisible()
     expect(screen.getByText(/not affiliated with stanford/i)).toBeVisible()
   })

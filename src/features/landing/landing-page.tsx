@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { AcornSquirrelMark } from "@/components/icons"
+import { AcornMark, AcornSquirrelMark } from "@/components/icons"
 import { Reveal } from "@/components/reveal"
+import { UseCaseCarousel } from "@/features/landing/use-case-carousel"
 import { stanfordCatalogMeta } from "@/data/institutions/stanford"
 
 const readTools: Array<[string, string]> = [
@@ -31,6 +32,23 @@ const writeTools: Array<[string, string]> = [
   ["manage_goal", "Goals with milestones linked to todos."]
 ]
 
+// A dozen little acorns drifting down behind the page, deterministic so the
+// server and client render the same rain.
+const acornRain: Array<{ left: number, size: number, delay: number, duration: number, tilt: number }> = [
+  { left: 4, size: 20, delay: 0, duration: 46, tilt: -14 },
+  { left: 12, size: 15, delay: 11, duration: 58, tilt: 22 },
+  { left: 21, size: 24, delay: 24, duration: 41, tilt: 8 },
+  { left: 30, size: 14, delay: 5, duration: 63, tilt: -28 },
+  { left: 38, size: 18, delay: 31, duration: 49, tilt: 15 },
+  { left: 47, size: 13, delay: 17, duration: 66, tilt: -8 },
+  { left: 55, size: 22, delay: 38, duration: 44, tilt: 30 },
+  { left: 63, size: 16, delay: 8, duration: 57, tilt: -20 },
+  { left: 71, size: 20, delay: 27, duration: 52, tilt: 12 },
+  { left: 79, size: 14, delay: 44, duration: 61, tilt: -16 },
+  { left: 87, size: 23, delay: 14, duration: 47, tilt: 25 },
+  { left: 94, size: 16, delay: 34, duration: 55, tilt: -10 }
+]
+
 const importedOn = new Date(stanfordCatalogMeta.retrievedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
 
 export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
@@ -38,10 +56,9 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
   const enterLabel = signedIn ? "Open your workspace" : "Start planning"
 
   return <main className="public-page">
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img className="landing-mark landing-mark-hero" src="/acorn-squirrel-mark.png" alt="" aria-hidden="true" />
-    {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img className="landing-mark landing-mark-low" src="/acorn-squirrel-mark.png" alt="" aria-hidden="true" />
+    <div className="acorn-rain" aria-hidden="true">
+      {acornRain.map((drop, index) => <span key={index} style={{ left: `${drop.left}%`, width: drop.size, animationDelay: `${drop.delay * -1}s`, animationDuration: `${drop.duration}s`, ["--tilt" as string]: `${drop.tilt}deg` }}><AcornMark width={drop.size} height={drop.size} /></span>)}
+    </div>
     <header className="public-header">
       <Link className="wordmark" href="/"><AcornSquirrelMark className="wordmark-acorn" />Acorn</Link>
       <nav aria-label="Public">
@@ -52,47 +69,21 @@ export const LandingPage = ({ signedIn = false }: { signedIn?: boolean }) => {
       </nav>
     </header>
 
-    <section className="hero">
+    <section id="premise" className="hero">
       <h1>Plan every quarter to graduation in a workspace <em>your agent</em> shares.</h1>
-      <p className="hero-lead">Your courses, constraints, clubs, and the reasons behind each choice live in one place, and your agent works on the same plan you see through twenty-two WebMCP tools. Whatever it changes lands on your calendar with a receipt you can undo.</p>
+      <p className="hero-lead">Acorn is one workspace where you and your agent plan your Stanford degree together, on top of all {stanfordCatalogMeta.courses.toLocaleString()} courses in the {stanfordCatalogMeta.academicYear} catalog. Your constraints and your reasoning stay put between chats, and anything the agent changes, you can see and undo.</p>
       <div className="hero-actions">
         <Link className="primary-button" href={enterHref}>{enterLabel}</Link>
         <a className="secondary-button" href="#agents">How agents work here</a>
       </div>
     </section>
 
-    <Reveal><section className="use-band" aria-label="What this is for">
-      <article>
-        <h2>Braindump, get a schedule.</h2>
-        <p>Tell your agent everything at once: the hard constraints, the maybes, the club your roommate keeps mentioning. It files each piece where it belongs and hands back a quarter that actually fits.</p>
-      </article>
-      <article>
-        <h2>Tired of re-explaining yourself?</h2>
-        <p>A chat forgets the moment it ends. This workspace holds your plan, your history, and the why behind both, so every new conversation starts already caught up.</p>
-      </article>
-      <article>
-        <h2>See everything it does.</h2>
-        <p>Agent edits land on the same calendar and plan you use, each one attributed and inspectable, and one click reverses anything you disagree with.</p>
-      </article>
-    </section></Reveal>
-
-    <section id="premise" className="principles">
-      <Reveal><article>
-        <span>01</span>
-        <h2>Your context stays where you can see it.</h2>
-        <p>Preferences, sources, open questions, and decisions live in the workspace itself, so the research behind a choice is still attached a quarter later. A genuine gap becomes a visible open question either of you can resolve.</p>
-      </article></Reveal>
-      <Reveal><article>
-        <span>02</span>
-        <h2>You and your agent edit through the same commands.</h2>
-        <p>A click in the interface and an agent tool call run the same command with the same validation, the same receipt, and the same undo. The ledger records who changed what, so you can hand over real editing power and still reverse any outcome.</p>
-      </article></Reveal>
-    </section>
+    <Reveal><UseCaseCarousel /></Reveal>
 
     <Reveal><section id="agents" className="webmcp-band">
       <div>
         <h2>Agents get twenty-two real tools.</h2>
-        <p>The page registers its tools directly through WebMCP, so an agent beside you searches your saved context, checks a plan against the engine, and files research with its sources. Its calls run through the same commands as your clicks, which is why every edit arrives attributed and undoable.</p>
+        <p>The page registers them straight into the browser through WebMCP. An agent working next to you searches your saved context, runs the same schedule checks you see, and files its research with sources attached. Its calls go through the same commands as your clicks, which is why everything it does shows up with a receipt you can reverse.</p>
       </div>
       <div className="tool-manifest">
         <header><b>Registered tools</b><span>document.modelContext</span></header>
