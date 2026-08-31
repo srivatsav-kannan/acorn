@@ -1,6 +1,6 @@
 # Demo video screenplay
 
-Target 2:55. About 300 spoken words, which is 2:10 of talking at a natural pace, so the voice never races the screen. Record the screen first, then record the voice over the edit. That is much easier than narrating live.
+Target 2:55. About 300 spoken words. Narrated live while recording: mic on in the screen recorder, quiet room, consistent distance. The written lines are talking points, spoken close to written for the WebMCP sentence in scene 4. Flub protocol: stop, two seconds of silence, redo the sentence from its start, keep going. Stay silent during agent waits, since those stretches get cut.
 
 ## Prep, not recorded
 
