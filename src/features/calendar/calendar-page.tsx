@@ -210,7 +210,7 @@ export const CalendarPage = () => {
   </form>
 
   const inspector = () => {
-    if (!inspection) return <p className="muted inspector-empty">Click a day, or any single entry, and its summary lands here.</p>
+    if (!inspection) return <p className="muted inspector-empty">Click a day or any entry to see its details here.</p>
     if (inspection.kind === "day") {
       const dayEvents = eventsByDay.get(inspection.date) ?? []
       return <>
