@@ -7,7 +7,8 @@ Target 2:55. About 300 spoken words, which is 2:10 of talking at a natural pace,
 - Julia logged in, in one window. The signup page ready in another.
 - Record inside ChatGPT's browser (or Chrome with WebMCP enabled) for scenes 4 to 6, chat panel visible beside the page so the tool calls are on screen.
 - Record all agent waits in full. Cut them to a beat in the edit. This is where the runtime hides: raw footage will be 5 or 6 minutes, the cut is 2:55.
-- Password stays masked. Do one dry run of the prompts first so nothing surprises you on camera.
+- Password stays masked.
+- The prompts were dry-run against production through a real agent. Two things it taught us: without CS 106A marked done, the agent rightly refuses to schedule CS 106B over its prerequisite (the prompt now handles that), and with only two courses the final week looks thin (the schedule prompt now adds COLLEGE 101).
 
 ## Scene 1, 0:00 to 0:22. Julia's September, month view. Slow scroll, nothing else.
 
@@ -23,7 +24,7 @@ Target 2:55. About 300 spoken words, which is 2:10 of talking at a natural pace,
 
 ## Scene 4, 1:05 to 1:45. The braindump. Type to the agent:
 
-"I'm Srivatsav, an incoming freshman. I'm into AI, healthcare, and startups. I want a research assistant spot by spring, and I lift in the mornings, so no classes before 10. Put all of that in my workspace, and mark CS 106B and MATH 51 as courses I'm interested in for autumn."
+"I'm Srivatsav, an incoming freshman. I'm into AI, healthcare, and startups. I want a research assistant spot by spring, and I lift in the mornings, so no classes before 10. Put all of that in my workspace. I'm past the intro programming class, so mark CS 106A as already done, and mark CS 106B and MATH 51 as courses I'm interested in for autumn."
 
 While the tools fire, flip once to Scratchpad (the goal appears) and Academics (the interests appear).
 
@@ -37,7 +38,7 @@ While the tools fire, flip once to Scratchpad (the goal appears) and Academics (
 
 ## Scene 6, 2:08 to 2:42. The schedule. Ask:
 
-"Build my autumn schedule around all of that. Real sections only."
+"Build my autumn schedule around all of that, and add COLLEGE 101 since every frosh takes it. Real sections only."
 
 Let the tools fire, then go to Week view and hold on the filled grid. Click one class block so the inspector opens on its real time.
 
