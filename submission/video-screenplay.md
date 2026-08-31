@@ -24,17 +24,17 @@ Target 2:55. About 300 spoken words, which is 2:10 of talking at a natural pace,
 
 ## Scene 4, 1:05 to 1:45. The braindump. Type to the agent:
 
-"I'm Srivatsav, an incoming freshman. I'm into AI, healthcare, and startups. I want a research assistant spot by spring, and I lift in the mornings, so no classes before 10. Put all of that in my workspace. I'm past the intro programming class, so mark CS 106A as already done, and mark CS 106B and MATH 51 as courses I'm interested in for autumn."
+"I'm Srivatsav, an incoming freshman. I work on healthcare AI, I've built and deployed medical models before, and I run a startup on the side. My main goal this year is a research assistant spot in a health AI lab by spring, CURIS or Bio-X or AIMI. I lift in the mornings, so no classes before 10. Put all of that in my workspace. I'm past the intro programming class, so mark CS 106A as already done, mark CS 106B and MATH 51 as interested for autumn, and mark me interested in the health AI research programs you find in the directory."
 
 While the tools fire, flip once to Scratchpad (the goal appears) and Academics (the interests appear).
 
 > Instead of filling out forms, I just talk to my agent. The page hands it twenty-two real tools through WebMCP, so it uses the app the same way I do, writing to the same workspace my clicks write to. I tell it my interests, my goals, my no-mornings rule, and by the time it's done, all of that is in my workspace.
 
-## Scene 5, 1:45 to 2:08. Both ways. Go to Activities yourself, Add your own: a club with a weekly Thursday 18:00 meeting. Show it on the calendar. Then ask:
+## Scene 5, 1:45 to 2:08. Both ways. Go to Activities yourself, Add your own: Name "Upround", kind job, With "Jeremy", weekly Thursday 18:00 to 20:00. Show it on the calendar. Then ask:
 
 "What does my Thursday look like now?"
 
-> And this is the part I care about most: it works both ways. I add a club myself, with its Thursday meeting, and it shows up on the calendar right away. When I ask my agent about my Thursday, it already knows, because we're reading and writing the same context.
+> And this is the part I care about most: it works both ways. I add my startup myself, with its Thursday work block, and it shows up on the calendar right away. When I ask my agent about my Thursday, it already knows, because we're reading and writing the same context.
 
 ## Scene 6, 2:08 to 2:42. The schedule. Ask:
 
