@@ -18,6 +18,6 @@ Still Sri's to do, in order:
 
 1. Country of residence on Additional info (eligibility answer, left blank on purpose).
 2. Demo video: record under 3 minutes, upload, paste the link into Video demo link on Project details. Required to submit.
-3. Fresh demo profile for the video and for the judges, then drop its credentials into the testing instructions box.
+3. Done: the judging workspace (Julia Reyes, seeded human and agent history) with credentials in the Devpost testing box.
 4. Optional gallery images on Project details.
 5. Press Submit. Nothing has been submitted.
