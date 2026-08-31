@@ -12,7 +12,7 @@ Target 2:55. About 300 spoken words. Narrated live while recording: mic on in th
 
 ## Scene 1, 0:00 to 0:22. Julia's September, month view. Slow scroll, nothing else.
 
-> Hey, I'm Srivatsav, I'm an incoming freshman at Stanford, and this is Acorn. I built it because trying to plan my freshman year with AI was driving me crazy. Every chat started from zero, it couldn't get around the actual Stanford sites, and I was the one copy-pasting my own context back in every single time. So Acorn is one workspace me and my agent share, and nothing gets lost between chats.
+> Hi, I am Srivatsav, and the platform that I've built is Acorn, a planning workspace for Stanford students. Really I built this for myself, because I noticed that my agents were much worse at planning my incoming quarter compared to even the most complicated technical task. Mostly cuz of how browsing and context management worked. WebMCP seemed like the best framework to change this.
 
 ## Scene 2, 0:22 to 0:47. Julia flythrough. Week view 5s, Academics 4s, Activities 4s, Scratchpad 4s, Activity panel 4s.
 
