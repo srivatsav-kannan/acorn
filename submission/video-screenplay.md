@@ -12,7 +12,7 @@ Target 2:55. About 300 spoken words. Narrated live while recording: mic on in th
 
 ## Scene 1, 0:00 to 0:22. Julia's September, month view. Slow scroll, nothing else.
 
-> This summer I used the same models to build my startup and to plan my freshman year at Stanford, and the divergence hit me in the face. The model that built my whole backend could not get through Axess without misclicking, and it forgot me in seconds. The problem was context and browsing. So I built Acorn, a planning workspace you and your agent share.
+> Hey, I'm Srivatsav, I'm an incoming freshman at Stanford, and this is Acorn. I built it because the same model that builds entire backends for my startup couldn't plan my freshman year. It misclicked around Axess, it read stale forums, and it forgot everything about me in seconds. The problem was context and browsing. So Acorn gives me and my agent one workspace we both read and write.
 
 ## Scene 2, 0:22 to 0:47. Julia flythrough. Week view 5s, Academics 4s, Activities 4s, Scratchpad 4s, Activity panel 4s.
 
