@@ -14,11 +14,29 @@ Target 2:55. About 300 spoken words. Narrated live while recording: mic on in th
 
 > Hi, I am Srivatsav, and the platform that I've built is Acorn, a planning workspace for Stanford students. Really I built this for myself, because I noticed that my agents were much worse at planning my incoming quarter compared to even the most complicated technical task. Mostly cuz of how browsing and context management worked. WebMCP seemed like the best framework to change this.
 
-## Scene 2, 0:22 to 0:47. Julia flythrough. Week view 5s, Academics 4s, Activities 4s, Scratchpad 4s, Activity panel 4s.
+## Scene 2, 0:22 to 0:52. Julia flythrough, narrated against what is on screen.
 
-> So this is Julia. She's a sample account, a workspace that's actually been lived in. Here's her week, and you can see her agent picked sections around her ballet rehearsals and the Friday work shift she blocked off. Her clubs drop their meetings straight onto the calendar, and this activity log right here shows what she did versus what her agent did.
+Click Week view, hold about 10s:
 
-## Scene 3, 0:47 to 1:05. From scratch. Sign up, then onboarding: Name "Srivatsav Kannan", University Stanford, Entered 2026, Graduating 2030, Enter my workspace. Hold on the empty calendar.
+> This is Julia, she's our sample student. This is her actual week: econ in the mornings, Ballet One at 11:30, poli sci after lunch, her frosh seminar at 3. And see this blocked-off chunk on Friday? That's her work-study shift. Her agent scheduled everything around it, it even put her econ discussion right after the shift ends.
+
+Click Academics, about 7s:
+
+> Here's her quarter: fourteen units, the AP credit she came in with, and the courses she's eyeing for winter.
+
+Click Activities, about 4s:
+
+> Her clubs, with real rehearsal times.
+
+Click Scratchpad, about 5s:
+
+> Her quick notes, typos and all, next to the goal her agent broke into milestones.
+
+Open the Activity panel, about 4s:
+
+> And every change in here is logged, hers and her agent's.
+
+## Scene 3, 0:52 to 1:08. From scratch. Sign up, then onboarding: Name "Srivatsav Kannan", University Stanford, Entered 2026, Graduating 2030, Enter my workspace. Hold on the empty calendar.
 
 > Okay, now let me make mine from scratch. Onboarding is literally my name and three timeline facts, that's it, and I'm in. Empty workspace.
 
