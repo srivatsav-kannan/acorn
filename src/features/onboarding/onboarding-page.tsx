@@ -75,7 +75,7 @@ export const OnboardingPage = ({ browserWorkspace = false }: { browserWorkspace?
     <div className="onboarding-center">
       <form className="onboarding-facts-card" onSubmit={(event) => { event.preventDefault(); void finish() }}>
         <h1>Set up your workspace</h1>
-        <p>Your name and three timeline facts get you started. Everything else, from AP credit to course history, can be added inside at any time by you or by your agent.</p>
+        <p>Just your name, your school, and your years, and you're in. You or your agent can add everything else inside.</p>
         {existingWorkspace && <p className="onboarding-existing" role="status">This browser already holds a workspace. <Link href="/app">Open it</Link> instead, or continue below to replace it.</p>}
         <label>
           <span>Name</span>
