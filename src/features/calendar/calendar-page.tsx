@@ -187,7 +187,7 @@ export const CalendarPage = () => {
     <div className="kind-toggle-row" role="radiogroup" aria-label="What to add">
       {([["event", "Event"], ["todo", "Todo"], ["club", "Club event"]] as const).map(([kind, label]) => <button key={kind} type="button" role="radio" aria-checked={composer.kind === kind} className={composer.kind === kind ? "day-toggle active" : "day-toggle"} onClick={() => setComposer({ ...composer, kind })}>{label}</button>)}
     </div>
-    {composer.kind === "club" && (joinedClubs.length === 0 ? <p className="add-form-note">Join a club on the activities page first, then its events can go here.</p> : <label>Club<select value={composer.activityId} onChange={(event) => setComposer({ ...composer, activityId: event.target.value })}>{joinedClubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}</select></label>)}
+    {composer.kind === "club" && (joinedClubs.length === 0 ? <p className="add-form-note">Join a club in Activities first.</p> : <label>Club<select value={composer.activityId} onChange={(event) => setComposer({ ...composer, activityId: event.target.value })}>{joinedClubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}</select></label>)}
     <input aria-label="Title" placeholder={composer.kind === "todo" ? "What needs doing" : "What is happening"} value={composer.title} onChange={(event) => setComposer({ ...composer, title: event.target.value })} maxLength={100} required />
     <div className="add-form-row">
       <label>Date<input type="date" value={composer.date} onChange={(event) => setComposer({ ...composer, date: event.target.value })} required /></label>
@@ -206,11 +206,11 @@ export const CalendarPage = () => {
     </select>}
     {composer.kind !== "club" && <textarea aria-label="Details" rows={2} placeholder="Details (optional)" value={composer.detail} onChange={(event) => setComposer({ ...composer, detail: event.target.value })} maxLength={600} />}
     <button className="primary-button small" type="submit" disabled={!composer.title.trim() || (composer.kind === "club" && !composer.activityId)}>{composer.kind === "todo" ? "Add todo" : composer.kind === "club" ? "Add club event" : "Add event"}</button>
-    <p className="add-form-note">Classes come from your plan in Academics. Weekly meetings for clubs and activities live in Activities.</p>
+    <p className="add-form-note">Classes come from Academics. Weekly club meetings come from Activities.</p>
   </form>
 
   const inspector = () => {
-    if (!inspection) return <p className="muted inspector-empty">Click a day or any entry to see its details here.</p>
+    if (!inspection) return null
     if (inspection.kind === "day") {
       const dayEvents = eventsByDay.get(inspection.date) ?? []
       return <>
@@ -322,7 +322,7 @@ export const CalendarPage = () => {
             <button className="secondary-button small" type="button" onClick={() => openComposer(todayIso)}>Add</button>
           </div>
           {upcomingTab === "todos" && <>
-            {openTodos.length === 0 ? <p className="muted side-empty">Nothing open. Add one from any day, or from the button above.</p> : <ul className="todo-list">
+            {openTodos.length === 0 ? <p className="muted side-empty">Nothing open.</p> : <ul className="todo-list">
               {openTodos.slice(0, todosShown).map((todo) => <li key={todo.id}>
                 <label>
                   <input type="checkbox" checked={false} onChange={() => void value.onCommand({ type: "manage_todo", action: "toggle", todoId: todo.id })} aria-label={`Complete ${todo.title}`} />
@@ -343,7 +343,7 @@ export const CalendarPage = () => {
             </details>}
           </>}
           {upcomingTab === "events" && <>
-            {upcoming.length === 0 ? <p className="muted side-empty">Interviews, club events, deadlines, Stanford dates: everything dated in the next six months lives here.</p> : <ul className="side-event-list">
+            {upcoming.length === 0 ? <p className="muted side-empty">Nothing in the next six months.</p> : <ul className="side-event-list">
               {upcoming.slice(0, eventsShown).map((item) => <li key={item.id}>
                 <button type="button" className="event-open" onClick={() => item.kind === "event" && item.sourceId ? inspectStoredEvent(item.sourceId) : inspectEntry(item)}>
                   <b>{item.date}{item.start ? ` · ${item.start}` : ""}</b>

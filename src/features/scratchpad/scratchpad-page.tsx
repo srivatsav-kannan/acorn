@@ -98,7 +98,7 @@ export const ScratchpadPage = () => {
       </div>
       <div className="goals-note">
         <span className="field-label">The goal, in your own words</span>
-        {goalDraft === null ? <button className="goals-note-view" type="button" onClick={() => setGoalDraft(profile.summary)}>{profile.summary || "What are you actually trying to get out of these four years? Click to write it down."}</button> : <div className="goals-note-edit">
+        {goalDraft === null ? <button className="goals-note-view" type="button" onClick={() => setGoalDraft(profile.summary)}>{profile.summary || "Click to set your goal."}</button> : <div className="goals-note-edit">
           <textarea aria-label="Goal note" rows={3} value={goalDraft} onChange={(event) => setGoalDraft(event.target.value)} maxLength={1200} autoFocus />
           <div className="form-row-actions"><button className="secondary-button small" type="button" onClick={() => setGoalDraft(null)}>Cancel</button><button className="primary-button small" type="button" onClick={() => void saveGoal()}>Save goal</button></div>
         </div>}
@@ -119,7 +119,7 @@ export const ScratchpadPage = () => {
       <input aria-label="Search the scratchpad" placeholder="Search notes" value={query} onChange={(event) => setQuery(event.target.value)} />
     </div>
 
-    {visible.length === 0 ? <div className="empty-card"><strong>Nothing here yet</strong><p>Jot the first thing above, or let your agent file what it learns with ingest_context.</p></div> : <div className="scratch-grid">
+    {visible.length === 0 ? <div className="empty-card"><strong>Nothing here yet</strong><p>Jot the first thing above.</p></div> : <div className="scratch-grid">
       {visible.map((item) => <article className="scratch-card" key={item.id}>
         {editingId === item.id ? <div className="scratch-edit">
           <input aria-label="Note title" value={editTitle} onChange={(event) => setEditTitle(event.target.value)} maxLength={80} />

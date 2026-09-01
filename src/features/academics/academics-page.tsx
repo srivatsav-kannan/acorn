@@ -224,7 +224,7 @@ export const AcademicsPage = () => {
             <button className="secondary-button small" type="button" onClick={() => cycleTerm(1)} aria-label="Next quarter">→</button>
             <span className="unit-total">{plannedUnits} units</span>
           </div>
-          {!scenario || scenario.courses.length === 0 ? <p className="muted plan-empty-note">Nothing planned for {termLabel(planTermId)} yet. Pick a course from the catalog on the right and its meetings land on the calendar.</p> : <ul className="plan-box-list">
+          {!scenario || scenario.courses.length === 0 ? <p className="muted plan-empty-note">Nothing planned for {termLabel(planTermId)} yet.</p> : <ul className="plan-box-list">
             {scenario.courses.map((item) => {
               const course = value.catalog.courses.find((candidate) => candidate.id === item.courseId)
               const notes = workspace.courseNotes?.[item.courseId] ?? []
@@ -320,7 +320,7 @@ export const AcademicsPage = () => {
         {drawerCourse.prerequisites && drawerCourse.prerequisites.length > 0 && <div className="drawer-block"><h3>Prerequisites</h3><p>{drawerCourse.prerequisites.map((id) => value.catalog.courses.find((course) => course.id === id)?.code ?? id).join(", ")}</p></div>}
         <div className="drawer-block">
           <div className="section-heading"><h3>Sections</h3><button className="text-button" type="button" onClick={() => openFix()}>Add a section</button></div>
-          {allDrawerSections.length === 0 && !fixSection && <p className="muted">No stored sections this term. Add one from the official listing, or ask your agent to.</p>}
+          {allDrawerSections.length === 0 && !fixSection && <p className="muted">No stored sections this term.</p>}
           {drawerSections.length > 0 && <ul className="drawer-section-list">{drawerSections.map((section) => <li key={section.id}><b>{section.sectionNumber}</b><span>{section.meetings.map(describeMeeting).join("; ")}</span><button className="text-button" type="button" onClick={() => openFix(section)}>Fix times</button></li>)}</ul>}
           {allDrawerSections.length > 6 && <button className="text-button" type="button" onClick={() => setShowAllSections((current) => !current)}>{showAllSections ? "Show fewer" : `Show all ${allDrawerSections.length} sections`}</button>}
           {fixSection && <form className="add-form section-fix" onSubmit={(event) => { event.preventDefault(); void submitFix() }}>
@@ -347,12 +347,11 @@ export const AcademicsPage = () => {
               <button className="primary-button small" type="submit">Save correction</button>
               <button className="text-button" type="button" onClick={() => setFixSection(null)}>Cancel</button>
             </div>
-            <p className="muted add-form-note">Corrections replace the shipped listing in your workspace and are marked unverified until the agent or you re-verify them.</p>
+            <p className="muted add-form-note">Corrections replace the shipped listing and show as unverified.</p>
           </form>}
         </div>
         <div className="drawer-block">
           <h3>Notes</h3>
-          {drawerNotes.length === 0 && <p className="muted">Nothing yet. Impressions, warnings, and instructor gossip all belong here.</p>}
           <ul className="course-note-list">{drawerNotes.map((note) => <li key={note.id}><span className={`note-author ${note.author}`}>{note.author === "agent" ? "Agent" : "You"}</span><p>{note.text}</p><button className="text-button" type="button" onClick={() => void value.onCommand({ type: "annotate_course", courseId: drawerCourse.id, removeNoteId: note.id })} aria-label="Remove note">Remove</button></li>)}</ul>
           <div className="course-note-add"><textarea aria-label="Add a note" rows={2} placeholder="Seems heavy alongside MATH 51. RateMyProfessor is skeptical." value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={600} /><button className="primary-button small" type="button" onClick={() => void addNote()} disabled={!noteDraft.trim()}>Add note</button></div>
         </div>
