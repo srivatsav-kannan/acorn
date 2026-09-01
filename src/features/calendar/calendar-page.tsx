@@ -210,7 +210,7 @@ export const CalendarPage = () => {
   </form>
 
   const inspector = () => {
-    if (!inspection) return null
+    if (!inspection) return <p className="muted inspector-empty">Click a day or an entry to see it.</p>
     if (inspection.kind === "day") {
       const dayEvents = eventsByDay.get(inspection.date) ?? []
       return <>
