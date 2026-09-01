@@ -18,3 +18,8 @@ scripts/import-stanford/.cache/
 .claude/settings.local.json
 .vercel
 .env*
+
+# Vendored agent skills stay local
+.agents/
+.claude/skills/
+skills-lock.json
