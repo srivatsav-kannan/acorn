@@ -12,6 +12,7 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
   const [password, setPassword] = useState("")
   const [status, setStatus] = useState(initialStatus)
   const [busy, setBusy] = useState(false)
+  const [unconfirmed, setUnconfirmed] = useState(false)
   const configured = isSupabaseConfigured()
 
   const submit = async (event: FormEvent) => {
@@ -22,14 +23,27 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
     }
     setBusy(true)
     setStatus("")
+    setUnconfirmed(false)
     const { error } = await createCourseContextBrowserClient().auth.signInWithPassword({ email: email.trim(), password })
     if (error) {
-      setStatus(/confirm/i.test(error.message) ? "This email has not been confirmed yet. Open the confirmation link we sent, then log in." : /credentials/i.test(error.message) ? "That email and password do not match an account." : error.message)
+      const notConfirmed = /confirm/i.test(error.message)
+      setUnconfirmed(notConfirmed)
+      setStatus(notConfirmed ? "This email has not been confirmed yet. Open the confirmation link we sent, then log in." : /credentials/i.test(error.message) ? "That email and password do not match an account." : error.message)
       setBusy(false)
       return
     }
     router.replace(nextPath)
     router.refresh()
+  }
+
+  // The confirmation link is built from this page's origin so it comes back
+  // to the deployment the person is actually using.
+  const resendConfirmation = async () => {
+    setBusy(true)
+    const { error } = await createCourseContextBrowserClient().auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}` } })
+    setStatus(error ? error.message : `A new confirmation link is on its way to ${email.trim()}.`)
+    setUnconfirmed(false)
+    setBusy(false)
   }
 
   return <main className="auth-page">
@@ -44,9 +58,13 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
         <label htmlFor="password">Password</label>
         <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required disabled={!configured} />
         <button className="primary-button full auth-submit" type="submit" disabled={busy || !configured}>{busy ? "Logging in…" : "Log in"}</button>
+        <div className="auth-links">
+          <Link className="text-button" href="/forgot-password">Forgot your password?</Link>
+        </div>
       </form>
       {!configured && <div className="auth-setup-notice"><strong>Account sign-in is unavailable</strong><span>This deployment is missing its account storage configuration, so no one can log in until it is restored.</span></div>}
       {status && <p className="auth-status" role="status">{status}</p>}
+      {unconfirmed && email.trim() && <div className="auth-links"><button className="text-button" type="button" onClick={() => void resendConfirmation()} disabled={busy}>Send the confirmation link again</button></div>}
       <p className="auth-switch">New here? <Link href="/signup">Create an account</Link></p>
     </section>
   </main>

@@ -3,7 +3,8 @@ import { safeNextPath } from "@/lib/auth/redirects"
 
 const messages: Record<string, string> = {
   auth_configuration: "Account sign-in is not configured for this deployment.",
-  auth_callback: "That sign-in could not be completed. Try again."
+  auth_callback: "That sign-in could not be completed. Try again.",
+  auth_link: "That link is invalid or has expired. Request a new one."
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ error?: string, reset?: string, next?: string }> }) {

@@ -1,8 +1,78 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
 import { defaultGraduationTerm, parseTermId, termId, termLabel, timelineFor } from "@/domain/timeline"
+import { createCourseContextBrowserClient } from "@/lib/supabase/browser"
+
+// Login details live in Supabase Auth, not in the workspace, so this card
+// talks to it directly. The shared demo account is excluded: anyone with the
+// judges' credentials could otherwise lock everyone else out.
+const AccountCard = ({ userEmail }: { userEmail: string }) => {
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [passwordStatus, setPasswordStatus] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [emailStatus, setEmailStatus] = useState("")
+  const [busy, setBusy] = useState<"password" | "email" | null>(null)
+
+  const changePassword = async (event: FormEvent) => {
+    event.preventDefault()
+    if (newPassword.length < 8) { setPasswordStatus("Use a password of at least eight characters."); return }
+    setBusy("password")
+    setPasswordStatus("")
+    // Auth does not check the current password on its own here, so prove it
+    // with a sign-in first. A wrong guess never reaches the update call.
+    const client = createCourseContextBrowserClient()
+    const check = await client.auth.signInWithPassword({ email: userEmail, password: currentPassword })
+    if (check.error) {
+      setPasswordStatus("That current password is not right.")
+      setBusy(null)
+      return
+    }
+    const { error } = await client.auth.updateUser({ password: newPassword })
+    if (error) {
+      setPasswordStatus(/same password/i.test(error.message) ? "That is already your password. Pick a different one." : /reauthentication/i.test(error.message) ? "Log out and back in, then try again." : error.message)
+    } else {
+      setPasswordStatus("Password changed.")
+      setCurrentPassword("")
+      setNewPassword("")
+    }
+    setBusy(null)
+  }
+
+  const changeEmail = async (event: FormEvent) => {
+    event.preventDefault()
+    const email = newEmail.trim()
+    if (email.toLowerCase() === userEmail.toLowerCase()) { setEmailStatus("That is already your login email."); return }
+    setBusy("email")
+    setEmailStatus("")
+    const { error } = await createCourseContextBrowserClient().auth.updateUser({ email }, { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/app/profile")}` })
+    setEmailStatus(error ? (/already registered|already exists/i.test(error.message) ? "Another account already uses that email." : error.message) : `We sent confirmation links to ${email} and to ${userEmail}. Open both to finish the change.`)
+    if (!error) setNewEmail("")
+    setBusy(null)
+  }
+
+  return <section className="panel-card account-card">
+    <div className="section-heading"><h2>Login details</h2><span className="muted">{userEmail}</span></div>
+    <div className="account-grid">
+      <form className="profile-form stacked" onSubmit={(event) => void changePassword(event)}>
+        <h3>Change password</h3>
+        <label>Current password<input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required /></label>
+        <label>New password<input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
+        <div className="profile-form-actions"><button className="primary-button" type="submit" disabled={busy === "password"}>{busy === "password" ? "Saving…" : "Change password"}</button></div>
+        {passwordStatus && <p className="auth-status" role="status">{passwordStatus}</p>}
+      </form>
+      <form className="profile-form stacked" onSubmit={(event) => void changeEmail(event)}>
+        <h3>Change email</h3>
+        <label>New email<input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} autoComplete="email" required /></label>
+        <p className="muted account-note">The change takes effect once you open the confirmation links.</p>
+        <div className="profile-form-actions"><button className="primary-button" type="submit" disabled={busy === "email"}>{busy === "email" ? "Sending…" : "Send confirmation"}</button></div>
+        {emailStatus && <p className="auth-status" role="status">{emailStatus}</p>}
+      </form>
+    </div>
+  </section>
+}
 
 // The technical page: who the account belongs to and the two dates the whole
 // product derives from. Changing those dates rebuilds the quarter map, the
@@ -95,6 +165,10 @@ export const ProfilePage = () => {
         </div>}
       </section>
     </div>
+
+    {value.mode === "account" && (value.isDemoAccount
+      ? <section className="panel-card account-card"><div className="section-heading"><h2>Login details</h2></div><p className="muted">This is a shared demo account, so its email and password stay as they are.</p></section>
+      : <AccountCard userEmail={value.userEmail} />)}
 
     <section className="panel-card reset-card">
       <div className="reset-row">

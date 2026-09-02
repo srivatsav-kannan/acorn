@@ -122,6 +122,24 @@ describe("Supabase migration contract", () => {
     expect(loginPage).not.toContain("resettable demo")
   })
 
+  it("recovers and changes logins without trusting the auth project's site url", () => {
+    const forgotPage = readFileSync(resolve(process.cwd(), "src/features/auth/forgot-password-page.tsx"), "utf8")
+    const resetRoute = readFileSync(resolve(process.cwd(), "src/app/reset-password/page.tsx"), "utf8")
+    const confirmRoute = readFileSync(resolve(process.cwd(), "src/app/auth/confirm/route.ts"), "utf8")
+    const profilePage = readFileSync(resolve(process.cwd(), "src/features/profile/profile-page.tsx"), "utf8")
+    const guardMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0004_protect_demo_logins.sql"), "utf8")
+    expect(loginPage).toContain('href="/forgot-password"')
+    expect(forgotPage).toMatch(/resetPasswordForEmail[\s\S]*window\.location\.origin/)
+    expect(resetRoute).toContain("expired={!data.user}")
+    expect(confirmRoute).toContain("verifyOtp({ type, token_hash: tokenHash })")
+    // Auth does not verify current_password on this project, so the card proves it by signing in first.
+    expect(profilePage).toMatch(/signInWithPassword\(\{ email: userEmail, password: currentPassword \}\)[\s\S]*updateUser\(\{ password: newPassword \}\)/)
+    expect(profilePage).toContain("value.isDemoAccount")
+    expect(guardMigration).toContain("before update on auth.users")
+    expect(guardMigration).toContain("julia.reyes@acorndemo.app")
+    expect(guardMigration).not.toContain("security definer")
+  })
+
   it("builds authenticated accounts without importing the fictional fixture", () => {
     expect(onboardingRoute).toContain("buildPersonalWorkspace")
     expect(onboardingRoute).not.toContain("buildFixture")

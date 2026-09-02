@@ -622,6 +622,13 @@ input, select, textarea { accent-color: var(--cardinal); }
 .link-sent { display: grid; justify-items: start; gap: 6px; padding: 16px; border: 2px solid var(--green); border-radius: 12px; background: var(--green-soft); }
 .link-sent strong { font-size: 15px; }
 .link-sent p { margin: 0; color: #35543f; font-size: 13.5px; line-height: 1.55; }
+.auth-links { display: flex; justify-content: center; gap: 18px; margin-top: 14px; }
+.account-card { margin-top: 16px; }
+.account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+.profile-form.stacked { grid-template-columns: 1fr; align-items: start; align-content: start; }
+.profile-form.stacked h3 { margin: 0 0 2px; font-size: 16px; }
+.profile-form.stacked .auth-status { margin-top: 4px; }
+.account-note { margin: 0; font-size: 13px; line-height: 1.5; }
 
 /* ---------- Onboarding fallback ---------- */
 .onboarding-page { min-height: 100vh; background: var(--paper); }
