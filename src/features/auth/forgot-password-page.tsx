@@ -8,9 +8,9 @@ import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/su
 // The reset link has to land back on this deployment, not on whatever Site
 // URL the auth project was configured with, so the redirect is always built
 // from the page's own origin.
-export const ForgotPasswordPage = () => {
+export const ForgotPasswordPage = ({ initialStatus = "" }: { initialStatus?: string }) => {
   const [email, setEmail] = useState("")
-  const [status, setStatus] = useState("")
+  const [status, setStatus] = useState(initialStatus)
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
   const configured = isSupabaseConfigured()
