@@ -3,9 +3,11 @@ import { buildPersonalWorkspace } from "@/data/personal-workspace"
 import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
-// Any account can wipe its workspace back to onboarding. The reset commits a
+// An account can wipe its workspace back to onboarding. The reset commits a
 // fresh payload carrying setupPending, which the app layout reads as
-// onboarding-required until the student re-enters their facts.
+// onboarding-required until the student re-enters their facts. The shared
+// demo workspace is the exception: its seeded history is what judges look at,
+// and anyone holding its credentials could otherwise erase it for everyone.
 export async function POST() {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, message: "Account storage is not configured." }, { status: 503 })
   const client = await createAcornServerClient()
@@ -13,6 +15,7 @@ export async function POST() {
   if (!data.user) return NextResponse.json({ ok: false, message: "Sign in again to continue." }, { status: 401 })
   const record = await loadWorkspaceRecordForUser(client, data.user.id)
   if (!record) return NextResponse.json({ ok: false, message: "No workspace to reset." }, { status: 404 })
+  if (record.isDemo) return NextResponse.json({ ok: false, message: "The shared demo workspace keeps its history." }, { status: 403 })
   const fresh = buildPersonalWorkspace({ userId: data.user.id, email: data.user.email ?? "" })
   fresh.id = record.workspace.id
   fresh.version = record.workspace.version + 1

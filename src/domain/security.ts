@@ -7,10 +7,3 @@ export const assertSafeExternalUrl = (value: string) => {
   if (blockedHosts.has(url.hostname) || url.hostname.endsWith(".localhost")) throw new Error("Unsafe external URL host")
   return value
 }
-
-export const sanitizeExternalText = (value: string) => value
-  .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
-  .replace(/<[^>]+>/g, "")
-  .replace(/javascript:/gi, "")
-  .trim()

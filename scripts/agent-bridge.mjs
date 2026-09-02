@@ -8,7 +8,7 @@
 //
 //   GET  /tools                          lists the registered tools
 //   POST /call        {"tool": "...", "input": {...}}
-//   POST /goto        {"path": "/calendar"}
+//   POST /goto        {"path": "/app/academics"}
 //   POST /screenshot  {"path": "shot.png"}
 //
 // Login credentials come from COURSE_CONTEXT_DEMO_EMAIL and
@@ -17,7 +17,8 @@
 
 import { createServer } from "node:http"
 import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { mkdir } from "node:fs/promises"
+import { basename, dirname, resolve } from "node:path"
 import { chromium } from "@playwright/test"
 
 const arg = (name, fallback) => {
@@ -151,6 +152,11 @@ const respond = (response, status, payload) => {
 
 const server = createServer(async (request, response) => {
   try {
+    // A page open in the same browser can reach 127.0.0.1 too. Only requests
+    // addressed to this bridge by name get an answer, which also stops DNS
+    // rebinding from reading tool output through a look-alike host.
+    const host = request.headers.host ?? ""
+    if (host !== `127.0.0.1:${controlPort}` && host !== `localhost:${controlPort}`) return respond(response, 403, { ok: false, error: "Address the bridge as 127.0.0.1." })
     if (request.method === "GET" && (request.url === "/" || request.url === "/tools")) {
       return respond(response, 200, { url: appUrl, tools: await listTools() })
     }
@@ -180,7 +186,12 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === "POST" && request.url === "/screenshot") {
       const { path = "agent-bridge.png" } = await readBody(request)
-      const target = resolve(process.cwd(), path)
+      // Screenshots land in one folder under the working directory, named by
+      // basename only, so a caller cannot write a PNG anywhere else on disk.
+      const name = basename(String(path)).replace(/[^A-Za-z0-9._-]/g, "_")
+      if (!name.endsWith(".png")) return respond(response, 400, { ok: false, error: "Screenshot names end in .png." })
+      const target = resolve(process.cwd(), "artifacts", name)
+      await mkdir(dirname(target), { recursive: true })
       await page.screenshot({ path: target, fullPage: false })
       return respond(response, 200, { ok: true, path: target })
     }

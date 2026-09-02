@@ -13,6 +13,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   if (code) redirect(`/auth/callback?code=${encodeURIComponent(code)}`)
   const jar = await cookies()
   const signedIn = jar.getAll().some((cookie) => /^sb-.+-auth-token/.test(cookie.name) && cookie.value.length > 0)
-    || (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && (jar.get("course_context_demo")?.value === "1" || jar.get("course_context_local")?.value === "1"))
+    || (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && process.env.NODE_ENV !== "production" && (jar.get("course_context_demo")?.value === "1" || jar.get("course_context_local")?.value === "1"))
   return <><AuthHashHandoff /><LandingPage signedIn={signedIn} /></>
 }

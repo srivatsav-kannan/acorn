@@ -11,7 +11,7 @@ import { redirect } from "next/navigation"
 const catalog = buildStanfordCatalog()
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true") {
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && process.env.NODE_ENV !== "production") {
     const cookieStore = await cookies()
     if (cookieStore.get("course_context_local")?.value === "1") return <WorkspaceProvider mode="fixture" localAccount><AppShell>{children}</AppShell></WorkspaceProvider>
     if (cookieStore.get("course_context_demo")?.value === "1") return <WorkspaceProvider mode="fixture"><AppShell>{children}</AppShell></WorkspaceProvider>

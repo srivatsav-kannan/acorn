@@ -6,7 +6,7 @@ import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
 export default async function Page() {
   const jar = await cookies()
-  const fixture = process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && jar.get("course_context_local")?.value === "1"
+  const fixture = process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && process.env.NODE_ENV !== "production" && jar.get("course_context_local")?.value === "1"
   if (fixture) return <OnboardingPage browserWorkspace />
   // A signed-in account that already has a workspace never belongs here: a
   // stale ?next= redirect could otherwise walk someone into the form that

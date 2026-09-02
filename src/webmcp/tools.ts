@@ -55,10 +55,10 @@ const annotations = (readOnlyHint: boolean, untrustedContentHint = false) => ({ 
 const evidenceField = {
   type: "object",
   additionalProperties: false,
-  description: "A source-backed research record. A successful save creates or updates a visible Library source card.",
+  description: "A source-backed research record. A successful save creates or updates a visible source card on the Scratchpad.",
   properties: {
     id: field("string", "Stable evidence ID, for example EVIDENCE-CS522-AUT26"),
-    title: field("string", "Short student-facing title for the Library card"),
+    title: field("string", "Short student-facing title for the source card"),
     claim: field("string", "Concise normalized finding supported by the source"),
     sourceUrl: field("string", "Direct HTTPS source URL"),
     sourceTitle: field("string", "Human-readable source title"),
@@ -243,7 +243,7 @@ export const createAcornTools = ({ repository, session, now, onWorkspaceChanged,
     },
     {
       name: "save_research",
-      description: "Save externally researched evidence and create or update its visible, searchable source card in the Research collection. Returns primaryVisibleId for the Library item.",
+      description: "Save externally researched evidence and create or update its visible, searchable source card in the Research collection. Returns primaryVisibleId for the Scratchpad item.",
       inputSchema: schema({ expectedVersion: field("number", "Current workspace version"), idempotencyKey: field("string", "Unique retry-safe operation key"), evidence: evidenceField }, ["expectedVersion", "idempotencyKey", "evidence"]),
       annotations: annotations(false, true),
       examples: [],

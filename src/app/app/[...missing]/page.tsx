@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 
 // Agents guess tab paths, and older links still name tabs from before the
-// four-tab layout. A miss used to strand them on a 404 outside the workspace
+// five-tab layout. A miss used to strand them on a 404 outside the workspace
 // provider, where no tools are registered. Every unknown path lands on the
 // closest tab instead, so the tool surface stays alive after any navigation.
 const legacyTabs: Record<string, string> = {

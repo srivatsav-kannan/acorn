@@ -170,7 +170,7 @@ export const ProfilePage = () => {
       ? <section className="panel-card account-card"><div className="section-heading"><h2>Login details</h2></div><p className="muted">This is a shared demo account, so its email and password stay as they are.</p></section>
       : <AccountCard userEmail={value.userEmail} />)}
 
-    <section className="panel-card reset-card">
+    {!value.isDemoAccount && <section className="panel-card reset-card">
       <div className="reset-row">
         <div>
           <h2>Start over</h2>
@@ -181,6 +181,6 @@ export const ProfilePage = () => {
           <button className="primary-button" type="button" onClick={() => void performReset()} disabled={resetting}>{resetting ? "Resetting…" : "Yes, reset everything"}</button>
         </div> : <button className="secondary-button" type="button" onClick={() => setConfirmingReset(true)}>Reset workspace</button>}
       </div>
-    </section>
+    </section>}
   </div>
 }

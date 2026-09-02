@@ -16,6 +16,7 @@ export const createAcornServerClient = async () => {
   if (!config.url || !config.publishableKey) throw new Error("Supabase public configuration is missing")
   const cookieStore = await cookies()
   return createServerClient(config.url, config.publishableKey, {
+    cookieOptions: { secure: process.env.NODE_ENV === "production" },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (cookiesToSet) => {

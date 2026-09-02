@@ -16,13 +16,14 @@ export async function proxy(request: NextRequest) {
   const protectedRoute = protectedPrefixes.some((prefix) => request.nextUrl.pathname.startsWith(prefix))
   if (!protectedRoute) return response
 
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && (request.cookies.get("course_context_demo")?.value === "1" || request.cookies.get("course_context_local")?.value === "1")) return response
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && process.env.NODE_ENV !== "production" && (request.cookies.get("course_context_demo")?.value === "1" || request.cookies.get("course_context_local")?.value === "1")) return response
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   if (!url || !key) return NextResponse.redirect(localUrl(request, "/login?error=auth_configuration"))
 
   const client = createServerClient(url, key, {
+    cookieOptions: { secure: process.env.NODE_ENV === "production" },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (items) => items.forEach(({ name, value, options }) => response.cookies.set(name, value, options))

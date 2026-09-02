@@ -13,5 +13,5 @@ export const isSupabaseConfigured = () => {
 export const createAcornBrowserClient = () => {
   const config = getSupabasePublicConfig()
   if (!config.url || !config.publishableKey) throw new Error("Supabase public configuration is missing")
-  return createBrowserClient(config.url, config.publishableKey)
+  return createBrowserClient(config.url, config.publishableKey, { cookieOptions: { secure: process.env.NODE_ENV === "production" } })
 }

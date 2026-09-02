@@ -43,7 +43,10 @@ describe("authentication configuration", () => {
     ["/app/academics", "/app/academics"],
     [null, "/app"],
     ["https://evil.example", "/app"],
-    ["//evil.example/path", "/app"]
+    ["//evil.example/path", "/app"],
+    ["/\\evil.example", "/app"],
+    ["/\t/evil.example", "/app"],
+    ["/app/profile?tab=x", "/app/profile?tab=x"]
   ])("keeps callback redirects on the application origin", (input, expected) => {
     expect(safeNextPath(input)).toBe(expected)
   })

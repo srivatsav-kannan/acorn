@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
   const cookieStore = await cookies()
   const supabase = createServerClient(supabaseUrl, publishableKey, {
+    cookieOptions: { secure: process.env.NODE_ENV === "production" },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (cookiesToSet) => cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))

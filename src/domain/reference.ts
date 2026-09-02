@@ -76,7 +76,7 @@ export const validateOverlayCourse = (input: Record<string, unknown>): Course =>
     // out of the WAYS math and the offered-season hints.
     ways: Array.isArray(input.ways) ? input.ways.map((way) => String(way).slice(0, 8)).slice(0, 8) : undefined,
     offeredSeasons: typeof input.offeredSeasons === "string" ? input.offeredSeasons.slice(0, 4) : undefined,
-    sourceUrl: typeof input.sourceUrl === "string" ? input.sourceUrl : undefined,
+    sourceUrl: typeof input.sourceUrl === "string" && input.sourceUrl.trim() ? assertSafeExternalUrl(input.sourceUrl.trim()) : undefined,
     catalogYear: typeof input.catalogYear === "string" ? input.catalogYear : undefined,
     prerequisites: Array.isArray(input.prerequisites) ? input.prerequisites.map((item) => String(item)).slice(0, 12) : undefined,
     prerequisiteUncertain: input.prerequisiteUncertain === true ? true : undefined
@@ -107,7 +107,7 @@ export const validateOpportunity = (input: Record<string, unknown>): Opportunity
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !label) throw new Error("Each opportunity date needs a YYYY-MM-DD date and a label")
       return { date, label }
     }) : undefined,
-    sourceUrl: typeof input.sourceUrl === "string" && input.sourceUrl.trim() ? input.sourceUrl.trim() : url
+    sourceUrl: typeof input.sourceUrl === "string" && input.sourceUrl.trim() ? assertSafeExternalUrl(input.sourceUrl.trim()) : url
   }
 }
 

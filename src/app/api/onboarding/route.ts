@@ -26,7 +26,8 @@ const validateInput = (input: OnboardingInput): string | null => {
 }
 
 export async function POST(request: Request) {
-  const input = await request.json() as OnboardingInput
+  const input = await request.json().catch(() => null) as OnboardingInput | null
+  if (!input || typeof input !== "object") return NextResponse.json({ ok: false, message: "Send the onboarding facts as JSON." }, { status: 400 })
   const invalid = validateInput(input)
   if (invalid) return NextResponse.json({ ok: false, message: invalid }, { status: 400 })
   const customInstitution = input.customInstitution?.trim() ?? ""
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   // use, then lives in that test browser's storage. Real onboarding is always
   // account-backed below; this branch does not exist outside the test flag.
   const jar = await cookies()
-  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && jar.get("course_context_local")?.value === "1") {
+  if (process.env.COURSE_CONTEXT_E2E_FIXTURE === "true" && process.env.NODE_ENV !== "production" && jar.get("course_context_local")?.value === "1") {
     try {
       const workspace = buildPersonalWorkspace({
         userId: "USER-LOCAL",
@@ -88,10 +89,10 @@ export async function POST(request: Request) {
       next_payload: workspace,
       mutation_idempotency_key: `ONBOARD-${crypto.randomUUID()}`
     })
-    if (commit.error) return NextResponse.json({ ok: false, message: commit.error.message }, { status: 400 })
+    if (commit.error) return NextResponse.json({ ok: false, message: "Your workspace could not be created. Log in to finish setup." }, { status: 400 })
     return NextResponse.json({ ok: true, workspaceId: existing.workspace.id })
   }
   const result = await client.rpc(existing ? "complete_demo_onboarding" : "create_personal_workspace", { workspace_title: workspace.title, initial_payload: workspace })
-  if (result.error) return NextResponse.json({ ok: false, message: result.error.message }, { status: 400 })
+  if (result.error) return NextResponse.json({ ok: false, message: "Your workspace could not be created. Log in to finish setup." }, { status: 400 })
   return NextResponse.json({ ok: true, workspaceId: result.data })
 }

@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url"
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const cacheDir = join(root, "scripts", "import-stanford", ".cache")
 const BASE = "https://explorecourses.stanford.edu"
-const UA = { "User-Agent": "Mozilla/5.0 (CourseContext catalog importer; public data)" }
+const UA = { "User-Agent": "Mozilla/5.0 (Acorn catalog importer, public data)" }
 const refresh = process.argv.includes("--refresh")
 
 // Departments whose descriptions and Autumn sections ship in the app bundle.

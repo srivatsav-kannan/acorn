@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { buildFixture } from "@/data/fixture"
 import { exportWorkspace, validateContextItem } from "@/domain/context"
-import { assertSafeExternalUrl, sanitizeExternalText } from "@/domain/security"
+import { assertSafeExternalUrl } from "@/domain/security"
 import { validateSavedView } from "@/domain/views"
 
 describe("context items", () => {
@@ -90,9 +90,4 @@ describe("external content security", () => {
     expect(() => assertSafeExternalUrl(url)).toThrow()
   })
 
-  it("removes executable markup without rewriting ordinary text", () => {
-    const result = sanitizeExternalText("<script>alert(1)</script><b>Course guide</b>")
-    expect(result).not.toContain("script")
-    expect(result).toContain("Course guide")
-  })
 })
