@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
   const next = safeNextPath(url.searchParams.get("next"))
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  if (!code || !supabaseUrl || !publishableKey) return NextResponse.redirect(new URL("/login?error=auth_configuration", origin))
+  if (!supabaseUrl || !publishableKey) return NextResponse.redirect(new URL("/login?error=auth_configuration", origin))
+  // Auth bounces here without a code when the link was already used or has
+  // expired. A recovery link goes back to the request page with that said.
+  if (!code) return NextResponse.redirect(new URL(next === "/reset-password" ? "/forgot-password?expired=1" : "/login?error=auth_link", origin))
 
   const cookieStore = await cookies()
   const supabase = createServerClient(supabaseUrl, publishableKey, {
