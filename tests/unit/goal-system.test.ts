@@ -4,14 +4,14 @@ import { buildStanfordCatalog } from "@/data/institutions/stanford"
 import { executeCommand } from "@/domain/commands"
 import { goalContentOf, nextMilestone, structuredGoals } from "@/domain/goals"
 import { checkPlan } from "@/domain/planner"
-import { createCourseContextTools } from "@/webmcp/tools"
+import { createAcornTools } from "@/webmcp/tools"
 import { exportBlocks } from "@/webmcp/export"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 const session = { userId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", actor: { type: "agent" as const, id: "AGENT-TEST" } }
 const buildTools = (repository: MemoryWorkspaceRepository) =>
-  createCourseContextTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z") })
-const findTool = (tools: ReturnType<typeof createCourseContextTools>, name: string) => tools.find((tool) => tool.name === name)!
+  createAcornTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z") })
+const findTool = (tools: ReturnType<typeof createAcornTools>, name: string) => tools.find((tool) => tool.name === name)!
 const envelope = (command: Record<string, unknown>, expectedVersion: number, key: string) =>
   ({ actor: { type: "agent" as const, id: "AGENT-TEST" }, ownerUserId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", expectedVersion, idempotencyKey: key, command })
 

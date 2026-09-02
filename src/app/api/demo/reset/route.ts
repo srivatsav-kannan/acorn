@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { buildPersonalWorkspace } from "@/data/personal-workspace"
-import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 
 // The database's reset_demo_workspace function is the real guard; this check
 // only saves a round trip for accounts that are obviously not the demo.
@@ -11,7 +11,7 @@ const isDemoAccountEmail = (email: string | undefined) => {
 
 export async function POST() {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, message: "Account storage is not configured." }, { status: 503 })
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user || !isDemoAccountEmail(data.user.email)) return NextResponse.json({ ok: false, message: "Demo account required." }, { status: 403 })
   const resetPayload = buildPersonalWorkspace({

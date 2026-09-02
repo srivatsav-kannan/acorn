@@ -231,7 +231,7 @@ export const CalendarPage = () => {
     return <>
       {inspection.fromDate && <button className="text-button inspector-back" type="button" onClick={() => setInspection({ kind: "day", date: inspection.fromDate! })}>← {inspection.fromDate}</button>}
       <h3>{entry.title}</h3>
-      <p className="event-detail-when"><b>{entry.start ? `${entry.start}${entry.end ? ` to ${entry.end}` : ""}` : "All day"}</b> on {entry.date}, shown in {displayLabel}{entry.timezone && entry.timezone !== displayTimezone ? `; recorded in ${entry.timezone}` : ""}</p>
+      <p className="event-detail-when"><b>{entry.start ? `${entry.start}${entry.end ? ` to ${entry.end}` : ""}` : "All day"}</b> on {entry.date}, shown in {displayLabel}{entry.timezone && entry.timezone !== displayTimezone ? `, recorded in ${entry.timezone}` : ""}</p>
       {entry.detail ? <p className="event-detail-description">{entry.detail}</p> : <p className="event-detail-description muted">No description recorded.</p>}
       <div className="event-detail-actions">
         <span className={`legend-item ${entry.kind}`}>{kindLabel[entry.kind] ?? entry.kind}</span>

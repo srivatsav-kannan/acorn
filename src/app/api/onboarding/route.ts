@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { CUSTOM_INSTITUTION_ID } from "@/data/institutions/registry"
 import { buildPersonalWorkspace } from "@/data/personal-workspace"
-import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
 type OnboardingInput = {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, message: "Account storage is not configured." }, { status: 503 })
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return NextResponse.json({ ok: false, message: "Sign in again to continue." }, { status: 401 })
   const existing = await loadWorkspaceRecordForUser(client, data.user.id)

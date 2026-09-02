@@ -15,6 +15,7 @@ const tools: Array<[string, string]> = [
   ["search_courses", "Searches the full imported catalog"],
   ["get_plan", "Reads any term's plan"],
   ["check_plan", "Deterministic conflict and prerequisite checks"],
+  ["suggest_sections", "Complete section assignments that clear every constraint"],
   ["get_program_progress", "Requirement-by-requirement evaluation"],
   ["edit_plan", "Adds and removes planned courses"],
   ["manage_todo", "Adds and completes todos"],

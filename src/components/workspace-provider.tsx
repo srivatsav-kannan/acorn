@@ -11,7 +11,7 @@ import type { Catalog, WorkspaceState } from "@/domain/types"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 import { ShellSkeleton } from "@/components/shell-skeleton"
 import { registerWebMcpTools } from "@/webmcp/register"
-import { createCourseContextTools } from "@/webmcp/tools"
+import { createAcornTools } from "@/webmcp/tools"
 
 type WorkspaceContextValue = {
   workspace: WorkspaceState
@@ -161,14 +161,14 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
           if (head.version === expectedVersion && previous) {
             repository.replaceWorkspace(previous)
             setWorkspace(previous)
-            throw new CommitError("COMMIT_TIMEOUT", "The save has not landed and local state was rolled back. Retry with the identical idempotency key; if the delayed commit lands first, the retry returns its original receipt.")
+            throw new CommitError("COMMIT_TIMEOUT", "The save has not landed and local state was rolled back. Retry with the identical idempotency key. If the delayed commit lands first, the retry returns its original receipt.")
           }
         }
       } catch (headError) {
         if (headError instanceof CommitError) throw headError
       }
       await restoreRemote()
-      throw new CommitError("COMMIT_TIMEOUT", `The save did not confirm in time and the workspace was reloaded from the server. Retry with the same idempotency key; a landed commit will return its original receipt. (${(error as Error).message})`)
+      throw new CommitError("COMMIT_TIMEOUT", `The save did not confirm in time and the workspace was reloaded from the server. Retry with the same idempotency key. A landed commit returns its original receipt. (${(error as Error).message})`)
     }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { code?: string, message?: string }
@@ -200,7 +200,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
       setMessage({ kind: "success", text: "Saved" })
     } catch (error) {
       setSaveState("error")
-      setMessage({ kind: "error", text: (error as Error).message })
+      setMessage({ kind: "error", text: error instanceof CommitError ? "The save did not go through and your last change was undone. Try it again." : (error as Error).message })
       throw error
     }
   }
@@ -253,7 +253,7 @@ export const WorkspaceProvider = ({ children, mode, initialWorkspace, userId, us
 
   useEffect(() => {
     const markedDocument = document as Document & { modelContext?: { registerTool: (tool: unknown) => { unregister?: () => void } | void } }
-    const tools = createCourseContextTools({
+    const tools = createAcornTools({
       repository,
       session: { userId: ownerUserId, workspaceId: workspace.id, actor: { type: "agent", id: "AGENT-WEBMCP" } },
       now: () => new Date(),

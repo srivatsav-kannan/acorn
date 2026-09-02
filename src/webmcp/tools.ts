@@ -72,7 +72,7 @@ const evidenceField = {
   required: ["id", "title", "claim", "sourceUrl", "sourceTitle", "retrievedAt", "classification", "confidence", "status"]
 }
 
-export const createCourseContextTools = ({ repository, session, now, onWorkspaceChanged, runExclusive }: Setup): Tool[] => {
+export const createAcornTools = ({ repository, session, now, onWorkspaceChanged, runExclusive }: Setup): Tool[] => {
   const workspace = () => repository.getWorkspace(session.workspaceId, session.userId)
   const catalog = async () => mergedCatalogFor(await workspace(), repository.catalog)
   const gate = runExclusive ?? (<T,>(task: () => Promise<T>) => task())

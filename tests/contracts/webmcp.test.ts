@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { buildFixture } from "@/data/fixture"
-import { createCourseContextTools } from "@/webmcp/tools"
+import { createAcornTools } from "@/webmcp/tools"
 import { registerWebMcpTools } from "@/webmcp/register"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
@@ -31,7 +31,7 @@ const expectedNames = [
 
 const setup = () => {
   const repository = new MemoryWorkspaceRepository(buildFixture())
-  const tools = createCourseContextTools({
+  const tools = createAcornTools({
     repository,
     session: { userId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", actor: { type: "agent", id: "AGENT-TEST" } },
     now: () => new Date("2026-08-27T12:00:00Z")

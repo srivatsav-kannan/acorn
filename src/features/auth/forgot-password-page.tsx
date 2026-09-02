@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { AcornSquirrelMark } from "@/components/icons"
 import { useState, type FormEvent } from "react"
-import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
+import { createAcornBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
 // The reset link has to land back on this deployment, not on whatever Site
 // URL the auth project was configured with, so the redirect is always built
@@ -23,7 +23,7 @@ export const ForgotPasswordPage = ({ initialStatus = "" }: { initialStatus?: str
     }
     setBusy(true)
     setStatus("")
-    const { error } = await createCourseContextBrowserClient().auth.resetPasswordForEmail(email.trim(), {
+    const { error } = await createAcornBrowserClient().auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`
     })
     if (error) {

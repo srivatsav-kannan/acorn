@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { buildFixture } from "@/data/fixture"
-import { createCourseContextTools } from "@/webmcp/tools"
+import { createAcornTools } from "@/webmcp/tools"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 // One sequential pass that touches every tool and every action at least once,
@@ -12,7 +12,7 @@ const session = { userId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", actor: { t
 describe("the exhaustive tool matrix", () => {
   it("walks every tool and action across one workspace", async () => {
     const repository = new MemoryWorkspaceRepository(buildFixture())
-    const tools = createCourseContextTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z") })
+    const tools = createAcornTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z") })
     const tool = (name: string) => tools.find((candidate) => candidate.name === name)!
     let version = 1
     let key = 0

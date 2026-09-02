@@ -4,7 +4,7 @@ import Link from "next/link"
 import { AcornSquirrelMark } from "@/components/icons"
 import { useRouter } from "next/navigation"
 import { useMemo, useState, type FormEvent } from "react"
-import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
+import { createAcornBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
 // Signing up collects the account and the two facts the whole quarter map
 // derives from. Stanford is the assumed base context for now; the timeline,
@@ -40,7 +40,7 @@ export const SignupPage = () => {
     if (password.length < 8) { setStatus("Use a password of at least eight characters."); return }
     setBusy(true)
     setStatus("")
-    const client = createCourseContextBrowserClient()
+    const client = createAcornBrowserClient()
     const { data, error } = await client.auth.signUp({ email: email.trim(), password, options: { data: { name: name.trim() } } })
     if (error) {
       setStatus(error.message)

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server"
 import type { WorkspaceState } from "@/domain/types"
-import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
 const unauthorized = () => NextResponse.json({ ok: false, code: "UNAUTHORIZED", message: "Sign in again to continue." }, { status: 401 })
 
 export async function GET() {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, code: "NOT_CONFIGURED" }, { status: 503 })
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return unauthorized()
   const record = await loadWorkspaceRecordForUser(client, data.user.id)
@@ -17,7 +17,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, code: "NOT_CONFIGURED" }, { status: 503 })
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return unauthorized()
   const raw = await request.text()

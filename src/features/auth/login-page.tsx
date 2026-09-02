@@ -4,7 +4,7 @@ import Link from "next/link"
 import { AcornSquirrelMark } from "@/components/icons"
 import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
-import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
+import { createAcornBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
 export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialStatus?: string, nextPath?: string }) => {
   const router = useRouter()
@@ -24,7 +24,7 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
     setBusy(true)
     setStatus("")
     setUnconfirmed(false)
-    const { error } = await createCourseContextBrowserClient().auth.signInWithPassword({ email: email.trim(), password })
+    const { error } = await createAcornBrowserClient().auth.signInWithPassword({ email: email.trim(), password })
     if (error) {
       const notConfirmed = /confirm/i.test(error.message)
       setUnconfirmed(notConfirmed)
@@ -40,7 +40,7 @@ export const LoginPage = ({ initialStatus = "", nextPath = "/app" }: { initialSt
   // to the deployment the person is actually using.
   const resendConfirmation = async () => {
     setBusy(true)
-    const { error } = await createCourseContextBrowserClient().auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}` } })
+    const { error } = await createAcornBrowserClient().auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}` } })
     setStatus(error ? error.message : `A new confirmation link is on its way to ${email.trim()}.`)
     setUnconfirmed(false)
     setBusy(false)

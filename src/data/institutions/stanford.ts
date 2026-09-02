@@ -706,7 +706,7 @@ export const stanfordInstitution: InstitutionReference = {
     { id: "RESOURCE-EXPLORECOURSES", title: "Stanford Navigator", url: "https://navigator.stanford.edu/classes", note: "The official class search with live meeting times; the successor to ExploreCourses.", kind: "official" },
     { id: "RESOURCE-CALENDAR", title: "Academic Calendar 2026-27", url: "https://studentservices.stanford.edu/calendar-events/academic-calendars/stanford-academic-calendar-2026-2027", note: "Official quarter dates and deadlines.", kind: "official" },
     { id: "RESOURCE-ADVISING", title: "Academic Advising", url: "https://advising.stanford.edu/", note: "Official advising guidance, WAYS, and declaring a major.", kind: "official" },
-    { id: "RESOURCE-CARTA", title: "Carta", url: "https://carta-beta.stanford.edu/", note: "Stanford-internal planning tool with historical evaluations. Requires a SUNet login, which CourseContext never asks for.", kind: "community" },
+    { id: "RESOURCE-CARTA", title: "Carta", url: "https://carta-beta.stanford.edu/", note: "Stanford-internal planning tool with historical evaluations. Requires a SUNet login, which Acorn never asks for.", kind: "community" },
     { id: "RESOURCE-ONCOURSE", title: "OnCourse", url: "https://oncourse.college/", note: "A student-built degree planning tool. Useful for exploration, not an official audit.", kind: "community" }
   ]
 }

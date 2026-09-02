@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { safeNextPath } from "@/lib/auth/redirects"
-import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
+import { createAcornBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
 const migration = readFileSync(resolve(process.cwd(), "supabase/migrations/0001_identity_and_workspace.sql"), "utf8")
 const onboardingMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/0002_account_onboarding.sql"), "utf8")
@@ -30,7 +30,7 @@ describe("authentication configuration", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = ""
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ""
     expect(isSupabaseConfigured()).toBe(false)
-    expect(() => createCourseContextBrowserClient()).toThrow(/configuration/i)
+    expect(() => createAcornBrowserClient()).toThrow(/configuration/i)
   })
 
   it("requires both public values", () => {
@@ -40,7 +40,7 @@ describe("authentication configuration", () => {
   })
 
   it.each([
-    ["/app/plan", "/app/plan"],
+    ["/app/academics", "/app/academics"],
     [null, "/app"],
     ["https://evil.example", "/app"],
     ["//evil.example/path", "/app"]

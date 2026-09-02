@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { buildPersonalWorkspace } from "@/data/personal-workspace"
-import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 
 // Any account can wipe its workspace back to onboarding. The reset commits a
@@ -8,7 +8,7 @@ import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 // onboarding-required until the student re-enters their facts.
 export async function POST() {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, message: "Account storage is not configured." }, { status: 503 })
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return NextResponse.json({ ok: false, message: "Sign in again to continue." }, { status: 401 })
   const record = await loadWorkspaceRecordForUser(client, data.user.id)

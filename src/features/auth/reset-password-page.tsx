@@ -4,7 +4,7 @@ import Link from "next/link"
 import { AcornSquirrelMark } from "@/components/icons"
 import { useRouter } from "next/navigation"
 import { useState, type FormEvent } from "react"
-import { createCourseContextBrowserClient } from "@/lib/supabase/browser"
+import { createAcornBrowserClient } from "@/lib/supabase/browser"
 
 // Reached from the email link once the callback has turned it into a session.
 // Without that session there is nothing to update, so the server page renders
@@ -22,7 +22,7 @@ export const ResetPasswordPage = ({ expired = false }: { expired?: boolean }) =>
     if (password !== confirm) { setStatus("The two passwords do not match."); return }
     setBusy(true)
     setStatus("")
-    const { error } = await createCourseContextBrowserClient().auth.updateUser({ password })
+    const { error } = await createAcornBrowserClient().auth.updateUser({ password })
     if (error) {
       setStatus(/same password/i.test(error.message) ? "That is already your password. Pick a different one." : error.message)
       setBusy(false)

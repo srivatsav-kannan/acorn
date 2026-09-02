@@ -11,7 +11,7 @@ export const isSupabaseServerConfigured = () => {
   return Boolean(config.url && config.publishableKey)
 }
 
-export const createCourseContextServerClient = async () => {
+export const createAcornServerClient = async () => {
   const config = getSupabaseServerConfig()
   if (!config.url || !config.publishableKey) throw new Error("Supabase public configuration is missing")
   const cookieStore = await cookies()

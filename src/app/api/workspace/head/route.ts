@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 
 // A commit whose acknowledgement is lost leaves the client unsure whether it
 // landed. This endpoint answers that in a few hundred bytes: the current
@@ -7,7 +7,7 @@ import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/l
 // can adopt or roll back its local state without re-downloading the payload.
 export async function GET() {
   if (!isSupabaseServerConfigured()) return NextResponse.json({ ok: false, code: "NOT_CONFIGURED" }, { status: 503 })
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) return NextResponse.json({ ok: false, code: "UNAUTHORIZED" }, { status: 401 })
   const membership = await client.from("workspace_memberships").select("workspace_id").eq("user_id", data.user.id).order("created_at", { ascending: true }).limit(1).maybeSingle()

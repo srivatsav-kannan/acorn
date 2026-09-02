@@ -4,7 +4,7 @@ import { executeCommand } from "@/domain/commands"
 import { creditCategory, validateApCredit } from "@/domain/history"
 import { searchWorkspace } from "@/domain/search"
 import type { WorkspaceState } from "@/domain/types"
-import { createCourseContextTools } from "@/webmcp/tools"
+import { createAcornTools } from "@/webmcp/tools"
 import { exportBlocks } from "@/webmcp/export"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
@@ -16,10 +16,10 @@ import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 const session = { userId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", actor: { type: "agent" as const, id: "AGENT-TEST" } }
 const commitError = (code: string) => Object.assign(new Error("The save did not confirm in time."), { code })
 
-const buildTools = (repository: MemoryWorkspaceRepository, options: Parameters<typeof createCourseContextTools>[0] extends infer T ? Partial<T> : never = {}) =>
-  createCourseContextTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z"), ...options })
+const buildTools = (repository: MemoryWorkspaceRepository, options: Parameters<typeof createAcornTools>[0] extends infer T ? Partial<T> : never = {}) =>
+  createAcornTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z"), ...options })
 
-const findTool = (tools: ReturnType<typeof createCourseContextTools>, name: string) => tools.find((tool) => tool.name === name)!
+const findTool = (tools: ReturnType<typeof createAcornTools>, name: string) => tools.find((tool) => tool.name === name)!
 
 describe("agent mutation durability", () => {
   it("serializes concurrent tool mutations through the shared gate", async () => {

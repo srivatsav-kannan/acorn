@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
 import { defaultGraduationTerm, parseTermId, termId, termLabel, timelineFor } from "@/domain/timeline"
-import { createCourseContextBrowserClient } from "@/lib/supabase/browser"
+import { createAcornBrowserClient } from "@/lib/supabase/browser"
 
 // Login details live in Supabase Auth, not in the workspace, so this card
 // talks to it directly. The shared demo account is excluded: anyone with the
@@ -23,7 +23,7 @@ const AccountCard = ({ userEmail }: { userEmail: string }) => {
     setPasswordStatus("")
     // Auth does not check the current password on its own here, so prove it
     // with a sign-in first. A wrong guess never reaches the update call.
-    const client = createCourseContextBrowserClient()
+    const client = createAcornBrowserClient()
     const check = await client.auth.signInWithPassword({ email: userEmail, password: currentPassword })
     if (check.error) {
       setPasswordStatus("That current password is not right.")
@@ -47,7 +47,7 @@ const AccountCard = ({ userEmail }: { userEmail: string }) => {
     if (email.toLowerCase() === userEmail.toLowerCase()) { setEmailStatus("That is already your login email."); return }
     setBusy("email")
     setEmailStatus("")
-    const { error } = await createCourseContextBrowserClient().auth.updateUser({ email }, { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/app/profile")}` })
+    const { error } = await createAcornBrowserClient().auth.updateUser({ email }, { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/app/profile")}` })
     setEmailStatus(error ? (/already registered|already exists/i.test(error.message) ? "Another account already uses that email." : error.message) : `We sent confirmation links to ${email} and to ${userEmail}. Open both to finish the change.`)
     if (!error) setNewEmail("")
     setBusy(null)

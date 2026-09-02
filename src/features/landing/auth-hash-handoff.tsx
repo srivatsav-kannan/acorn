@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { createCourseContextBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
+import { createAcornBrowserClient, isSupabaseConfigured } from "@/lib/supabase/browser"
 
 // Links sent from the auth dashboard, and any link built from the project's
 // site URL, arrive at the landing with the session in the URL hash instead of
@@ -21,7 +21,7 @@ export const AuthHashHandoff = () => {
     }
     if (!hash.get("access_token") || !isSupabaseConfigured()) return
     const destination = hash.get("type") === "recovery" ? "/reset-password" : "/app"
-    const client = createCourseContextBrowserClient()
+    const client = createAcornBrowserClient()
     const { data: subscription } = client.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY" || event === "INITIAL_SESSION") {
         subscription.subscription.unsubscribe()

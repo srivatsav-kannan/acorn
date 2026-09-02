@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/app-shell"
 import { WorkspaceProvider } from "@/components/workspace-provider"
 import { buildStanfordCatalog } from "@/data/fixture"
-import { createCourseContextServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
+import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
@@ -17,7 +17,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     if (cookieStore.get("course_context_demo")?.value === "1") return <WorkspaceProvider mode="fixture"><AppShell>{children}</AppShell></WorkspaceProvider>
   }
   if (!isSupabaseServerConfigured()) redirect("/login?error=auth_configuration")
-  const client = await createCourseContextServerClient()
+  const client = await createAcornServerClient()
   const { data } = await client.auth.getUser()
   if (!data.user) redirect("/login")
   const record = await loadWorkspaceRecordForUser(client, data.user.id)

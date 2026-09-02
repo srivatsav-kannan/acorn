@@ -5,13 +5,13 @@ import { buildIcs } from "@/domain/ics"
 import { checkPlan } from "@/domain/planner"
 import { searchWorkspace } from "@/domain/search"
 import { exportBlocks } from "@/webmcp/export"
-import { createCourseContextTools } from "@/webmcp/tools"
+import { createAcornTools } from "@/webmcp/tools"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 const session = { userId: "USER-DEMO", workspaceId: "WORKSPACE-DEMO", actor: { type: "agent" as const, id: "AGENT-TEST" } }
 const buildTools = (repository: MemoryWorkspaceRepository) =>
-  createCourseContextTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z") })
-const findTool = (tools: ReturnType<typeof createCourseContextTools>, name: string) => tools.find((tool) => tool.name === name)!
+  createAcornTools({ repository, session, now: () => new Date("2026-08-29T12:00:00Z") })
+const findTool = (tools: ReturnType<typeof createAcornTools>, name: string) => tools.find((tool) => tool.name === name)!
 
 describe("the undo tool", () => {
   it("reverses an agent mutation by receipt and records the undo in the ledger", async () => {

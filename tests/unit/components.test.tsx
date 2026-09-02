@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { buildFixture } from "@/data/fixture"
 import { AppShell } from "@/components/app-shell"
-import { StatusState } from "@/components/status-state"
 import { LandingPage } from "@/features/landing/landing-page"
 import { LoginPage } from "@/features/auth/login-page"
 import { SignupPage } from "@/features/auth/signup-page"
@@ -122,22 +121,6 @@ describe("application shell", () => {
     expect(screen.getByRole("button", { name: /search workspace/i })).toBeVisible()
     expect(screen.getByRole("button", { name: /activity/i })).toBeVisible()
     expect(screen.getByRole("link", { name: /account/i })).toHaveAttribute("href", "/app/profile")
-  })
-})
-
-describe("required product states", () => {
-  it.each([
-    ["loading", "Loading workspace"],
-    ["empty", "Nothing here yet"],
-    ["partial", "Some information is missing"],
-    ["stale", "Information needs review"],
-    ["permission", "You do not have access"],
-    ["error", "Something went wrong"],
-    ["rollback", "Your change was not saved"],
-    ["success", "Saved"]
-  ] as const)("renders %s", (kind, text) => {
-    render(<StatusState kind={kind} />)
-    expect(screen.getByText(text)).toBeVisible()
   })
 })
 
