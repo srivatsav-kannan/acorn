@@ -2,7 +2,7 @@
 
 ## Mission
 
-Build and evaluate CourseContext, an agent-native academic planning workspace in which a student and an AI agent create evidence-backed course plans together. The first release is a Stanford next-quarter planner for the 2026 WebMCP Challenge. The architecture may generalize later, but the challenge implementation must stay narrow and complete.
+Build and evaluate Acorn, an academic planning workspace that a Stanford student and an AI agent share. The shipped release plans every quarter from entry to graduation for the 2026 WebMCP Challenge. The architecture may generalize to other universities later, but every claim in the repository must describe what is running.
 
 ## Required reading
 
@@ -12,22 +12,21 @@ Before changing architecture, product scope, or the WebMCP tool surface, read:
 - `CONTEXT.md`
 - `ARCHITECTURE.md`
 - `docs/product-brief.md`
-- `docs/challenge-plan.md`
-- `docs/implementation-plan.md`
+- `docs/decisions/0001-application-stack.md`
 
 Update these documents when a decision materially changes the product or submission story.
 
 ## Product rules
 
 - WebMCP must be central to the experience, not a decorative wrapper around ordinary UI automation.
-- Build one polished next-quarter planning workflow before considering four-year plans or additional universities.
+- Keep the Stanford workflow complete before adding universities. Other schools are represented honestly as agent-built adapters until real data ships.
 - The human-facing UI and WebMCP tools must call the same domain operations and observe the same state.
 - Every safe planning, context, organization, and presentation action available to the agent must also have a visible human affordance. Account security and consequential external submissions remain human-controlled.
 - Agents work through semantic application operations. Do not give them arbitrary source-code, SQL, filesystem, HTML, CSS, or JavaScript access as part of the product experience.
 - The agent must search persistent workspace context before external research. Useful new research must be saved into a visible, editable workspace object with provenance.
 - Treat information management at the UI layer as the central feature. Notes, sources, people, clubs, tasks, ideas, decisions, and scratch documents are first-class domain objects rather than chat residue.
 - Preserve human control. Agents may propose and edit plans, but the challenge release must not enroll, submit, purchase, message, or perform another consequential external action.
-- Do not present CourseContext as an official Stanford service or a replacement for academic advising.
+- Do not present Acorn as an official Stanford service or a replacement for academic advising.
 - Show uncertainty, conflicts, and missing information explicitly.
 - Recommendations must remain inspectable: include rationale, alternatives, affected constraints, and supporting evidence.
 
@@ -56,8 +55,6 @@ Update these documents when a decision materially changes the product or submiss
 
 ## Interface and writing rules
 
-- When working on Srivatsav's local machine, read `~/SRIVATSAV_MODEL_CONTEXT.md` if it is available before making material product, copy, or interface decisions. Never copy private profile content into this repository.
-- When the local UPRound `startup-prediction/web` codebase is available, use it as a quality reference for deliberate hierarchy, flat surfaces, hairline structure, typography, responsive navigation, loading states, failure states, and plain-language copy. Do not copy the UPRound brand.
 - The interface must feel intentionally designed for academic planning. It must not resemble a generic generated dashboard, chat wrapper, analytics template, or component-library demo.
 - Reject any interface that reads as vibecoded. Every layout, label, state, and interaction must have a clear product reason.
 - Use one restrained accent, neutral paper and ink surfaces, purposeful borders, limited elevation, and strong typographic hierarchy.
@@ -77,7 +74,7 @@ Update these documents when a decision materially changes the product or submiss
 - Test domain operations independently from the UI and WebMCP registration layer.
 - Add tests for tool schemas, tool discovery, read operations, mutations, validation failures, action receipts, and rollback behavior.
 - Add one browser-level happy path and one recovery path for the exact demo story.
-- Keep secrets out of source control. Provide `.env.example` only if configuration becomes necessary.
+- Keep secrets out of source control. Keep `.env.example` current with every variable the app or its scripts read.
 - Put generated output, recordings, and temporary research under ignored directories unless intentionally committed as fixtures.
 - Use focused commits without AI authorship trailers.
 

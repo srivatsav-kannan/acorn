@@ -8,59 +8,47 @@ The result is repetitive research, missed prerequisites, weak backup plans, forg
 
 ## Product
 
-CourseContext is a shared decision workspace for a student and an AI agent. The student works through a visual schedule, preferences, and plan comparisons. The agent works through semantic WebMCP tools that query and mutate the same application state.
+Acorn is a planning workspace for a Stanford student and an AI agent. The student works through a calendar, the plan for every quarter to graduation, clubs and commitments, and a scratchpad. The agent works through twenty-two semantic WebMCP tools that read and edit the same workspace state.
 
-The system stores six connected models:
+One workspace snapshot holds everything both participants touch:
 
-1. **Student context**: goals, completed courses, programs, interests, time constraints, and workload preferences.
-2. **Evidence**: sourced academic facts, experiential information, inference, and user-provided claims.
-3. **Plan scenarios**: courses, sections, units, schedule, requirement coverage, backups, and checks.
-4. **Decision ledger**: rationale, tradeoffs, risks, alternatives, and unresolved questions.
-5. **Library**: notes, scratch documents, links, people, clubs, tasks, ideas, and questions that persist outside the schedule.
-6. **Views**: product-native layouts that the student or agent can configure around the current task.
+1. **Student context**: name, the two timeline dates, preferences, protected hours, and structured academic history including AP, IB, and transfer credit.
+2. **Plans**: one per quarter, with courses, chosen sections, units, scenarios, backups, and commitments.
+3. **Goals and todos**: the current goal with its milestones, and dated todos.
+4. **Events and activities**: standalone timed events and recurring commitments such as clubs, work, and research.
+5. **Context items and research**: notes, people, decisions, questions, links, and sourced research, all on the scratchpad.
+6. **Reference overlay**: courses, sections, programs, and directory entries the agent adds or corrects, labeled and removable.
+7. **The ledger**: every change with its actor, human or agent, and the receipt that undoes it.
 
-Every safe domain action available through WebMCP also has a visible human interface. Both participants search and update the same records through the same domain operations.
+Every change an agent makes lands in the same state the interface renders, through the same validated command as a click.
 
 ## Primary job
 
-When planning an upcoming quarter, help a student turn an underspecified goal into two defensible schedule options without manually reconstructing information across many sites.
+Turn a student's underspecified goal into a defensible schedule for the coming quarter, and keep the plan for later quarters honest as facts change, without the student reconstructing information across many sites.
 
-## Demo persona
+## Judging persona
 
-The initial demo should use a fictional Stanford student whose goal contains multiple interacting constraints, such as:
-
-- make progress toward a declared or prospective program.
-- explore one adjacent interest.
-- remain below a unit ceiling.
-- avoid a day or time window.
-- preserve time for research or another commitment.
-- include a backup for a course with uncertain availability.
-
-No real transcript or private student record should be used.
+The shared workspace belongs to Julia Reyes, a fictional first-year interested in public policy, political science, and ballet, with a work-study block on Fridays. Her workspace carries both her own edits and her agent's, so the ledger shows the collaboration. Details are in `submission/demo-profile.md`. No real transcript or private student record is used anywhere.
 
 ## Human-agent collaboration loop
 
-1. The human states or edits goals in the visible workspace.
-2. The agent searches the persistent workspace and retrieves only the relevant student and institutional context.
-3. When context is missing or stale, the agent researches a public source and saves the useful result into the visible Library and related object views.
-4. The agent builds candidate plans from the updated context.
-5. Deterministic checks identify conflicts and violations.
-6. The UI presents schedules, rationale, evidence, and uncertainty side by side.
-7. The human changes a course, note, source, or priority directly.
-8. The agent sees the new state and revalidates only affected decisions.
-9. The human accepts a plan as a personal planning artifact, not an official enrollment action.
+1. The student states or edits a goal on the scratchpad.
+2. The agent reads the workspace before researching anything external.
+3. When context is missing, the agent researches a public source and saves the result as a visible source card with provenance.
+4. The agent builds the quarter from real catalog sections and checks it deterministically.
+5. The interface shows the schedule, the conflicts, and the reasoning side by side.
+6. The student changes a course, a note, or a commitment directly.
+7. The agent sees the new state on its next read and repairs only what the change affected.
+8. Enrollment stays with the university's own system.
 
-## Initial success criteria
+## Success criteria, as shipped
 
-- A model can complete the demo through WebMCP without operating low-level page controls.
-- The human can understand why every course was recommended.
-- A direct UI change is visible to the agent on its next read.
-- At least one constraint violation is detected deterministically.
-- At least one uncertain claim is displayed as uncertain rather than asserted as fact.
-- At least one missing fact is researched by the agent and saved into a normal, editable product object.
-- The human can create and organize the same kinds of context objects as the agent.
-- The same task requires materially more interaction through a UI-only baseline.
+- An agent completes the whole flow through the tools without operating low-level page controls.
+- A direct interface change is visible to the agent on its next read, and the reverse.
+- Conflicts, prerequisite gaps, and unit overloads are detected deterministically, never inferred by a model.
+- Every agent change is attributed, visible, and undoable from the ledger.
+- The student can create the same kinds of context objects as the agent.
 
 ## Expansion path
 
-After the challenge, separate institution adapters can normalize public catalogs and requirements into a common evidence model. Expansion is conditional on proving the Stanford workflow first.
+After the challenge, other universities arrive as agent-built adapters: a student names their school, and their agent constructs its reference layer through `extend_reference` from official sources, labeled and removable until curated.

@@ -6,7 +6,7 @@ Date: 2026-08-27
 
 ## Decision
 
-Use Next.js 16 with React 19 and TypeScript for the application. Keep domain logic in framework-independent modules. Use Zod for all external and command boundaries.
+Use Next.js 16 with React 19 and TypeScript for the application. Keep domain logic in framework-independent modules. Validate every external and command boundary with hand-written checks in the domain layer and closed JSON Schemas on the tool surface, with no schema library between them.
 
 Use a repository interface with two execution modes:
 
@@ -46,7 +46,6 @@ Versions are locked in `package-lock.json`. The initial compatibility baseline i
 - Next.js 16.3
 - React 19.2
 - TypeScript 5
-- Zod 4
 - Vitest 4
 - Playwright 1.62
 
@@ -73,5 +72,4 @@ The product needs a specific academic planning interface. A broad component libr
 - Every domain operation must run against server persistence and the deterministic test adapter.
 - Adapter contract tests are required, plus one live hosted demo acceptance journey.
 - Fixture-mode browser results cannot be described as live Supabase verification.
-- Production OAuth cannot be called verified until real credentials and a deployed callback are tested.
-- The challenge demo requires the Supabase project, demo migration, and permanent demo Auth user to be healthy.
+- The challenge demo requires the Supabase project, migrations 0001 to 0004, and the shared demo Auth user to be healthy.
