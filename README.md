@@ -37,7 +37,7 @@ Write tools require the workspace version they started from, so an agent holding
 For a browser that does not expose WebMCP yet, the repository includes a bridge that provides the same connection from a terminal:
 
 ```bash
-node scripts/agent-bridge.mjs --url http://127.0.0.1:3000/app
+node scripts/bridge/agent-bridge.mjs --url http://127.0.0.1:3000/app
 ```
 
 It launches a Chromium with `document.modelContext` installed before the page loads, signs in with the demo credentials from the environment, and serves whatever the page registered over `http://127.0.0.1:4571`:
@@ -62,7 +62,7 @@ npm install
 npm run dev
 ```
 
-Create `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from a Supabase project, and apply the migrations in `supabase/migrations/` as described in [the setup guide](supabase/README.md). A shared demo account exists for judging, and its credentials travel with the challenge submission rather than the repository. The optional `COURSE_CONTEXT_DEMO_EMAIL` and `COURSE_CONTEXT_DEMO_PASSWORD` variables identify that account for the agent bridge login. `SUPABASE_SERVICE_ROLE_KEY` is read only by `scripts/admin-create-users.mjs`, which creates pre-confirmed accounts, and never by the app.
+Create `.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from a Supabase project, and apply the migrations in `supabase/migrations/` as described in [the setup guide](supabase/README.md). A shared demo account exists for judging, and its credentials travel with the challenge submission rather than the repository. The optional `COURSE_CONTEXT_DEMO_EMAIL` and `COURSE_CONTEXT_DEMO_PASSWORD` variables identify that account for the agent bridge login. `SUPABASE_SERVICE_ROLE_KEY` is read only by `scripts/accounts/admin-create-users.mjs`, which creates pre-confirmed accounts, and never by the app.
 
 [ARCHITECTURE.md](ARCHITECTURE.md) describes the routes, the workspace model, the command path, and the tool surface in detail.
 

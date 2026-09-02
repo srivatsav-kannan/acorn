@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildPersonalWorkspace } from "@/data/personal-workspace"
+import { buildPersonalWorkspace } from "@/data/workspace/personal-workspace"
 import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { AcornMark, AcornSquirrelMark } from "@/components/icons"
-import { Reveal } from "@/components/reveal"
+import { Reveal } from "@/components/shell/reveal"
 import { UseCaseCarousel } from "@/features/landing/use-case-carousel"
 import { stanfordCatalogMeta } from "@/data/institutions/stanford"
 

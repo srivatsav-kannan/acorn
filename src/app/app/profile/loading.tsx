@@ -1,3 +1,3 @@
-import { PanelSkeleton } from "@/components/skeletons"
+import { PanelSkeleton } from "@/components/shell/skeletons"
 
 export default function Loading() { return <PanelSkeleton /> }

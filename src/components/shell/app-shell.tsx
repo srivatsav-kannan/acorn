@@ -1,0 +1,128 @@
+"use client"
+
+import { useEffect, useState, type ReactNode } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import type { ActivityEntry } from "@/domain/workspace/types"
+import { mergedOpportunities } from "@/domain/workspace/reference"
+import { searchWorkspace } from "@/domain/workspace/search"
+import { institutionForWorkspace } from "@/data/institutions/registry"
+import { parseTermId, termLabel } from "@/domain/planning/timeline"
+import { useOptionalWorkspace } from "@/components/workspace-provider"
+import { AcornSquirrelMark, ExploreFill, NoteFill, PlanFill, ProfileFill, ProgramsFill, SearchIcon, TogetherFill } from "@/components/icons"
+
+// One top bar, five tabs, and the tab you are on is unmistakably lit.
+const navigation = [
+  ["Calendar", "/app", "calendar"],
+  ["Academics", "/app/academics", "academics"],
+  ["Activities", "/app/activities", "activities"],
+  ["Scratchpad", "/app/scratchpad", "scratchpad"],
+  ["Collaborate", "/app/collaborate", "collaborate"]
+] as const
+
+const mobileGlyph = (key: string) => {
+  if (key === "scratchpad") return <NoteFill />
+  if (key === "calendar") return <PlanFill />
+  if (key === "academics") return <ProgramsFill />
+  if (key === "activities") return <TogetherFill />
+  if (key === "collaborate") return <ExploreFill />
+  return <ProfileFill />
+}
+
+const pageForPath = (pathname: string | null) => {
+  if (!pathname) return "calendar"
+  if (pathname.startsWith("/app/academics")) return "academics"
+  if (pathname.startsWith("/app/activities")) return "activities"
+  if (pathname.startsWith("/app/scratchpad")) return "scratchpad"
+  if (pathname.startsWith("/app/collaborate")) return "collaborate"
+  if (pathname.startsWith("/app/profile")) return "profile"
+  return "calendar"
+}
+
+export const AppShell = ({ activePage, quarter = "", children, activity, onUndo }: { activePage?: string, quarter?: string, children: ReactNode, activity?: ActivityEntry[], onUndo?: (receiptId: string) => void }) => {
+  const [activityOpen, setActivityOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [veil, setVeil] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [mobile, setMobile] = useState(false)
+  const pathname = usePathname()
+  const workspaceValue = useOptionalWorkspace()
+  const activeKey = activePage ?? pageForPath(pathname)
+  const activityEntries = activity ?? workspaceValue?.workspace.activity ?? []
+  // The frontier rule: only the newest not-yet-undone action offers Undo, so
+  // reversing it can never silently erase later committed work.
+  const frontierReceiptId = [...activityEntries].reverse().find((entry) => entry.undoAvailable && !entry.undoneAt)?.receiptId
+  const handleUndo = onUndo ?? workspaceValue?.undo
+  const quarterLabel = workspaceValue ? (parseTermId(workspaceValue.workspace.currentTermId) ? termLabel(workspaceValue.workspace.currentTermId) : "Current term") : quarter
+  const initials = workspaceValue?.workspace.profile.name.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || workspaceValue?.userEmail?.[0]?.toUpperCase() || "AC"
+  const searchResults = workspaceValue && searchQuery.trim() ? searchWorkspace(workspaceValue.workspace, workspaceValue.catalog, searchQuery, mergedOpportunities(institutionForWorkspace(workspaceValue.workspace).buildOpportunities(), workspaceValue.workspace.referenceOverlay?.opportunities)) : null
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const media = window.matchMedia("(max-width: 900px)")
+    const update = () => setMobile(media.matches)
+    update()
+    media.addEventListener("change", update)
+    return () => media.removeEventListener("change", update)
+  }, [])
+  // A commit that takes real time gets a visible veil: the page dims, a
+  // spinner names what is happening, and clicks wait instead of stacking
+  // more mutations behind the one in flight. Sub-350ms saves never flash it.
+  const saveState = workspaceValue?.saveState
+  useEffect(() => {
+    if (saveState !== "saving") {
+      const timer = window.setTimeout(() => setVeil(false), 0)
+      return () => window.clearTimeout(timer)
+    }
+    const timer = window.setTimeout(() => setVeil(true), 350)
+    return () => window.clearTimeout(timer)
+  }, [saveState])
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+      if (event.key === "Escape") setSearchOpen(false)
+    }
+    window.addEventListener("keydown", handleShortcut)
+    return () => window.removeEventListener("keydown", handleShortcut)
+  }, [])
+  const resultHref = (type: string) => type === "courses" ? "/app/academics" : type === "opportunities" ? "/app/activities" : "/app/scratchpad"
+  return <div className="app-frame">
+    <a className="skip-link" href="#workspace-content">Skip to workspace</a>
+    <header className="topbar">
+      <Link className="wordmark" href="/app" aria-label="Acorn workspace"><AcornSquirrelMark className="wordmark-acorn" />Acorn</Link>
+      <nav className="topbar-tabs" aria-label="Primary">
+        {navigation.map(([name, href, key]) => <Link key={key} className={activeKey === key ? "topbar-tab active" : "topbar-tab"} href={href} aria-current={activeKey === key ? "page" : undefined}>{name}</Link>)}
+      </nav>
+      <div className="topbar-actions">
+        <span className="term-tag">{quarterLabel}</span>
+        {workspaceValue && <span className={`save-indicator ${workspaceValue.saveState}`} aria-live="polite"><i />{workspaceValue.saveState === "saving" ? "Saving" : workspaceValue.saveState === "error" ? "Not saved" : "Saved"}</span>}
+        <button className="quiet-button search-button" type="button" aria-label="Search workspace" onClick={() => setSearchOpen(true)}><SearchIcon width={14} height={14} /><span>Search</span><kbd>⌘K</kbd></button>
+        <button className="topbar-text-button" type="button" onClick={() => setActivityOpen(true)} aria-label="Activity">Activity</button>
+        <Link className={activeKey === "profile" ? "avatar-button active" : "avatar-button"} href="/app/profile" aria-label="Account">{initials}</Link>
+      </div>
+    </header>
+    <main id="workspace-content" className="workspace-main" aria-busy={veil}>{children}{veil && <div className="save-veil" role="status"><span className="save-veil-pill"><AcornSquirrelMark className="save-veil-mark" />Saving your change</span></div>}</main>
+    {mobile && <nav className="mobile-nav" aria-label="Mobile">
+      {[...navigation, ["Profile", "/app/profile", "profile"] as const].map(([name, href, key]) => <Link key={key} className={activeKey === key ? "active" : ""} href={href} aria-label={name}><span aria-hidden="true">{mobileGlyph(key)}</span><span aria-hidden="true">{name}</span></Link>)}
+    </nav>}
+    {activityOpen && <div className="drawer-backdrop" role="presentation" onMouseDown={() => setActivityOpen(false)}>
+      <aside className="activity-drawer" aria-label="Activity panel" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="drawer-heading"><div><h2>Activity</h2></div><button className="icon-button" onClick={() => setActivityOpen(false)} aria-label="Close activity">×</button></div>
+        {activityEntries.length === 0 ? <div className="empty-drawer"><strong>No changes yet</strong><p>Every edit shows up here with who made it and an undo.</p></div> : <ol className="activity-list">
+          {[...activityEntries].reverse().map((entry) => <li key={entry.id}><span className={`actor-dot ${entry.actor.type}`} /><div><strong>{entry.summary}</strong><p>{entry.actor.type === "agent" ? "Agent" : "You"} · just now</p><span>{entry.changed.length} workspace item{entry.changed.length === 1 ? "" : "s"} changed</span></div>{entry.undoneAt && <em className="undone-chip">Undone</em>}{entry.undoAvailable && !entry.undoneAt && handleUndo && entry.receiptId === frontierReceiptId && <button className="text-button" onClick={() => handleUndo(entry.receiptId)}>Undo</button>}</li>)}
+        </ol>}
+      </aside>
+    </div>}
+    {searchOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setSearchOpen(false)}>
+      <section className="workspace-search-modal" role="dialog" aria-modal="true" aria-labelledby="workspace-search-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="workspace-search-field"><SearchIcon width={17} height={17} /><input autoFocus aria-label="Search courses, notes, people, and programs" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search courses, notes, clubs, and everything else"/><button className="icon-button" type="button" onClick={() => setSearchOpen(false)} aria-label="Close search">×</button></div>
+        <h2 id="workspace-search-title" className="sr-only">Workspace search</h2>
+        {!searchQuery.trim() && <div className="search-empty"><strong>Search everything</strong><p>Courses, notes, people, clubs, and sources.</p></div>}
+        {searchResults?.groups.map((group) => <section className="search-result-group" key={group.type}><h3>{group.type}</h3>{group.items.map((item) => <Link href={resultHref(group.type)} key={item.id} onClick={() => setSearchOpen(false)}><strong>{item.title}</strong><span>{item.summary}</span></Link>)}</section>)}
+        {searchResults && !searchResults.sufficient && <div className="search-gap" role="status"><strong>No durable match yet</strong><p>{searchResults.gaps[0]}</p><Link href="/app" onClick={() => setSearchOpen(false)}>Jot it on the scratchpad</Link></div>}
+      </section>
+    </div>}
+  </div>
+}

@@ -1,3 +1,3 @@
-import { ScratchpadSkeleton } from "@/components/skeletons"
+import { ScratchpadSkeleton } from "@/components/shell/skeletons"
 
 export default function Loading() { return <ScratchpadSkeleton /> }

@@ -50,13 +50,13 @@ API route handlers, each of which re-derives the user from the session cookie be
 
 ## The workspace
 
-One JSON document, typed in `src/domain/types.ts`, holds everything a student and an agent touch: profile and timeline, preferences and protected hours, academic history including AP, IB, and transfer credit, goals with milestones, todos, events, activities, one plan per quarter with scenarios and chosen sections, context items and research on the scratchpad, the reference overlay of agent-added or corrected courses, sections, programs, and directory entries, saved views, and the ledger of receipts.
+One JSON document, typed in `src/domain/workspace/types.ts`, holds everything a student and an agent touch: profile and timeline, preferences and protected hours, academic history including AP, IB, and transfer credit, goals with milestones, todos, events, activities, one plan per quarter with scenarios and chosen sections, context items and research on the scratchpad, the reference overlay of agent-added or corrected courses, sections, programs, and directory entries, saved views, and the ledger of receipts.
 
 The database keeps seven tables, all with row-level security: `users`, `workspaces`, `workspace_memberships`, `terms_acceptances`, `workspace_snapshots`, `workspace_versions`, and `demo_sessions`. The current document is the row in `workspace_snapshots`. Every commit goes through `commit_workspace_snapshot`, which requires the version the caller started from, raises a conflict otherwise, and appends the new document to `workspace_versions`, which nothing can update or delete. Workspace creation runs through a security-definer function that creates the workspace, the owner membership, and the first snapshot atomically. Migrations live in `supabase/migrations/` and are described in `supabase/README.md`.
 
 ## One command path
 
-Every change, from either participant, is a command executed by `src/domain/commands.ts` against the in-memory repository in `src/store/memory-repository.ts`:
+Every change, from either participant, is a command executed by `src/domain/workspace/commands.ts` against the in-memory repository in `src/store/memory-repository.ts`:
 
 1. The caller supplies the command, the version it started from, and an idempotency key.
 2. The command validates its input against the current workspace and applies it, producing a receipt that names the actor, the affected items, and enough to undo it.
@@ -74,13 +74,13 @@ Interface clicks call this path through the provider's `onCommand`. Tool calls c
 
 Reads return concise structured results with stable IDs and the current version. Writes require `expectedVersion` and `idempotencyKey`, return a receipt, and replay the original receipt when a key is reused with the same payload. `export_context` pages the whole workspace out as markdown in sections of about five thousand characters, and `ingest_context` files context handed over from another assistant into the scratchpad. `check_plan` and `suggest_sections` are deterministic: schedule overlap, protected hours, prerequisite sequencing, unit limits, and WAYS coverage come from application code.
 
-The Collaborate tab shows connection status, the tool table, and a copyable first prompt. For browsers without WebMCP, `scripts/agent-bridge.mjs` opens a Chromium with `document.modelContext` installed and serves the registered tools over local HTTP, as described in `README.md`.
+The Collaborate tab shows connection status, the tool table, and a copyable first prompt. For browsers without WebMCP, `scripts/bridge/agent-bridge.mjs` opens a Chromium with `document.modelContext` installed and serves the registered tools over local HTTP, as described in `README.md`.
 
 ## Reference data
 
-`src/data/institutions/` holds the Stanford reference layer: the 2026-2027 catalog of 15,618 courses across 256 departments in `stanford-catalog.json`, imported from the public ExploreCourses feed by `scripts/import-stanford/import-catalog.mjs`, with real section times for the departments that publish them, official registrar dates, AP and IB credit tables, program requirement trees, WAYS designations, and a directory of clubs and research programs. The importer refreshes the JSON from the live feed and falls back to its cache. Agents extend or correct this layer per workspace through `extend_reference`, and the interface shows every amendment against the shipped original.
+`src/data/institutions/` holds the Stanford reference layer: the 2026-2027 catalog of 15,618 courses across 256 departments in `stanford/catalog.json`, imported from the public ExploreCourses feed by `scripts/import-stanford/import-catalog.mjs`, with real section times for the departments that publish them, official registrar dates, AP and IB credit tables, program requirement trees, WAYS designations, and a directory of clubs and research programs. The importer refreshes the JSON from the live feed and falls back to its cache. Agents extend or correct this layer per workspace through `extend_reference`, and the interface shows every amendment against the shipped original.
 
-Timeline math lives in `src/domain/timeline.ts` and `src/domain/degree-plan.ts`: term identity, standing, the current term, units toward degree, and the carry-forward of completed and planned work through every quarter to graduation.
+Timeline math lives in `src/domain/planning/timeline.ts` and `src/domain/planning/degree-plan.ts`: term identity, standing, the current term, units toward degree, and the carry-forward of completed and planned work through every quarter to graduation.
 
 ## Authentication and protection
 
@@ -103,19 +103,43 @@ The profile page changes a password only after proving the current one with a si
 ## Repository map
 
 ```text
-src/app/              routes, route handlers, global styles
-src/components/       app shell, workspace provider, icons
-src/features/         one folder per screen: landing, auth, onboarding, calendar,
-                      academics, activities, scratchpad, collaborate, profile
-src/domain/           types, commands, timeline, planner, scheduler, search,
-                      evidence, reference, goals, calendar, views, security
-src/store/            in-memory repository the commands run against
-src/webmcp/           tool definitions, registration, markdown export
-src/data/             Stanford reference layer, personal-workspace builder, test fixture
-src/lib/              Supabase clients, redirect guard, workspace loading
-src/proxy.ts          session verification for workspace routes
-supabase/migrations/  schema, policies, functions, and the demo login guard
-scripts/              catalog importer, account scripts, the terminal bridge
-tests/                unit, integration, contracts, evals, browser
-submission/           the Devpost submission, mirrored as markdown
+src/
+  app/                    Next.js routes and route handlers, global styles
+    api/                  onboarding, workspace, account reset, sign-out, demo reset
+    app/                  the workspace tabs, one thin page per feature
+    auth/                 callback and confirm handlers for email links
+    login, signup, forgot-password, reset-password, onboarding
+  components/
+    shell/                top bar, navigation, skeletons, reveal animation
+    workspace-provider    state, persistence, the one mutation gate, tool registration
+    icons                 the marks and glyphs
+  features/               one folder per screen
+    landing, auth, onboarding, calendar, academics, activities,
+    scratchpad, collaborate, profile
+  domain/
+    workspace/            types, commands, context items, goals, history,
+                          evidence, views, search, reference overlay, url guard
+    planning/             planner checks, section scheduler, degree plan,
+                          requirements, timeline, timezone, calendar, ics
+  data/
+    institutions/         registry and types for institution reference packs
+      stanford/           catalog (15,618 courses), academic calendar, AP credit
+    workspace/            the empty personal workspace and the test fixture
+  store/                  in-memory repository the commands run against
+  webmcp/                 tool definitions, registration, markdown export
+  lib/                    Supabase clients, redirect guard, workspace loading
+  proxy.ts                session verification for workspace routes
+supabase/migrations/      schema, policies, functions, the demo login guard
+scripts/
+  import-stanford/        catalog importer with its own cache
+  accounts/               admin account creation and scripted onboarding
+  bridge/                 the terminal bridge for browsers without WebMCP
+tests/
+  unit/                   planning, workspace, data, components
+  integration/            commands end to end against the repository
+  contracts/              tool schemas, migrations, auth rules, source conformance
+  evals/                  agent tool sequences and their harness
+  browser/                Playwright journeys, desktop and mobile
+submission/               the Devpost submission, mirrored as markdown
+docs/                     product brief and the stack decision record
 ```

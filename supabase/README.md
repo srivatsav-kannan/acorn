@@ -9,7 +9,7 @@ Acorn keeps all persistent state in Supabase. Accounts sign up and log in throug
 3. Enable email and password sign-in.
 4. Set the Authentication site URL to the deployed origin. Links sent from the dashboard land there, and the app hands them on to the right page.
 5. Add `http://localhost:3000/**` and the deployed origin with `/**` to the redirect allow list. The app sends reset and confirmation links to `/auth/callback`, and `/auth/confirm` handles email templates that link with a token hash instead of a code.
-6. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the project's API settings. Add `SUPABASE_SERVICE_ROLE_KEY` only if you run `scripts/admin-create-users.mjs`. It never reaches the app or the browser.
+6. Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from the project's API settings. Add `SUPABASE_SERVICE_ROLE_KEY` only if you run `scripts/accounts/admin-create-users.mjs`. It never reaches the app or the browser.
 7. For a shared demo account, sign one up through the app like any other account, confirm its email in the dashboard, and put its credentials in `COURSE_CONTEXT_DEMO_EMAIL` and `COURSE_CONTEXT_DEMO_PASSWORD` so the agent bridge can log in.
 8. Restart the application, then verify signup, onboarding, persistence across reload, the password reset email, and the guarded workspace reset.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { buildFixture } from "@/data/fixture"
+import { buildFixture } from "@/data/workspace/fixture"
 import { createAcornTools } from "@/webmcp/tools"
 import { registerWebMcpTools } from "@/webmcp/register"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"

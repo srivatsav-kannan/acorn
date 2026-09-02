@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { buildFixture } from "@/data/fixture"
-import { executeCommand } from "@/domain/commands"
-import { searchWorkspace } from "@/domain/search"
+import { buildFixture } from "@/data/workspace/fixture"
+import { executeCommand } from "@/domain/workspace/commands"
+import { searchWorkspace } from "@/domain/workspace/search"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 const setup = () => new MemoryWorkspaceRepository(buildFixture())

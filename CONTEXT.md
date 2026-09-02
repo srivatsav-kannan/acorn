@@ -171,7 +171,7 @@ Clubs, research programs, and campus programs ship as a starting directory. Stud
 - Product name: Acorn.
 - Visual identity: editorial academic workspace using paper, ink, cardinal, and restrained elevation, set in Fraunces and Karla.
 - Judging persona: Julia Reyes, a shared account whose credentials travel with the submission.
-- Data posture: the full public ExploreCourses catalog is imported by `scripts/import-stanford/import-catalog.mjs` and committed as `src/data/institutions/stanford-catalog.json`. Rerunning the importer refreshes it.
+- Data posture: the full public ExploreCourses catalog is imported by `scripts/import-stanford/import-catalog.mjs` and committed as `src/data/institutions/stanford/catalog.json`. Rerunning the importer refreshes it.
 - Tool surface: eight read tools and fourteen mutation tools, listed in `README.md` and implemented in `src/webmcp/tools.ts`.
 - Verification: unit, integration, contract, and agent-sequence tests with coverage gates, plus browser journeys with accessibility checks. See `ARCHITECTURE.md`.
 

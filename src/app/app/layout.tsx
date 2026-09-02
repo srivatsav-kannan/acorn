@@ -1,6 +1,6 @@
-import { AppShell } from "@/components/app-shell"
+import { AppShell } from "@/components/shell/app-shell"
 import { WorkspaceProvider } from "@/components/workspace-provider"
-import { buildStanfordCatalog } from "@/data/fixture"
+import { buildStanfordCatalog } from "@/data/workspace/fixture"
 import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 import { cookies } from "next/headers"

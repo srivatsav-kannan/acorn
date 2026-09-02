@@ -1,4 +1,4 @@
-import type { Catalog, Evidence, Opportunity, Program } from "@/domain/types"
+import type { Catalog, Evidence, Opportunity, Program } from "@/domain/workspace/types"
 
 export type InstitutionStatus = "full" | "planned"
 

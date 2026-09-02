@@ -12,7 +12,7 @@ describe("source conformance", () => {
     const roots = ["src"]
     const text = roots.filter((root) => {
       try { return statSync(root).isDirectory() } catch { return false }
-    }).flatMap(filesUnder).filter((file) => /\.(ts|tsx|json|css)$/.test(file) && !file.endsWith("stanford-catalog.json")).map((file) => readFileSync(file, "utf8")).join("\n")
+    }).flatMap(filesUnder).filter((file) => /\.(ts|tsx|json|css)$/.test(file) && !file.endsWith("stanford/catalog.json")).map((file) => readFileSync(file, "utf8")).join("\n")
     expect(text).not.toMatch(/srivatsav|kannan|@stanford\.edu/i)
   })
 

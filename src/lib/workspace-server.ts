@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { WorkspaceState } from "@/domain/types"
+import type { WorkspaceState } from "@/domain/workspace/types"
 
 export type WorkspaceRecord = {
   id: string

@@ -1,8 +1,8 @@
 "use client"
 
 import { format } from "date-fns"
-import type { CalendarEvent } from "@/domain/calendar"
-import type { ProtectedWindow } from "@/domain/types"
+import type { CalendarEvent } from "@/domain/planning/calendar"
+import type { ProtectedWindow } from "@/domain/workspace/types"
 
 // The scheduler-native view: seven day columns against an hour ruler, every
 // timed entry placed at its real height, protected windows shaded underneath,

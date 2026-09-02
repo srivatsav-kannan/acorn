@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react"
 import { addDays, addMonths, format, startOfMonth, subDays } from "date-fns"
 import { useWorkspace } from "@/components/workspace-provider"
-import { calendarEventsForRange, isoDate, type CalendarEvent } from "@/domain/calendar"
-import { buildIcs } from "@/domain/ics"
-import { mergedOpportunities } from "@/domain/reference"
+import { calendarEventsForRange, isoDate, type CalendarEvent } from "@/domain/planning/calendar"
+import { buildIcs } from "@/domain/planning/ics"
+import { mergedOpportunities } from "@/domain/workspace/reference"
 import { institutionForWorkspace } from "@/data/institutions/registry"
-import { standingForTerm, termForDate, timelineFor } from "@/domain/timeline"
-import { CAMPUS_TIMEZONE, convertZonedTime, timezoneChoices, timezoneOffsetLabel } from "@/domain/timezone"
+import { standingForTerm, termForDate, timelineFor } from "@/domain/planning/timeline"
+import { CAMPUS_TIMEZONE, convertZonedTime, timezoneChoices, timezoneOffsetLabel } from "@/domain/planning/timezone"
 import { WeekView } from "@/features/calendar/week-view"
 
 // One continuous calendar from New Student Orientation to commencement. The

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { CUSTOM_INSTITUTION_ID } from "@/data/institutions/registry"
-import { buildPersonalWorkspace } from "@/data/personal-workspace"
+import { buildPersonalWorkspace } from "@/data/workspace/personal-workspace"
 import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 

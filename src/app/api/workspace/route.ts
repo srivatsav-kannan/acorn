@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import type { WorkspaceState } from "@/domain/types"
+import type { WorkspaceState } from "@/domain/workspace/types"
 import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 import { loadWorkspaceRecordForUser } from "@/lib/workspace-server"
 

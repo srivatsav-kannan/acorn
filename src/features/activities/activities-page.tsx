@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
 import { institutionForWorkspace } from "@/data/institutions/registry"
-import { mergedOpportunities, referenceChanges } from "@/domain/reference"
-import type { Activity, Day, Opportunity } from "@/domain/types"
+import { mergedOpportunities, referenceChanges } from "@/domain/workspace/reference"
+import type { Activity, Day, Opportunity } from "@/domain/workspace/types"
 
 // Yours in front, the directory on the rail. One add form covers a club, a
 // job, research, or practice, and can list a new club in the directory in

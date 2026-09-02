@@ -1,4 +1,4 @@
-import type { Fixture, WorkspaceState } from "@/domain/types"
+import type { Fixture, WorkspaceState } from "@/domain/workspace/types"
 
 export class RepositoryError extends Error {
   code: string

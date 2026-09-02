@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { evaluateAgentSequence } from "@/domain/agent-evals"
+import { evaluateAgentSequence } from "./agent-evals"
 
 describe("context-first agent sequences", () => {
   it("accepts an answer grounded entirely in stored context", () => {

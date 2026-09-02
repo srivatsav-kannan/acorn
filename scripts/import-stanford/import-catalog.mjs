@@ -3,7 +3,7 @@
 //
 // Outputs:
 //   data/stanford/catalog-full.json          full fidelity, every department
-//   src/data/institutions/stanford-catalog.json   trimmed build the app bundles
+//   src/data/institutions/stanford/catalog.json  trimmed build the app bundles
 //
 // Per-department XML responses are cached in scripts/import-stanford/.cache so
 // an interrupted run resumes without refetching. Pass --refresh to refetch.
@@ -193,7 +193,7 @@ const main = async () => {
   })
   const payload = { meta, courses: trimmed }
   const json = JSON.stringify(payload)
-  await writeFile(join(root, "src", "data", "institutions", "stanford-catalog.json"), json)
+  await writeFile(join(root, "src", "data", "institutions", "stanford", "catalog.json"), json)
   console.log(`bundled catalog: ${trimmed.length} courses, ${(json.length / 1024 / 1024).toFixed(2)} MB`)
 }
 

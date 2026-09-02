@@ -1,9 +1,9 @@
-import { calendarEventsForRange, isoDate } from "@/domain/calendar"
-import { meetingComponent } from "@/domain/planner"
-import { goalContentOf } from "@/domain/goals"
-import { creditCategory } from "@/domain/history"
-import { standingForTerm, supportsTimeline, termLabel, timelineFor } from "@/domain/timeline"
-import type { Catalog, Opportunity, WorkspaceState } from "@/domain/types"
+import { calendarEventsForRange, isoDate } from "@/domain/planning/calendar"
+import { meetingComponent } from "@/domain/planning/planner"
+import { goalContentOf } from "@/domain/workspace/goals"
+import { creditCategory } from "@/domain/workspace/history"
+import { standingForTerm, supportsTimeline, termLabel, timelineFor } from "@/domain/planning/timeline"
+import type { Catalog, Opportunity, WorkspaceState } from "@/domain/workspace/types"
 
 // The bulk context pipe. Markdown compresses well in a model's context and
 // mixes structure with prose notes naturally, so the export is a sequence of

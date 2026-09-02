@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildPersonalWorkspace } from "@/data/personal-workspace"
+import { buildPersonalWorkspace } from "@/data/workspace/personal-workspace"
 import { createAcornServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server"
 
 // The database's reset_demo_workspace function is the real guard; this check

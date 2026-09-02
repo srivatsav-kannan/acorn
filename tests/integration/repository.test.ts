@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildFixture } from "@/data/fixture"
+import { buildFixture } from "@/data/workspace/fixture"
 import { MemoryWorkspaceRepository } from "@/store/memory-repository"
 
 describe("demo repository isolation", () => {

@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
-import { goalContentOf } from "@/domain/goals"
-import { degreeOptions } from "@/domain/timeline"
-import type { ContextItem } from "@/domain/types"
+import { goalContentOf } from "@/domain/workspace/goals"
+import { degreeOptions } from "@/domain/planning/timeline"
+import type { ContextItem } from "@/domain/workspace/types"
 
 // The context layer. Anything that has no structured home lands here first:
 // stray thoughts, overheard opportunities, language background, half-plans.

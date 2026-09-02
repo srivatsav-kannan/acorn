@@ -1,6 +1,6 @@
 import { stanfordInstitution } from "@/data/institutions/stanford"
 import type { InstitutionPlaceholder, InstitutionReference } from "@/data/institutions/types"
-import type { WorkspaceState } from "@/domain/types"
+import type { WorkspaceState } from "@/domain/workspace/types"
 
 export const CUSTOM_INSTITUTION_ID = "INSTITUTION-CUSTOM"
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
-import { defaultGraduationTerm, parseTermId, termId, termLabel, timelineFor } from "@/domain/timeline"
+import { defaultGraduationTerm, parseTermId, termId, termLabel, timelineFor } from "@/domain/planning/timeline"
 import { createAcornBrowserClient } from "@/lib/supabase/browser"
 
 // Login details live in Supabase Auth, not in the workspace, so this card

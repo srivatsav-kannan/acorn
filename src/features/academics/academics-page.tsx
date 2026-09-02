@@ -2,15 +2,15 @@
 
 import { useDeferredValue, useMemo, useState } from "react"
 import { useWorkspace } from "@/components/workspace-provider"
-import { apExamPresets, apGrantFor, apScoreChoices, ibExamPresets, ibScoreChoices } from "@/data/institutions/stanford-ap"
-import { creditCategory } from "@/domain/history"
+import { apExamPresets, apGrantFor, apScoreChoices, ibExamPresets, ibScoreChoices } from "@/data/institutions/stanford/ap-credit"
+import { creditCategory } from "@/domain/workspace/history"
 import { institutionForWorkspace } from "@/data/institutions/registry"
-import { evaluateDegreePlan, planForTerm } from "@/domain/degree-plan"
-import { checkPlan, meetingComponent } from "@/domain/planner"
-import { referenceChanges } from "@/domain/reference"
-import { searchCourses } from "@/domain/search"
-import { termLabel, termSequence, timelineFor } from "@/domain/timeline"
-import type { Course, Meeting, Section } from "@/domain/types"
+import { evaluateDegreePlan, planForTerm } from "@/domain/planning/degree-plan"
+import { checkPlan, meetingComponent } from "@/domain/planning/planner"
+import { referenceChanges } from "@/domain/workspace/reference"
+import { searchCourses } from "@/domain/workspace/search"
+import { termLabel, termSequence, timelineFor } from "@/domain/planning/timeline"
+import type { Course, Meeting, Section } from "@/domain/workspace/types"
 
 const shortTermLabel = (termId: string) => termLabel(termId).replace("Autumn", "Aut").replace("Winter", "Win").replace("Spring", "Spr").replace("Summer", "Sum")
 
